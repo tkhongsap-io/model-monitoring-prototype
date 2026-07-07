@@ -7,6 +7,7 @@ import { useApi } from "@/lib/sim";
 
 const HEALTH_COLOR: Record<string, string> = { Green: "#00A66C", Amber: "#FFB000", Red: "#E60012", Unknown: "#8A8F98" };
 const SLICE_COLORS = ["#0f172a", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#1e40af", "#0e7490", "#7c3aed", "#b45309", "#166534", "#9f1239", "#475569"];
+const EMPTY_ROWS: any[] = [];
 
 function PortfolioInner() {
   const router = useRouter();
@@ -18,7 +19,7 @@ function PortfolioInner() {
     return init;
   });
   const data = useApi<any>("/api/registry");
-  const all = data?.rows || [];
+  const all = data?.rows || EMPTY_ROWS;
 
   const slices: { key: string; label: string; color?: (v: string) => string }[] = [
     { key: "status", label: "Lifecycle" },

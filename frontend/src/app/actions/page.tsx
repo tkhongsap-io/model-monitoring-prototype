@@ -2,7 +2,7 @@
 /** View 6 — Action Queue (PRD D.6): every Red becomes an owned, dated action;
  * §11 per-severity breach behaviour; nothing silently slips. */
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ScrollBox, Td, Th } from "@/components/ui";
 import { useApi, useSim } from "@/lib/sim";
 
@@ -59,7 +59,7 @@ export default function Actions() {
             <thead><tr><Th>Pri</Th><Th>Action</Th><Th>Use case</Th><Th>Issue</Th><Th>Recommended action</Th><Th>Owner</Th><Th>Due</Th><Th>Escalation</Th><Th>Status</Th></tr></thead>
             <tbody>
               {rows.map((a: any) => (
-                <>
+                <Fragment key={a.action_id}>
                   <tr key={a.action_id}
                     className={`cursor-pointer hover:bg-slate-50 ${a.escalated ? "border-l-4 border-l-[#E60012]" : ""}`}
                     onClick={() => setExpanded(expanded === a.action_id ? null : a.action_id)}>
@@ -117,7 +117,7 @@ export default function Actions() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
