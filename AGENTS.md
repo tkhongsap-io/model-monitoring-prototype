@@ -10,7 +10,7 @@ A **simulation-first demo web app** that simulates AI model monitoring (one LLM 
 
 **`docs/PRD.md` is authoritative.** It is a self-contained v1.0 PRD (canon thin-contract style): §1–§12 are the contract, Appendices A–G carry the detail (A simulation & scenarios · B registry data model & seeds · C thresholds & SLA · D the 7 views · E architecture/API/repo skeleton · F demo script · G enterprise-swap). Build to it. If something seems missing, it is almost certainly in an appendix — check before inventing.
 
-**Do not build ahead of the PRD.** Follow its milestones **M0 → M3** and its P0/P1/P2 requirement priorities. When a decision isn't in the PRD, ask rather than guess; `[TBC]` markers are unresolved on purpose — don't silently resolve them.
+**The prototype is BUILT** (M0–M3 complete; 20/20 tests incl. the C1–C9 golden calibration). Changes must keep the test suite green and follow the PRD's P0/P1/P2 priorities. When a decision isn't in the PRD, ask rather than guess; `[TBC]` markers are unresolved on purpose — don't silently resolve them.
 
 ## The reference implementation
 
