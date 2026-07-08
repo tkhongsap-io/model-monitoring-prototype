@@ -58,16 +58,43 @@ def _status_counts(rows: list[dict]) -> dict:
     return c
 
 
+def _registry_num(row: dict) -> int:
+    return int(row["registry_id"].split("P")[-1])
+
+
+def _monitoring_readiness(row: dict) -> str:
+    n = _registry_num(row)
+    if n <= 2:
+        return "deep_simulated"
+    if n <= 15:
+        return "pilot_register_only"
+    return "not_instrumented"
+
+
 @router.get("/summary")
 def summary():
     rows = _registry_now()
     p = player().payload() or {}
-    pilot = [r for r in rows if int(r["registry_id"].split("P")[-1]) <= 15]
+    pilot = [r for r in rows if _registry_num(r) <= 15]
     overall = {"Green": 0, "Amber": 0, "Red": 0, "Unknown": 0}
     for r in pilot:
         overall[r.get("current_health", "Unknown")] = overall.get(r.get("current_health", "Unknown"), 0) + 1
     hi_missing = sum(1 for r in rows if r.get("risk_tier") == "High" and r.get("status") == "production"
                      and any(r.get(k) != v for k, v in APPROVED.items()))
+    portfolio_map = [
+        {
+            "registry_id": r["registry_id"],
+            "use_case_name": r["use_case_name"],
+            "current_health": r.get("current_health", "Unknown"),
+            "status": r.get("status", "Unknown"),
+            "risk_tier": r.get("risk_tier", "Unknown"),
+            "monitoring_readiness": _monitoring_readiness(r),
+        }
+        for r in sorted(rows, key=_registry_num)
+    ]
+    readiness_counts = {"deep_simulated": 0, "pilot_register_only": 0, "not_instrumented": 0}
+    for r in portfolio_map:
+        readiness_counts[r["monitoring_readiness"]] += 1
     return {
         "as_of_tick": player().tick, "date": p.get("date"),
         "use_case_count": len(rows),
@@ -78,6 +105,8 @@ def summary():
         "pilot_count": len(pilot),
         "pilot": [{"registry_id": r["registry_id"], "use_case_name": r["use_case_name"],
                    "current_health": r.get("current_health", "Unknown")} for r in pilot],
+        "portfolio_map": portfolio_map,
+        "readiness_counts": readiness_counts,
         "open_actions": p.get("summary", {}).get("open_actions", 0),
         "critical_actions": p.get("summary", {}).get("critical_actions", 0),
         "sla_breaches": p.get("summary", {}).get("sla_breaches", 0),
