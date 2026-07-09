@@ -1,0 +1,1 @@
+- [FastAPI backend service wiring](backend-python-service.md) — venv, one-pass pinned pip install, 64-bit libgomp probe, artifact cwd quirks, demo DB bake/reset.
