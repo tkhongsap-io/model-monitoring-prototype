@@ -11,9 +11,9 @@ import uuid
 
 from .. import config, db
 from ..adapters.base import TickContext
-from ..adapters.explain.lime_shap import LimeShapAdapter
+from ..adapters.explain.lime_shap import make_explain
 from ..adapters.llm_eval.judge import make_llm_eval
-from ..adapters.ml_monitor.evidently_nannyml import EvidentlyNannyMLAdapter
+from ..adapters.ml_monitor.evidently_nannyml import make_ml_monitor
 from ..engines import actions as act
 from ..engines import health
 from .source import YamlScenarioSource
@@ -54,8 +54,10 @@ def bake(scenario_id: str = MASTER, seed: int | None = None, log=print) -> dict:
     writer = _artifact_writer_factory(MASTER)
 
     log(f"[bake] {MASTER} seed={seed} ticks={script.ticks} — initializing ML world…")
-    world = EvidentlyNannyMLAdapter(seed, src.churn, writer)
-    explainer = LimeShapAdapter(seed, world, writer)
+    # factories with the seeded impl PINNED by name → golden bake byte-identical
+    # regardless of env (only the live runner reads config.*_ADAPTER).
+    world = make_ml_monitor(seed, src.churn, writer, impl="evidently_nannyml")
+    explainer = make_explain(seed, world, writer, impl="lime_shap")
     llm = make_llm_eval(seed, MASTER, P01)
     engine = act.ActionEngine()
 

@@ -191,3 +191,19 @@ class EvidentlyNannyMLAdapter:
                        "realized_pending_reason": pending_reason,
                        "realized_window_tick": lag_t if lag_t in self.windows else None}
         return res
+
+
+def make_ml_monitor(seed: int, cfg: dict, artifact_writer, impl: str | None = None):
+    """Factory for the MLMonitorAdapter (mirrors make_llm_eval, judge.py).
+
+    The baker PINS impl="evidently_nannyml" so the golden bake is byte-identical
+    regardless of env; only the live runner passes impl=config.ML_MONITOR_ADAPTER.
+    """
+    from ... import config
+    impl = (impl or config.ML_MONITOR_ADAPTER or "evidently_nannyml").strip()
+    if impl == "evidently_nannyml":
+        return EvidentlyNannyMLAdapter(seed, cfg, artifact_writer)
+    if impl == "live_http":
+        from .live_http import LiveHttpMLAdapter  # added in Stage 2 (live path)
+        return LiveHttpMLAdapter(seed, cfg, artifact_writer)
+    raise ValueError(f"unknown ML_MONITOR_ADAPTER: {impl!r}")

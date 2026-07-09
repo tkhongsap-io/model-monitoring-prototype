@@ -93,3 +93,19 @@ class LimeShapAdapter:
         else:
             res.errors.setdefault("shap", "shap unavailable or failed")
         return res
+
+
+def make_explain(seed: int, ml_world, artifact_writer, impl: str | None = None):
+    """Factory for the ExplainAdapter (mirrors make_llm_eval, judge.py).
+
+    The baker PINS impl="lime_shap" so the golden bake is byte-identical regardless
+    of env; only the live runner passes impl=config.EXPLAIN_ADAPTER.
+    """
+    from ... import config
+    impl = (impl or config.EXPLAIN_ADAPTER or "lime_shap").strip()
+    if impl == "lime_shap":
+        return LimeShapAdapter(seed, ml_world, artifact_writer)
+    if impl == "live_http":
+        from .live_http import LiveHttpExplainAdapter  # added in Stage 2 (live path)
+        return LiveHttpExplainAdapter(seed, ml_world, artifact_writer)
+    raise ValueError(f"unknown EXPLAIN_ADAPTER: {impl!r}")
