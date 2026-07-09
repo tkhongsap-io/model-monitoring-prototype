@@ -204,6 +204,9 @@ def make_ml_monitor(seed: int, cfg: dict, artifact_writer, impl: str | None = No
     if impl == "evidently_nannyml":
         return EvidentlyNannyMLAdapter(seed, cfg, artifact_writer)
     if impl == "live_http":
-        from .live_http import LiveHttpMLAdapter  # added in Stage 2 (live path)
-        return LiveHttpMLAdapter(seed, cfg, artifact_writer)
+        # live: cfg carries the model app's base_url + settings (built by the live runner)
+        from .live_http import LiveHttpMLAdapter
+        return LiveHttpMLAdapter(cfg["base_url"], artifact_writer,
+                                 chunk_size=int(cfg.get("chunk_size", 500)),
+                                 model_name=cfg.get("model_name", "telco-churn"))
     raise ValueError(f"unknown ML_MONITOR_ADAPTER: {impl!r}")
