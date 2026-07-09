@@ -1,34 +1,49 @@
-# --- Python ---
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-*.egg-info/
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# --- databases / generated artifacts ---
-*.db
-*.sqlite3
-artifacts/
-reference/artifacts/
-reference/.venv/
-
-# --- Node / Next.js (for the build to come) ---
-node_modules/
-.next/
-out/
-dist/
-build/
-coverage/
+# compiled output
+dist
+tmp
+out-tsc
 *.tsbuildinfo
+.expo
+.expo-shared
 
-# --- env / secrets (NEVER commit) ---
-.env
-.env.*
-!.env.example
+# dependencies
+node_modules
 
-# --- OS / editor ---
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
-*.log
+
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Replit
+.cache/
+.local/
