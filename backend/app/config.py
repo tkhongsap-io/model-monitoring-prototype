@@ -40,6 +40,18 @@ SEEDS_DIR = BACKEND_DIR / "seeds"
 
 DEFAULT_SCENARIO = _env("RAI_DEFAULT_SCENARIO", "DEMO-FULL")
 
+# --- live monitoring (Stage 2+): the monitor PULLS telemetry from external model apps ---
+# Base URLs are operator-configured; the demo still runs fully offline (baked DEMO-FULL)
+# when the model apps aren't up — the live path is only exercised via /api/live/*.
+LIVE_CHURN_URL = _env("LIVE_CHURN_URL", "http://127.0.0.1:8083")
+LIVE_POLL_SECONDS = int(_env("LIVE_POLL_SECONDS", "0"))   # 0 = manual (POST /api/live/tick)
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+LLM_JUDGE_MODEL = _env("LLM_JUDGE_MODEL", "claude-opus-4-8")
+
 
 def langfuse_cloud_configured() -> bool:
     return bool(LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY)
+
+
+def live_enabled() -> bool:
+    return bool(LIVE_CHURN_URL)

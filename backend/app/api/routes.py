@@ -462,6 +462,33 @@ async def events(request: Request):
     return EventSourceResponse(gen())
 
 
+# ------------------------------------------------------------------ live monitoring
+# Separate from the baked scenario player: the monitor PULLS telemetry from external
+# model apps, runs its engines, and grades a LIVE use case. The baked demo is untouched.
+
+from ..scenario.live_runner import live_runner, reset_live_runner  # noqa: E402
+
+
+@router.post("/live/tick")
+async def live_tick():
+    """Observe the next live telemetry window (pull -> Evidently/CBPE/LIME/SHAP -> grade).
+    The adapters do sync HTTP + heavy engine work, so run it off the event loop."""
+    return await anyio.to_thread.run_sync(lambda: live_runner().tick())
+
+
+@router.get("/live/state")
+def live_state():
+    p = live_runner().state()
+    return p or {"use_case_id": "AICT-L01", "mode": "live", "tick": None,
+                 "message": "no live tick yet — POST /api/live/tick"}
+
+
+@router.post("/live/reset")
+def live_reset():
+    reset_live_runner()
+    return {"reset": True}
+
+
 # ------------------------------------------------------------------ dev-only / export
 
 class BakeBody(BaseModel):
