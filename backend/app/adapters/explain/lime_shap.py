@@ -106,6 +106,9 @@ def make_explain(seed: int, ml_world, artifact_writer, impl: str | None = None):
     if impl == "lime_shap":
         return LimeShapAdapter(seed, ml_world, artifact_writer)
     if impl == "live_http":
-        from .live_http import LiveHttpExplainAdapter  # added in Stage 2 (live path)
-        return LiveHttpExplainAdapter(seed, ml_world, artifact_writer)
+        # live: the ml_world slot carries {base_url, model_name} (built by the live runner)
+        from .live_http import LiveHttpExplainAdapter
+        cfg = ml_world
+        return LiveHttpExplainAdapter(cfg["base_url"], artifact_writer,
+                                      model_name=cfg.get("model_name", "telco-churn"), seed=seed)
     raise ValueError(f"unknown EXPLAIN_ADAPTER: {impl!r}")
