@@ -7,18 +7,26 @@ import {
 } from "recharts";
 import { CadenceBadge, GreyChip, HealthChip, ScrollBox, Td, Th, TierBadge } from "@/components/ui";
 import { useApi, useSim } from "@/lib/sim";
+import { useLiveApi } from "@/lib/live";
 
 export default function UseCase() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { state } = useSim();
-  const uc = useApi<any>(`/api/use-cases/${id}`);
-  const isML = id === "AICT-P02";
+  const isLive = !!id?.startsWith("AICT-L");
+  // Only one path fires: never feed an AICT-L0x id through the baked P-id endpoint.
+  const liveUc = useLiveApi<any>(isLive ? `/api/live/use-case/${id}` : "");
+  const bakedUc = useApi<any>(isLive ? "" : `/api/use-cases/${id}`);
+  const uc = isLive ? liveUc : bakedUc;
   const [tab, setTab] = useState(0);
   if (!uc) return <div className="p-8 text-slate-400">Loading…</div>;
+  const isML = uc.lane_kind ? uc.lane_kind === "ml" : (id === "AICT-P02");
+  const isLiveLLM = isLive && uc.lane_kind === "llm";
   const tabs = isML
     ? ["Drift (Evidently)", "Performance (NannyML)", "Explainability (LIME / SHAP)"]
-    : ["Judge scores", "Traces", "Corpus & eval set"];
+    : isLiveLLM
+      ? ["Judge scores"]
+      : ["Judge scores", "Traces", "Corpus & eval set"];
   const deep = (uc.signals || []).length > 0;
 
   return (
@@ -34,7 +42,7 @@ export default function UseCase() {
           <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-white">{uc.status}</span>
           <TierBadge tier={uc.risk_tier} />
           <HealthChip health={uc.current_health} />
-          <GreyChip text={`telemetry: ${uc.telemetry_status}${uc.telemetry_status === "Live" ? " (simulated)" : ""}`} />
+          <GreyChip text={`telemetry: ${uc.telemetry_status}${uc.telemetry_status === "Live" && !isLive ? " (simulated)" : ""}`} />
           <CadenceBadge tier={uc.risk_tier} />
         </div>
         <div className="mt-2 grid gap-x-6 gap-y-0.5 text-xs text-slate-600 md:grid-cols-2">
@@ -83,10 +91,13 @@ export default function UseCase() {
             ))}
           </div>
           <div className="mt-3">
-            {isML ? <MLTabs uc={uc} tab={tab} day={state?.tick ?? 0} /> : <LLMTabs uc={uc} tab={tab} />}
+            {isML ? <MLTabs uc={uc} tab={tab} day={isLive ? (uc.tick ?? 0) : (state?.tick ?? 0)} /> : <LLMTabs uc={uc} tab={tab} />}
           </div>
         </div>
       )}
+
+      {/* NBA offer mix */}
+      {uc.offer_mix && <OfferMixPanel uc={uc} />}
 
       {/* action history */}
       <div className="mt-6">
@@ -128,7 +139,7 @@ function disp(v: number, s: any) {
 
 function Spark({ history, spec }: { history: any[]; spec: any }) {
   const pts = (history || []).filter((h) => h.value !== null);
-  if (pts.length < 2) return <span className="text-slate-300">—</span>;
+  if (pts.length < 2) return <span className="text-[10px] italic text-slate-300">accumulating…</span>;
   const vals = pts.map((p) => p.value);
   const min = Math.min(...vals, spec.red_bar ?? Infinity) * 0.98;
   const max = Math.max(...vals, spec.red_bar ?? -Infinity) * 1.02;
@@ -167,7 +178,11 @@ function MLTabs({ uc, tab, day }: { uc: any; tab: number; day: number }) {
       <p className="mt-1 text-[11px] text-slate-400">Full Evidently report for the current tick · refreshed Day {day}</p>
     </div>
   );
-  if (tab === 1) return (
+  if (tab === 1) return chart.length < 2 ? (
+    <div className="rounded border border-slate-200 bg-slate-50 p-6 text-sm italic text-slate-400">
+      Performance history accumulating… (needs at least 2 observed windows)
+    </div>
+  ) : (
     <div>
       <div className="h-72 w-full rounded border border-slate-200 bg-white p-2">
         <ResponsiveContainer>
@@ -195,7 +210,10 @@ function MLTabs({ uc, tab, day }: { uc: any; tab: number; day: number }) {
   return (
     <div>
       {uc.lime_instance?.index !== undefined && (
-        <p className="mb-2 text-sm">LIME explanation for the highest-risk customer (row {uc.lime_instance.index}, churn probability {(uc.lime_instance.churn_probability * 100).toFixed(0)}%).</p>
+        <p className="mb-2 text-sm">
+          LIME explanation for the highest-risk instance (row {uc.lime_instance.index}
+          {uc.lime_instance.churn_probability != null && <> · predicted probability {(uc.lime_instance.churn_probability * 100).toFixed(0)}%</>}).
+        </p>
       )}
       <div className="grid gap-3 lg:grid-cols-2">
         <div><ArtifactFrame id={uc.artifacts?.lime_html} height={420} /></div>
@@ -219,8 +237,9 @@ function LLMTabs({ uc, tab }: { uc: any; tab: number }) {
   if (tab === 0) return (
     <div>
       <div className="mb-2 rounded border border-slate-300 bg-slate-100 p-2 text-[11px] font-bold text-slate-600">
-        SIMULATED JUDGE — deterministic seeded simulation (count-based hallucination injection + seeded score draws).
-        Offline/simulated only; no live-LLM mode ships in demo scope.
+        {uc.judge
+          ? `LIVE JUDGE — ${uc.judge}. Each sampled turn scored for groundedness, relevance, hallucination and PII.`
+          : "SIMULATED JUDGE — deterministic seeded simulation (count-based hallucination injection + seeded score draws). Offline/simulated only; no live-LLM mode ships in demo scope."}
       </div>
       <ScrollBox>
         <table className="w-full">
@@ -283,6 +302,42 @@ function LLMTabs({ uc, tab }: { uc: any; tab: number }) {
             <div className="text-slate-500">{q.reference} {!q.answerable && <span className="font-bold text-amber-700">· UNANSWERABLE (refusal test)</span>}</div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function OfferMixPanel({ uc }: { uc: any }) {
+  const offers = Object.keys(uc.offer_mix || {});
+  const acc = (uc.signals || []).find((s: any) => typeof s.key === "string" && s.key.includes("acceptance"));
+  return (
+    <div className="mt-6">
+      <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-600">Offer mix vs baseline</h2>
+      <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+        {offers.length === 0 && <div className="text-sm text-slate-400">No offer mix reported for this window.</div>}
+        {offers.map((o) => {
+          const cur = uc.offer_mix[o] ?? 0;
+          const base = uc.baseline_offer_mix?.[o] ?? 0;
+          return (
+            <div key={o} className="mb-2 text-xs">
+              <div className="mb-0.5 flex justify-between">
+                <span className="font-semibold">{o}</span>
+                <span className="font-mono text-slate-500">{(cur * 100).toFixed(0)}% <span className="text-slate-300">vs {(base * 100).toFixed(0)}% base</span></span>
+              </div>
+              <div className="relative h-2 w-full rounded bg-slate-100">
+                <div className="absolute inset-y-0 left-0 rounded bg-[#E60012]" style={{ width: `${Math.min(100, cur * 100)}%` }} />
+                <div className="absolute inset-y-0 w-0.5 bg-slate-600" style={{ left: `${Math.min(100, base * 100)}%` }} title={`baseline ${(base * 100).toFixed(0)}%`} />
+              </div>
+            </div>
+          );
+        })}
+        {acc && (
+          <p className="mt-2 text-xs text-slate-600">
+            <b>Acceptance rate:</b> {acc.value != null ? `${(acc.value * 100).toFixed(1)}%` : "—"}
+            {acc.pending_reason && <span className="ml-1 italic text-slate-400">({acc.pending_reason})</span>}
+            {uc.acceptance_pending_reason && <span className="ml-1 italic text-slate-400">({uc.acceptance_pending_reason})</span>}
+          </p>
+        )}
       </div>
     </div>
   );

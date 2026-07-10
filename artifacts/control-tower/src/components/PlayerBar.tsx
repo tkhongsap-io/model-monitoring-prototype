@@ -1,92 +1,57 @@
-/** Scenario player bar (PRD D.9) — docked bottom, always visible.
- * Transport: play/pause · step ±1 · jump · reset · speed 1×/2×/4× · scenario picker
- * · snapshot loader. Keyboard: Space play/pause · ←/→ step · R reset. */
-import React, { useEffect, useState } from "react";
-import { simDay, useSim } from "@/lib/sim";
-
-const SCENARIOS = [
-  { id: "DEMO-FULL", label: "DEMO-FULL — 20-tick master" },
-  { id: "S1", label: "S1 Steady state" },
-  { id: "S2", label: "S2 ML drift" },
-  { id: "S3", label: "S3 LLM degradation" },
-  { id: "S4", label: "S4 SLA breach" },
-  { id: "S5", label: "S5 Remediate & recover" },
-];
+/** Live control bar — docked bottom, always visible. Replaces the baked
+ * scenario transport with the LIVE plane: "Observe next window" advances all
+ * runners (POST /api/live/tick-all), an auto-poll toggle observes on a timer,
+ * and a per-model readout shows the last observed live tick + waiting/stale hints.
+ * Keyboard: Space observes the next window. */
+import React, { useEffect } from "react";
+import { useLive } from "@/lib/live";
 
 export function PlayerBar() {
-  const { state, control, presenter, setPresenter } = useSim();
-  const [jumpTo, setJumpTo] = useState("");
+  const { summary, rows, auto, setAuto, tickAll, loading } = useLive();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
-      if (!presenter) return;
-      if (e.key === " ") { e.preventDefault(); if (state?.playing) control("pause"); else control("play"); }
-      else if (e.key === "ArrowRight") { e.preventDefault(); control("step"); }
-      else if (e.key === "ArrowLeft") { e.preventDefault(); control("jump", { tick: Math.max(0, (state?.tick ?? 0) - 1) }); }
-      else if (e.key === "r" || e.key === "R") { control("reset"); }
+      if (e.key === " ") { e.preventDefault(); tickAll(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state, control, presenter]);
+  }, [tickAll]);
 
-  const summary = state?.summary || {};
-  const openTxt = summary.open_actions
-    ? `${summary.open_actions} open action${summary.open_actions === 1 ? "" : "s"}${summary.critical_actions ? ` (${summary.critical_actions} Critical)` : ""}`
-    : "no open actions";
+  const asOf = summary?.as_of || {};
+  const anyWaiting = rows.some((r) => r.waiting);
+  const anyStale = rows.some((r) => r.stale);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-700 bg-slate-900 px-4 py-2 text-white">
       <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-2 text-sm">
-        <select
-          className="rounded bg-slate-800 px-2 py-1 text-xs font-semibold"
-          value={state?.scenario_id || "DEMO-FULL"} disabled={!presenter}
-          onChange={(e) => control("load", { scenario_id: e.target.value })}>
-          {SCENARIOS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-        <button className="btnbar" disabled={!presenter} onClick={() => control("reset")} title="Reset (R)">⏮ Reset</button>
-        <button className="btnbar" disabled={!presenter}
-          onClick={() => (state?.playing ? control("pause") : control("play"))} title="Play/Pause (Space)">
-          {state?.playing ? "⏸ Pause" : "▶ Play"}
-        </button>
-        <button className="btnbar" disabled={!presenter}
-          onClick={() => control("jump", { tick: Math.max(0, (state?.tick ?? 0) - 1) })} title="Step back (←)">⏪ −1</button>
-        <button className="btnbar" disabled={!presenter} onClick={() => control("step")} title="Step (→)">⏩ +1</button>
-        <span className="flex items-center gap-1">
-          <input value={jumpTo} onChange={(e) => setJumpTo(e.target.value)} placeholder="t…"
-            className="w-12 rounded bg-slate-800 px-1.5 py-1 text-xs" disabled={!presenter} />
-          <button className="btnbar" disabled={!presenter || jumpTo === ""}
-            onClick={() => { control("jump", { tick: parseInt(jumpTo, 10) || 0 }); setJumpTo(""); }}>⏭ Jump</button>
+        <button className="btnbar" onClick={() => tickAll()} title="Observe next window (Space)">⏩ Observe next window</button>
+        <label className="flex items-center gap-1 text-xs font-semibold">
+          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+          Auto-observe (5s)
+        </label>
+        {auto && <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" title="auto-observe running" />}
+
+        <span className="ml-4 flex flex-wrap items-center gap-2 text-xs">
+          {rows.length === 0 && <span className="text-slate-400">{loading ? "connecting…" : "no live models"}</span>}
+          {rows.map((r) => {
+            const tick = asOf[r.registry_id];
+            return (
+              <span key={r.registry_id}
+                className={`rounded px-2 py-0.5 font-semibold ${r.stale ? "bg-amber-700" : "bg-slate-800"}`}
+                title={r.stale ? "app offline — showing last observed window" : r.waiting ? "waiting for the app to advance" : "live"}>
+                {r.registry_id.replace("AICT-", "")}: {tick == null ? "—" : `t${tick}`}
+                {r.waiting && " ⏳"}{r.stale && " ⚠"}
+              </span>
+            );
+          })}
         </span>
-        <span className="flex overflow-hidden rounded border border-slate-700">
-          {[1, 2, 4].map((m) => (
-            <button key={m} disabled={!presenter}
-              className={`px-2 py-1 text-xs font-bold ${state?.speed === m ? "bg-[#E60012]" : "bg-slate-800 hover:bg-slate-700"}`}
-              onClick={() => control("speed", { multiplier: m })}>{m}×</button>
-          ))}
-        </span>
-        {state?.snapshots && (
-          <select className="rounded bg-slate-800 px-2 py-1 text-xs" value="" disabled={!presenter}
-            onChange={(e) => { if (e.target.value !== "") control("jump", { tick: parseInt(e.target.value, 10) }); }}>
-            <option value="">Snapshot…</option>
-            {Object.entries(state.snapshots).map(([name, t]) => (
-              <option key={name} value={t as number}>{name} (t{t as number})</option>
-            ))}
-          </select>
-        )}
+
         <span className="ml-auto flex items-center gap-3 text-xs text-slate-300">
-          <span className={`rounded px-2 py-0.5 font-bold ${state?.baked ? "bg-emerald-700" : "bg-amber-600"}`}>
-            {state?.baked ? `BAKED ✓ · seed ${state?.seed}` : "NOT BAKED — run scripts/demo_reset"}
-          </span>
-          <span className="font-semibold text-white">{simDay(state)}</span>
-          <span>{openTxt}</span>
-          <select className="rounded bg-slate-800 px-2 py-1 text-xs font-semibold"
-            value={presenter ? "presenter" : "viewer"}
-            onChange={(e) => setPresenter(e.target.value === "presenter")}>
-            <option value="presenter">Presenter</option>
-            <option value="viewer">Viewer (read-only)</option>
-          </select>
+          {anyWaiting && <span className="text-amber-300">waiting for app ticks…</span>}
+          {anyStale && <span className="text-amber-400">some models stale (app offline)</span>}
+          <span className="rounded bg-[#E60012] px-2 py-0.5 font-bold">LIVE</span>
         </span>
       </div>
       <style>{`

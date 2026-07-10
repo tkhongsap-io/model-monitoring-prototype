@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { SimProvider } from "@/lib/sim";
+import { LiveProvider } from "@/lib/live";
 import { Masthead, NavTabs, Toasts } from "@/components/Chrome";
 import { PlayerBar } from "@/components/PlayerBar";
 import Home from "@/pages/home";
@@ -33,13 +34,15 @@ function App() {
     <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <div className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <SimProvider>
-          <Masthead />
-          <NavTabs />
-          <main className="mx-auto max-w-[1400px] px-4 pb-32 pt-5">
-            <Router />
-          </main>
-          <Toasts />
-          <PlayerBar />
+          <LiveProvider>
+            <Masthead />
+            <NavTabs />
+            <main className="mx-auto max-w-[1400px] px-4 pb-32 pt-5">
+              <Router />
+            </main>
+            <Toasts />
+            <PlayerBar />
+          </LiveProvider>
         </SimProvider>
       </div>
     </WouterRouter>

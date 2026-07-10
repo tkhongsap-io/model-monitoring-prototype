@@ -7,12 +7,7 @@ import { useSim } from "@/lib/sim";
 
 const TABS = [
   { href: "/", label: "At A Glance" },
-  { href: "/portfolio", label: "Portfolio" },
-  { href: "/pilot", label: "Pilot Table" },
   { href: "/heatmap", label: "Heatmap" },
-  { href: "/gaps", label: "Gaps" },
-  { href: "/actions", label: "Actions" },
-  { href: "/board", label: "Board" },
 ];
 
 export function Masthead() {
@@ -21,9 +16,9 @@ export function Masthead() {
       style={{ background: "linear-gradient(120deg, #101010 0%, #1a1a1a 55%, #E60012 130%)" }}>
       <span className="rounded-full bg-white px-2.5 py-0.5 text-sm font-extrabold lowercase tracking-tight text-[#E60012]">true</span>
       <span className="text-sm font-bold">AI Use Case Observability Control Tower</span>
-      <span className="rounded-full border border-white/30 bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider">SIMULATION</span>
+      <span className="rounded-full border border-white/30 bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider">LIVE</span>
       <span className="ml-auto rounded-full bg-[#E60012] px-2.5 py-0.5 text-[10px] font-extrabold tracking-wide">
-        CPG Confidential · Simulated data
+        CPG Confidential · Live telemetry
       </span>
     </div>
   );
