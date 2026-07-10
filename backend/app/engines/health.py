@@ -44,6 +44,10 @@ SIGNAL_SPECS: dict[str, SignalSpec] = {s.key: s for s in [
                "higher_is_better", 0.80, 0.72, "AUC", "demo default"),
     SignalSpec("realized_roc_auc", "Realized ROC-AUC (once labels arrive)", "Quality",
                "higher_is_better", 0.80, 0.72, "AUC", "demo default"),
+    SignalSpec("acceptance_rate", "Offer acceptance rate", "Feedback & action loop",
+               "higher_is_better", 0.15, 0.05, "fraction", "demo default"),
+    SignalSpec("recommendation_drift", "Recommendation mix drift (TV distance)", "Drift & degradation",
+               "lower_is_better", 0.30, 0.50, "TV distance", "demo default"),
 ]}
 
 

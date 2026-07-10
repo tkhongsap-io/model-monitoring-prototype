@@ -472,7 +472,8 @@ from ..scenario.live_runner import live_runner, reset_live_runner  # noqa: E402
 @router.post("/live/tick")
 async def live_tick(uc: str = "AICT-L01"):
     """Observe the next live telemetry window and grade it. `uc` selects the use case:
-    AICT-L01 = churn (Evidently/CBPE/LIME/SHAP), AICT-L02 = chatbot (LLM-as-judge). The
+    AICT-L01 = churn (Evidently/CBPE/LIME/SHAP), AICT-L02 = chatbot (LLM-as-judge),
+    AICT-L03 = NBA recommender (+ acceptance_rate / recommendation_drift). The
     adapters do sync HTTP + heavy engine work, so run it off the event loop."""
     return await anyio.to_thread.run_sync(lambda: live_runner(uc).tick())
 
