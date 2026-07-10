@@ -48,9 +48,15 @@ Thumbs.db
 .cache/
 .local/
 .venv-backend/
+backend/.venv/
 backend/control_tower.db
 __pycache__/
 *.pyc
+
+# legacy Next.js frontend — superseded by the React/Vite artifacts/control-tower app
+# (its canonical copy is archived under .migration-backup/frontend/). Kept on disk but
+# not tracked: it is not a pnpm workspace package and carries only build cruft.
+/frontend/
 
 # --- env / secrets (NEVER commit real keys) ---
 .env
