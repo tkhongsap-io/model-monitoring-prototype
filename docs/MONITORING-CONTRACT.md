@@ -104,8 +104,13 @@ Content type `application/json; charset=utf-8`. `NaN`/`Infinity` are forbidden �
   after downtime because windows stay pullable. **[NOW]**
 - Retention guarantee: telemetry windows remain pullable for **≥ 72 h** across service
   restarts. **[JULY]** (in-memory stores acceptable for the prototype).
-- `404 unknown_tick` = the service never had (or evicted) that window. `count=0` = the
-  window exists and genuinely had zero traffic. These are different statements.
+- `404 unknown_tick` = the service never had (or evicted) that window — including
+  negative ticks. `count=0` = the window exists and genuinely had zero traffic. These
+  are different statements.
+- **The latest window is OPEN** (interactive traffic may still append to it); windows
+  are final once `latest_tick` has moved past them. The monitor reads only CLOSED
+  windows (`tick < latest_tick`), and holds its cursor (retries rather than skips) when
+  a window could not be observed at all.
 - `window_start`/`window_end` timestamps are optional in v1, **required in v1.1**, which
   begins the migration to wall-clock range queries.
 
@@ -140,6 +145,8 @@ classes are present, reporting `realized_label_coverage` alongside the metric. P
 
 - **Feature order is owned by the service.** The monitor reads it from the header/meta and
   must never carry a per-use-case feature list in its own source. **[NOW — implemented]**
+  (the reference monitor keeps the original churn list only as a documented last-resort
+  fallback for header-less legacy pulls; new use cases never rely on it)
 - A version change triggers the monitor to re-pull the reference and refit its CBPE
   baseline and explainers.
 - **Trust boundary**: the current format is joblib (pickle) — permitted **only within the
@@ -194,7 +201,7 @@ overrides live in the registry entry §15):
 
 | Signal | Lane | Direction | Green | Red |
 |---|---|---|---|---|
-| `hallucination_rate` | Quality | lower | ≤ 0.02 | ≥ 0.02 |
+| `hallucination_rate` | Quality | lower | < 0.02 | ≥ 0.02 |
 | `groundedness` | Quality | higher | ≥ 0.85 | < 0.70 |
 | `relevance` | Quality | higher | ≥ 0.85 | < 0.70 |
 | `pii_exposure_rate` | Safety & security | lower | 0.0 | ≥ 0.01 |
@@ -205,7 +212,7 @@ overrides live in the registry entry §15):
 | `acceptance_rate` (NBA) | Feedback & action loop | higher | ≥ 0.15 | < 0.05 |
 | `recommendation_drift` (NBA) | Drift & degradation | lower | ≤ 0.30 | ≥ 0.50 |
 
-Grading: Red checked first; missing value → **Unknown**. Rollup is worst-of
+Grading: Red checked first (a value on both bars — e.g. hallucination exactly 0.02 — is Red); missing value → **Unknown**. Rollup is worst-of
 signal → lane → overall across five lanes (Quality, Safety & security, Reliability,
 Drift & degradation, Feedback & action loop). Two refinements:
 
@@ -240,16 +247,20 @@ Drift & degradation, Feedback & action loop). Two refinements:
 
 ## 14. Volume, sampling and judge policy
 
-- v1 is one-tick-per-call with a max records-per-window (default 1 000). Range pulls
-  (`from_tick`/`to_tick`) + `next_cursor` pagination and `sample_n` are reserved for v1.1.
+- v1 is one-tick-per-call with a recommended max records per per-tick window (1 000;
+  enforcement is **[JULY]** — the prototype does not enforce it). `/telemetry/reference`
+  is exempt: its size is bounded by the reference-window size the service declares.
+  Range pulls (`from_tick`/`to_tick`) + `next_cursor` pagination and `sample_n` are
+  reserved for v1.1.
 - **Judge cost model**: real judging is one LLM call per judged trace.
   Recommended policy: judge ≤ ~200 traces/window — 100 % of refusals and
   low-heuristic-score traces, plus a small random baseline; a per-use-case budget
   degrades to the heuristic when exhausted. Default judge tier: Haiku-class.
 - **The offline heuristic judge is an English-only dev stand-in.** Thai or mixed-language
   production traffic **requires the real Claude judge** (the token-overlap heuristic
-  mis-scores Thai as hallucination). Every score row records its judge identity
-  (`heuristic-v1` or the model id) so trend lines survive judge switches.
+  mis-scores Thai as hallucination). Every judged trace records its judge identity
+  (`heuristic-v1` or the model id) in its stored metadata, and the graded LLM payload
+  carries a top-level `judge` field — so trend lines survive judge switches.
 
 ## 15. Onboarding: use-case registry and conformance
 
@@ -283,7 +294,9 @@ AICT-L03 NBA) are registered in monitor config; the YAML registry replaces this 
 
 The monitor's **graded health payload** is the read API Amity (or any portal) consumes —
 per use case: `{use_case_id, tick, signals{value, health, lane, bars…}, lanes, overall,
-artifacts, errors, judge}` via `GET /api/live/state?uc=…`. Two integration directions,
+artifacts, errors}` via `GET /api/live/state?uc=…`, plus lane-specific fields — `judge`
+and `judge_sample` on LLM use cases; `lime_top`, `reference_auc`, coverage and offer-mix
+fields on ML/NBA use cases. Consumers must treat lane-specific fields as optional. Two integration directions,
 both supported by design:
 
 1. **Amity as consumer**: Amity's dashboard reads the graded payloads / receives Red
@@ -305,6 +318,9 @@ both supported by design:
 ## 18. Known limitations and roadmap
 
 Push-mode ingest · wall-clock windows (v1.1) · per-use-case thresholds UI ·
+lag-replay version skew (a monitor catching up across a retrain grades old windows
+against the CURRENT model's CBPE/drift baselines; realized metrics use recorded
+probabilities and stay correct) ·
 Thai-capable offline judge · regression/multiclass/ranking support · skops/ONNX +
 artifact signing · precomputed-scores mode · `y_pred_proba` canonical naming
 (`churn_proba` is a v1 alias) · use-case-emitted explanations.
