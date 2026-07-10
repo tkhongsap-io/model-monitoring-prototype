@@ -43,6 +43,26 @@ _EXCLUDED_LANES_LLM = {"Feedback & action loop"}
 _HAND_SET_NBA = {"Safety & security": "Green", "Reliability": "Green"}
 
 
+def _commit_tick(runner, payload: dict, telemetry_err: str | None) -> dict:
+    """Store a graded tick. On a telemetry failure (the model app is unreachable) HOLD the
+    last good state (annotated stale) instead of clobbering it with an all-Unknown payload,
+    and do NOT advance the read cursor — the dashboard keeps showing the last observed
+    window rather than flashing every lane grey. On success, store and advance."""
+    if telemetry_err:
+        if runner._current is not None:
+            held = dict(runner._current)
+            held["cursor_held"] = True
+            held["errors"] = {**held.get("errors", {}), "telemetry": telemetry_err}
+            runner._current = held
+            return held
+        payload["cursor_held"] = True   # never observed yet — surface the degraded payload
+        runner._current = payload
+        return payload
+    runner._current = payload
+    runner._read_tick += 1
+    return payload
+
+
 def _signal_view(sig: dict, s_health: dict, extra: dict | None = None) -> dict:
     """Shape a signals dict {key -> {value, health, label, lane, ...}} for the UI."""
     specs = health.SIGNAL_SPECS
@@ -121,12 +141,7 @@ class LiveRunner:
             ml_res = self.ml.monitor(LIVE_UC, ctx)
             ex_res = self.explain.explain(LIVE_UC, ctx)
             payload = self._grade(ml_res, ex_res, t)
-            self._current = payload
-            if "telemetry" in ml_res.errors:   # whole window unobserved — retry, don't skip
-                payload["cursor_held"] = True
-            else:
-                self._read_tick += 1
-            return payload
+            return _commit_tick(self, payload, ml_res.errors.get("telemetry"))
 
     def state(self) -> dict | None:
         return self._current
@@ -168,12 +183,7 @@ class LiveLLMRunner:
             ctx = TickContext(tick=t, seed=self.seed, scenario_id="LIVE")
             res = self.llm.evaluate(LIVE_LLM_UC, ctx)
             payload = self._grade(res, t)
-            self._current = payload
-            if "telemetry" in res.errors:      # whole window unobserved — retry, don't skip
-                payload["cursor_held"] = True
-            else:
-                self._read_tick += 1
-            return payload
+            return _commit_tick(self, payload, res.errors.get("telemetry"))
 
     def state(self) -> dict | None:
         return self._current
@@ -255,12 +265,7 @@ class LiveNBARunner:
             ml_res = self.ml.monitor(LIVE_NBA_UC, ctx)
             ex_res = self.explain.explain(LIVE_NBA_UC, ctx)
             payload = self._grade(ml_res, ex_res, t)
-            self._current = payload
-            if "telemetry" in ml_res.errors:   # whole window unobserved — retry, don't skip
-                payload["cursor_held"] = True
-            else:
-                self._read_tick += 1
-            return payload
+            return _commit_tick(self, payload, ml_res.errors.get("telemetry"))
 
     def state(self) -> dict | None:
         return self._current

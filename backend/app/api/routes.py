@@ -468,6 +468,8 @@ async def events(request: Request):
 
 from ..scenario.live_runner import live_runner, reset_live_runner  # noqa: E402
 
+from . import live_portfolio  # noqa: E402
+
 
 @router.post("/live/tick")
 async def live_tick(uc: str = "AICT-L01"):
@@ -489,6 +491,40 @@ def live_state(uc: str = "AICT-L01"):
 def live_reset(uc: str | None = None):
     reset_live_runner(uc)
     return {"reset": True, "uc": uc or "all"}
+
+
+@router.get("/live/portfolio")
+def live_portfolio_view():
+    """LIVE plane for the control tower: header counts + one row per live use case."""
+    return {**live_portfolio.portfolio_summary(), "rows": live_portfolio.portfolio_rows()}
+
+
+@router.get("/live/use-case/{uc}")
+def live_use_case(uc: str):
+    """Deep detail for one live use case (signals, lanes, artifacts, lane extras)."""
+    d = live_portfolio.detail(uc)
+    if d is None:
+        raise HTTPException(404, detail=f"unknown live use case {uc}")
+    return d
+
+
+@router.post("/live/tick-all")
+async def live_tick_all():
+    """Advance all three live runners one window and record history. Runs off the
+    event loop (each tick() does sync HTTP + heavy engine work)."""
+    def _run() -> dict:
+        as_of: dict[str, int | None] = {}
+        states = []
+        for uc in live_portfolio.LIVE_UCS:
+            p = live_runner(uc).tick()
+            if not p.get("waiting"):
+                live_portfolio.record(uc, p)
+            states.append(p)
+            s = live_runner(uc).state()
+            as_of[uc] = s.get("tick") if s else None
+        return {"as_of": as_of, "states": states}
+
+    return await anyio.to_thread.run_sync(_run)
 
 
 # ------------------------------------------------------------------ dev-only / export

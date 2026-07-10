@@ -50,10 +50,17 @@ LIVE_POLL_SECONDS = int(_env("LIVE_POLL_SECONDS", "0"))   # 0 = manual (POST /ap
 # contract v1.0 bearer auth: when set, every /telemetry/* and /model/artifact pull sends
 # Authorization: Bearer <token> (the apps enforce it when THEIR RAI_TELEMETRY_TOKEN is set)
 LIVE_TELEMETRY_TOKEN = os.getenv("LIVE_TELEMETRY_TOKEN", "").strip()
+# rolling per-signal history kept for the live dashboard sparklines/charts (bounded so a
+# long continuously-observing session doesn't grow the buffer / detail payloads without end)
+LIVE_HIST_MAX = int(_env("LIVE_HIST_MAX", "240"))
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
 # Haiku-class default per the contract's judge policy (§14) — one call PER TRACE, so the
 # default tier must be the cheap one; override for higher-stakes evaluation.
 LLM_JUDGE_MODEL = _env("LLM_JUDGE_MODEL", "claude-haiku-4-5")
+# Judge sampling cap (§14): the REAL Claude judge is one API call per trace, so a large
+# window makes a live tick slow. When set, judge a uniform sample of at most this many
+# traces per window (the offline heuristic judge ignores the cap — it is instant). 0 = no cap.
+LLM_JUDGE_MAX_TRACES = int(_env("LLM_JUDGE_MAX_TRACES", "20"))
 
 
 def langfuse_cloud_configured() -> bool:
