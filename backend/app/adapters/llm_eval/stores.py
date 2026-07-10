@@ -41,7 +41,7 @@ class SqliteTraceStore:
                 srows.append({"trace_id": trace, "name": name, "value": float(value)})
                 return
 
-    def flush(self) -> None:
+    def flush(self, block: bool = True) -> None:
         for row, srows in self._pending:
             db.add_trace(row, srows)
         self._pending.clear()
@@ -81,10 +81,13 @@ class LangfuseCloudStore(SqliteTraceStore):
             except Exception:  # noqa: BLE001
                 pass
 
-    def flush(self) -> None:
+    def flush(self, block: bool = True) -> None:
         super().flush()
         self._lf_traces.clear()
-        if self._lf is not None:
+        # block=True (baked path): force a synchronous send so nothing is lost. block=False
+        # (live path): queue only — the Langfuse SDK's background thread delivers within ~1s,
+        # so a live tick isn't stalled ~20s waiting on the round-trip to the cloud.
+        if self._lf is not None and block:
             try:
                 self._lf.flush()
             except Exception:  # noqa: BLE001

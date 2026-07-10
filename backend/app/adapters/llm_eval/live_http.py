@@ -78,8 +78,11 @@ def _judge_offline(trace: dict) -> dict:
 
 
 def _judge_claude(traces: list[dict], model: str) -> list[dict]:
-    """Real LLM-as-judge: one structured `messages.parse` call per trace."""
+    """Real LLM-as-judge: one structured `messages.parse` call per trace, run CONCURRENTLY
+    (each call is independent) so a window is judged in ~ceil(n/workers) round-trips rather
+    than n sequential ones — the difference between a snappy and a minute-long live tick."""
     import anthropic
+    from concurrent.futures import ThreadPoolExecutor
     from pydantic import BaseModel
 
     class Score(BaseModel):
@@ -88,7 +91,7 @@ def _judge_claude(traces: list[dict], model: str) -> list[dict]:
         hallucination: bool
         pii: bool
 
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic()  # thread-safe; shared across workers
     system = [{
         "type": "text",
         "text": ("You are a strict evaluator of a telecom support chatbot. Given the user "
@@ -100,20 +103,27 @@ def _judge_claude(traces: list[dict], model: str) -> list[dict]:
                  "national ID). Return only the scores."),
         "cache_control": {"type": "ephemeral"},
     }]
-    out: list[dict] = []
-    for tr in traces:
-        ctx = "\n".join(f"- {c.get('text', '')}" for c in tr.get("retrieval_context", []))
-        tools = "\n".join(json.dumps(t.get("output", {})) for t in tr.get("tool_calls", []))
-        prompt = (f"Question: {tr.get('question', '')}\n\nRetrieved context:\n{ctx}\n\n"
-                  f"Tool outputs:\n{tools}\n\nBot answer: {tr.get('answer', '')}")
-        resp = client.messages.parse(
-            model=model, max_tokens=256,
-            system=system, messages=[{"role": "user", "content": prompt}],
-            output_format=Score)
-        s = resp.parsed_output
-        out.append({"groundedness": float(s.groundedness), "relevance": float(s.relevance),
-                    "hallucination": bool(s.hallucination), "pii": bool(s.pii)})
-    return out
+
+    def judge_one(tr: dict) -> dict:
+        # isolate each call: a transient failure on ONE trace (rate limit / 529 / blip,
+        # likely at 8-way concurrency) must not discard the other ~19 good scores. Fall
+        # back to the deterministic heuristic for just that trace so the window still grades.
+        try:
+            ctx = "\n".join(f"- {c.get('text', '')}" for c in tr.get("retrieval_context", []))
+            tools = "\n".join(json.dumps(t.get("output", {})) for t in tr.get("tool_calls", []))
+            prompt = (f"Question: {tr.get('question', '')}\n\nRetrieved context:\n{ctx}\n\n"
+                      f"Tool outputs:\n{tools}\n\nBot answer: {tr.get('answer', '')}")
+            s = client.messages.parse(
+                model=model, max_tokens=256,
+                system=system, messages=[{"role": "user", "content": prompt}],
+                output_format=Score).parsed_output
+            return {"groundedness": float(s.groundedness), "relevance": float(s.relevance),
+                    "hallucination": bool(s.hallucination), "pii": bool(s.pii)}
+        except Exception:  # noqa: BLE001 — degrade this one trace to the heuristic
+            return _judge_offline(tr)
+
+    with ThreadPoolExecutor(max_workers=min(8, len(traces) or 1)) as ex:
+        return list(ex.map(judge_one, traces))   # map preserves trace order
 
 
 def _aggregate(scores: list[dict], latencies: list[float]) -> dict:
@@ -166,9 +176,15 @@ class LiveHttpLLMAdapter:
         try:
             if config.ANTHROPIC_API_KEY:
                 judge = self.judge_model
+                # judge-sampling cap (§14): the real judge is one API call per trace, so
+                # cap a large window to a uniform sample to keep a live tick responsive.
+                cap = config.LLM_JUDGE_MAX_TRACES
+                if cap and len(traces) > cap:
+                    stride = len(traces) / cap
+                    traces = [traces[int(i * stride)] for i in range(cap)]
                 scores = _judge_claude(traces, self.judge_model)
             else:
-                judge = "heuristic-v1"
+                judge = "heuristic-v1"           # instant — judges the whole window
                 scores = [_judge_offline(t) for t in traces]
 
             latencies = [float(t.get("latency_s", 0.0)) for t in traces]
@@ -189,7 +205,7 @@ class LiveHttpLLMAdapter:
                     self.store.score(t, "groundedness", sc["groundedness"])
                     self.store.score(t, "relevance", sc["relevance"])
                     self.store.score(t, "hallucination", 1.0 if sc["hallucination"] else 0.0)
-                self.store.flush()
+                self.store.flush(block=False)   # SQLite now; Langfuse via background thread
             except Exception as e:  # noqa: BLE001 — signals stand; note the store failure
                 res.errors["trace_store"] = f"{type(e).__name__}: {e}"
 
