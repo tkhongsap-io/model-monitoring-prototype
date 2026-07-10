@@ -15,19 +15,25 @@ import pandas as pd
 from ...datagen import churn
 
 
-def evidently_drift(reference_features: pd.DataFrame,
-                    current_features: pd.DataFrame) -> tuple[float | None, list[str], str]:
-    """Evidently DataDrift + DataQuality; returns (share_of_drifted, drifted_cols, html)."""
+def evidently_drift(reference_features: pd.DataFrame, current_features: pd.DataFrame,
+                    features: list[str] | None = None,
+                    categorical: list[str] | None = None) -> tuple[float | None, list[str], str]:
+    """Evidently DataDrift + DataQuality; returns (share_of_drifted, drifted_cols, html).
+
+    `features`/`categorical` default to the churn lists so existing callers are unchanged;
+    live adapters pass the model-service-owned lists (contract v1.0)."""
     from evidently import ColumnMapping
     from evidently.metric_preset import DataDriftPreset, DataQualityPreset
     from evidently.report import Report
 
-    numeric = [c for c in churn.FEATURES if c not in churn.CATEGORICAL]
+    features = features if features is not None else churn.FEATURES
+    categorical = categorical if categorical is not None else churn.CATEGORICAL
+    numeric = [c for c in features if c not in categorical]
     cm = ColumnMapping(numerical_features=numeric,
-                       categorical_features=churn.CATEGORICAL, target=None)
+                       categorical_features=categorical, target=None)
     report = Report(metrics=[DataDriftPreset(), DataQualityPreset()])
-    report.run(reference_data=reference_features[churn.FEATURES],
-               current_data=current_features[churn.FEATURES], column_mapping=cm)
+    report.run(reference_data=reference_features[features],
+               current_data=current_features[features], column_mapping=cm)
     share, drifted = None, []
     for m in report.as_dict().get("metrics", []):
         r = m.get("result", {})
@@ -41,9 +47,12 @@ def evidently_drift(reference_features: pd.DataFrame,
     return share, drifted, buf.getvalue()
 
 
-def build_scored_frame(features: pd.DataFrame, proba, y_true=None) -> pd.DataFrame:
-    """CBPE input frame: FEATURES + y_pred_proba + y_pred [+ y_true]."""
-    out = features[churn.FEATURES].copy()
+def build_scored_frame(features: pd.DataFrame, proba, y_true=None,
+                       feature_order: list[str] | None = None) -> pd.DataFrame:
+    """CBPE input frame: FEATURES + y_pred_proba + y_pred [+ y_true].
+
+    `feature_order` defaults to the churn list (existing callers unchanged)."""
+    out = features[feature_order if feature_order is not None else churn.FEATURES].copy()
     p = np.asarray(proba, dtype=float)
     out["y_pred_proba"] = p
     out["y_pred"] = (p >= 0.5).astype(int)

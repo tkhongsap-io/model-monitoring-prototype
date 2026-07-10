@@ -45,9 +45,15 @@ DEFAULT_SCENARIO = _env("RAI_DEFAULT_SCENARIO", "DEMO-FULL")
 # when the model apps aren't up — the live path is only exercised via /api/live/*.
 LIVE_CHURN_URL = _env("LIVE_CHURN_URL", "http://127.0.0.1:8083")
 LIVE_CHATBOT_URL = _env("LIVE_CHATBOT_URL", "http://127.0.0.1:8082")
+LIVE_NBA_URL = _env("LIVE_NBA_URL", "http://127.0.0.1:8084")
 LIVE_POLL_SECONDS = int(_env("LIVE_POLL_SECONDS", "0"))   # 0 = manual (POST /api/live/tick)
+# contract v1.0 bearer auth: when set, every /telemetry/* and /model/artifact pull sends
+# Authorization: Bearer <token> (the apps enforce it when THEIR RAI_TELEMETRY_TOKEN is set)
+LIVE_TELEMETRY_TOKEN = os.getenv("LIVE_TELEMETRY_TOKEN", "").strip()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
-LLM_JUDGE_MODEL = _env("LLM_JUDGE_MODEL", "claude-opus-4-8")
+# Haiku-class default per the contract's judge policy (§14) — one call PER TRACE, so the
+# default tier must be the cheap one; override for higher-stakes evaluation.
+LLM_JUDGE_MODEL = _env("LLM_JUDGE_MODEL", "claude-haiku-4-5")
 
 
 def langfuse_cloud_configured() -> bool:

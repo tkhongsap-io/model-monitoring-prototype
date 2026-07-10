@@ -143,29 +143,46 @@ class LiveHttpLLMAdapter:
 
     def evaluate(self, use_case_id: str, tick: TickContext) -> LaneResult:
         res = LaneResult()
+        # the telemetry pull gets its own degrade envelope so the runner can distinguish
+        # "window unobserved — hold the cursor and retry" (errors['telemetry']) from a
+        # judging/persistence failure (review finding)
         try:
             traces = pull(self.base_url, "/telemetry/traces", {"tick": tick.tick})["records"]
+        except Exception as e:  # noqa: BLE001
+            for k in ("hallucination_rate", "groundedness", "relevance",
+                      "pii_exposure_rate", "p95_latency_s"):
+                res.signals[k] = None
+            res.errors["telemetry"] = f"{type(e).__name__}: {e}"
+            return res
+        try:
             if config.ANTHROPIC_API_KEY:
+                judge = self.judge_model
                 scores = _judge_claude(traces, self.judge_model)
             else:
+                judge = "heuristic-v1"
                 scores = [_judge_offline(t) for t in traces]
 
             latencies = [float(t.get("latency_s", 0.0)) for t in traces]
             res.signals.update(_aggregate(scores, latencies))
 
-            # persist traces + scores so the drill-down Traces tab reads them back
-            self.store.set_tick(tick.tick)
-            for tr, sc in zip(traces, scores):
-                t = self.store.trace(
-                    name="telco_chatbot", input=tr.get("question", ""),
-                    output=tr.get("answer", ""),
-                    metadata={"topic": tr.get("topic", ""),
-                              "latency_s": round(float(tr.get("latency_s", 0.0)), 3),
-                              "refused": bool(tr.get("refused"))})
-                self.store.score(t, "groundedness", sc["groundedness"])
-                self.store.score(t, "relevance", sc["relevance"])
-                self.store.score(t, "hallucination", 1.0 if sc["hallucination"] else 0.0)
-            self.store.flush()
+            # persist traces + scores so the drill-down Traces tab reads them back.
+            # Persistence failure (e.g. re-observing a tick -> deterministic trace_id
+            # collision) must not blank the already-computed signals (review finding).
+            try:
+                self.store.set_tick(tick.tick)
+                for tr, sc in zip(traces, scores):
+                    t = self.store.trace(
+                        name="telco_chatbot", input=tr.get("question", ""),
+                        output=tr.get("answer", ""),
+                        metadata={"topic": tr.get("topic", ""),
+                                  "latency_s": round(float(tr.get("latency_s", 0.0)), 3),
+                                  "refused": bool(tr.get("refused")), "judge": judge})
+                    self.store.score(t, "groundedness", sc["groundedness"])
+                    self.store.score(t, "relevance", sc["relevance"])
+                    self.store.score(t, "hallucination", 1.0 if sc["hallucination"] else 0.0)
+                self.store.flush()
+            except Exception as e:  # noqa: BLE001 — signals stand; note the store failure
+                res.errors["trace_store"] = f"{type(e).__name__}: {e}"
 
             # one sample per distinct question for the Judge-scores drill-down tab
             seen, sample = set(), []
@@ -178,7 +195,8 @@ class LiveHttpLLMAdapter:
                         "groundedness": round(sc["groundedness"], 3),
                         "relevance": round(sc["relevance"], 3),
                         "hallucination": sc["hallucination"], "pii": sc["pii"],
-                        "latency_s": round(float(tr.get("latency_s", 0.0)), 2)})
+                        "latency_s": round(float(tr.get("latency_s", 0.0)), 2),
+                        "judge": judge})
             res.records = sample
         except Exception as e:  # noqa: BLE001 — degrade, never crash the tick
             for k in ("hallucination_rate", "groundedness", "relevance",

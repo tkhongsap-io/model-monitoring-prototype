@@ -1,10 +1,13 @@
 """LiveHttpExplainAdapter — the LIVE counterpart of `LimeShapAdapter`.
 
 Pulls the external model app's serialized model + reference/current windows and runs
-LIME (per-instance, highest-churn-risk row) + SHAP (global importance) on the REAL
-fitted model. Self-contained on purpose: it does NOT touch the determinism-critical
-seeded LimeShapAdapter (that class's golden bake stays byte-identical). SHAP importance
-is cached per pulled model version; every engine call degrades gracefully.
+LIME (per-instance, highest-risk row) + SHAP (global importance) on the REAL fitted
+model. Feature order/categoricals come from the artifact meta headers (the model
+service OWNS its feature list, contract v1.0), falling back to sorted record keys and
+finally the churn lists. Self-contained on purpose: it does NOT touch the
+determinism-critical seeded LimeShapAdapter (that class's golden bake stays
+byte-identical). SHAP importance is cached per pulled model version; every engine call
+degrades gracefully.
 """
 from __future__ import annotations
 
@@ -22,23 +25,40 @@ class LiveHttpExplainAdapter:
     name = "live_http"
 
     def __init__(self, base_url: str, artifact_writer, model_name: str = "telco-churn",
-                 seed: int = 42) -> None:
+                 seed: int = 42, class_names: list[str] | None = None,
+                 inferences_path: str = "/telemetry/inferences") -> None:
         self.base_url = base_url.rstrip("/")
         self.write_artifact = artifact_writer
         self.model_name = model_name
         self.seed = seed
+        self.class_names = class_names or ["stay", "churn"]
+        self.inferences_path = inferences_path
         self._model = None
         self._version: int | None = None
+        self._feature_order: list[str] | None = None   # model-service-owned (artifact meta)
+        self._categorical: list[str] | None = None
         self._reference: pd.DataFrame | None = None    # reference FEATURE frame
         self._shap_png_by_version: dict[int, bytes] = {}
 
     def _ensure_model(self) -> None:
-        model, version = pull_model(self.base_url)
+        model, version, meta = pull_model(self.base_url)
+        if meta.get("feature_order"):
+            self._feature_order = meta["feature_order"]
+        if meta.get("categorical"):
+            self._categorical = meta["categorical"]
         if version == self._version and self._model is not None:
             return
-        self._model, self._version = model, version
         ref = pull(self.base_url, "/telemetry/reference")["records"]
-        self._reference = pd.DataFrame([r["features"] for r in ref])[churn.FEATURES]
+        # feature order: artifact meta -> sorted record keys -> churn last resort
+        if not self._feature_order:
+            self._feature_order = (sorted(ref[0]["features"].keys()) if ref
+                                   else list(churn.FEATURES))
+        if self._categorical is None:
+            self._categorical = [c for c in churn.CATEGORICAL if c in self._feature_order]
+        self._reference = pd.DataFrame([r["features"] for r in ref])[self._feature_order]
+        # commit the version LAST — a partial failure above must retry next tick, not
+        # leave a half-initialized adapter accepted as current (review finding)
+        self._model, self._version = model, version
 
     def _shap_png(self, version: int) -> bytes | None:
         if version in self._shap_png_by_version:
@@ -50,12 +70,12 @@ class LiveHttpExplainAdapter:
             import shap
             sample = self._reference.sample(
                 min(500, len(self._reference)), random_state=0).to_numpy(float)
-            explainer = shap.TreeExplainer(self._model)  # churn app serves a RandomForest
+            explainer = shap.TreeExplainer(self._model)  # the apps serve tree ensembles
             values = explainer.shap_values(sample)
             vals = values[1] if isinstance(values, list) else values
             if getattr(vals, "ndim", 2) == 3:            # (n, features, classes) on newer shap
                 vals = vals[:, :, 1]
-            shap.summary_plot(vals, sample, feature_names=churn.FEATURES,
+            shap.summary_plot(vals, sample, feature_names=self._feature_order,
                               show=False, plot_type="bar")
             buf = io.BytesIO()
             plt.tight_layout()
@@ -76,21 +96,33 @@ class LiveHttpExplainAdapter:
             res.errors["explain"] = f"{type(e).__name__}: {e}"
             return res
 
-        inf = pull(self.base_url, "/telemetry/inferences", {"tick": t})["records"]
-        if not inf:
-            res.errors["explain"] = "no inferences for tick"
+        # the telemetry pull + frame build must degrade like everything else — a 404
+        # (unknown tick), transient network failure, or schema-skewed record must never
+        # escape and 500 the whole live tick (review finding)
+        try:
+            inf = pull(self.base_url, self.inferences_path, {"tick": t})["records"]
+            if not inf:
+                res.errors["explain"] = "no inferences for tick"
+                return res
+            order = self._feature_order
+            if not order:
+                res.errors["explain"] = "feature order unavailable"
+                return res
+            cur_feat = pd.DataFrame([r["features"] for r in inf])[order]
+            proba_field = next((f for f in ("churn_proba", "accept_proba") if f in inf[0]), "churn_proba")
+            proba = np.asarray([float(r[proba_field]) for r in inf])
+        except Exception as e:  # noqa: BLE001 — degrade, never crash the tick
+            res.errors["explain"] = f"{type(e).__name__}: {e}"
             return res
-        cur_feat = pd.DataFrame([r["features"] for r in inf])[churn.FEATURES]
-        proba = np.asarray([float(r["churn_proba"]) for r in inf])
 
-        # --- LIME: highest-predicted-churn-probability row, num_features=6 ---
+        # --- LIME: highest-predicted-probability row, num_features=6 ---
         try:
             from lime.lime_tabular import LimeTabularExplainer
             idx = int(np.argmax(proba))
-            cat_idx = [churn.FEATURES.index(c) for c in churn.CATEGORICAL]
+            cat_idx = [order.index(c) for c in (self._categorical or []) if c in order]
             explainer = LimeTabularExplainer(
                 training_data=self._reference.to_numpy(float),
-                feature_names=churn.FEATURES, class_names=["stay", "churn"],
+                feature_names=order, class_names=self.class_names,
                 categorical_features=cat_idx, discretize_continuous=True,
                 mode="classification", random_state=self.seed)
             exp = explainer.explain_instance(
