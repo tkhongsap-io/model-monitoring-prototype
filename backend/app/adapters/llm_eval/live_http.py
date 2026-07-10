@@ -27,7 +27,7 @@ import numpy as np
 from ... import config
 from ..base import LaneResult, TickContext
 from ..telemetry_http import pull
-from .stores import SqliteTraceStore
+from .stores import LangfuseCloudStore, SqliteTraceStore
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 _STOPWORDS = {
@@ -139,7 +139,16 @@ class LiveHttpLLMAdapter:
         self.use_case_id = use_case_id
         self.seed = seed
         self.judge_model = judge_model or config.LLM_JUDGE_MODEL
-        self.store = SqliteTraceStore(scenario_id, use_case_id)
+        # push judged traces + scores to Langfuse Cloud when configured (LLM-eval side of
+        # the open-source stack: Langfuse for LLM evaluation). The cloud store ALSO writes
+        # SQLite, so the local drill-down is unaffected; degrades to SQLite-only if the
+        # keys are unset or the Langfuse SDK/host is unavailable (best-effort).
+        if config.langfuse_cloud_configured():
+            self.store = LangfuseCloudStore(
+                scenario_id, use_case_id, config.LANGFUSE_PUBLIC_KEY,
+                config.LANGFUSE_SECRET_KEY, config.LANGFUSE_HOST)
+        else:
+            self.store = SqliteTraceStore(scenario_id, use_case_id)
 
     def evaluate(self, use_case_id: str, tick: TickContext) -> LaneResult:
         res = LaneResult()
