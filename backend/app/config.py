@@ -44,6 +44,7 @@ DEFAULT_SCENARIO = _env("RAI_DEFAULT_SCENARIO", "DEMO-FULL")
 # Base URLs are operator-configured; the demo still runs fully offline (baked DEMO-FULL)
 # when the model apps aren't up — the live path is only exercised via /api/live/*.
 LIVE_CHURN_URL = _env("LIVE_CHURN_URL", "http://127.0.0.1:8083")
+LIVE_CHATBOT_URL = _env("LIVE_CHATBOT_URL", "http://127.0.0.1:8082")
 LIVE_POLL_SECONDS = int(_env("LIVE_POLL_SECONDS", "0"))   # 0 = manual (POST /api/live/tick)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
 LLM_JUDGE_MODEL = _env("LLM_JUDGE_MODEL", "claude-opus-4-8")

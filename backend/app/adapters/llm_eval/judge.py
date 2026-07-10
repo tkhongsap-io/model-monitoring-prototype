@@ -61,6 +61,21 @@ class SeededJudgeAdapter:
         return res
 
 
-def make_llm_eval(seed: int, scenario_id: str, use_case_id: str) -> SeededJudgeAdapter:
-    """Factory: env-var selected implementation (E.5); stub is the default."""
-    return SeededJudgeAdapter(config.LLM_EVAL_ADAPTER, seed, scenario_id, use_case_id)
+def make_llm_eval(seed: int, scenario_id: str, use_case_id: str,
+                  cfg: dict | None = None, impl: str | None = None):
+    """Factory (mirrors make_ml_monitor / make_explain).
+
+    The baker calls with impl=None → resolves to config.LLM_EVAL_ADAPTER (a seeded impl,
+    stub by default) so the golden bake is unchanged. The live runner passes
+    impl="live_http" + cfg={base_url,...} to reach an external chatbot. Guard: a
+    misconfigured LLM_EVAL_ADAPTER="live_http" without cfg (i.e. a bake) falls back to the
+    seeded stub so it can never break the deterministic bake.
+    """
+    impl = impl or config.LLM_EVAL_ADAPTER
+    if impl == "live_http":
+        if cfg is None:
+            return SeededJudgeAdapter("langfuse_stub", seed, scenario_id, use_case_id)
+        from .live_http import LiveHttpLLMAdapter
+        return LiveHttpLLMAdapter(cfg["base_url"], scenario_id, use_case_id,
+                                  seed=seed, judge_model=cfg.get("judge_model"))
+    return SeededJudgeAdapter(impl, seed, scenario_id, use_case_id)

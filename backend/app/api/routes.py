@@ -470,23 +470,24 @@ from ..scenario.live_runner import live_runner, reset_live_runner  # noqa: E402
 
 
 @router.post("/live/tick")
-async def live_tick():
-    """Observe the next live telemetry window (pull -> Evidently/CBPE/LIME/SHAP -> grade).
-    The adapters do sync HTTP + heavy engine work, so run it off the event loop."""
-    return await anyio.to_thread.run_sync(lambda: live_runner().tick())
+async def live_tick(uc: str = "AICT-L01"):
+    """Observe the next live telemetry window and grade it. `uc` selects the use case:
+    AICT-L01 = churn (Evidently/CBPE/LIME/SHAP), AICT-L02 = chatbot (LLM-as-judge). The
+    adapters do sync HTTP + heavy engine work, so run it off the event loop."""
+    return await anyio.to_thread.run_sync(lambda: live_runner(uc).tick())
 
 
 @router.get("/live/state")
-def live_state():
-    p = live_runner().state()
-    return p or {"use_case_id": "AICT-L01", "mode": "live", "tick": None,
-                 "message": "no live tick yet — POST /api/live/tick"}
+def live_state(uc: str = "AICT-L01"):
+    p = live_runner(uc).state()
+    return p or {"use_case_id": uc, "mode": "live", "tick": None,
+                 "message": f"no live tick yet — POST /api/live/tick?uc={uc}"}
 
 
 @router.post("/live/reset")
-def live_reset():
-    reset_live_runner()
-    return {"reset": True}
+def live_reset(uc: str | None = None):
+    reset_live_runner(uc)
+    return {"reset": True, "uc": uc or "all"}
 
 
 # ------------------------------------------------------------------ dev-only / export
