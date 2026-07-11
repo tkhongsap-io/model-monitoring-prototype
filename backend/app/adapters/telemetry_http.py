@@ -3,7 +3,7 @@ external model apps (the models never push; the monitor reaches OUT to their URL
 
 Uses httpx (already a backend dep). Kept tiny on purpose: this is the ONLY code that
 crosses the process boundary to the model services — everything downstream operates on
-plain dicts / DataFrames. Contract v1.0: bearer auth is sent when the monitor's
+plain dicts / DataFrames. Contract v1.0: [redacted] auth is sent when the monitor's
 LIVE_TELEMETRY_TOKEN is set (the apps require it when THEIR RAI_TELEMETRY_TOKEN is set);
 feature order/categoricals are OWNED by the model service (X-Feature-Order /
 X-Categorical-Features headers, echoed in GET /telemetry/meta) — never hardcoded here.
@@ -77,3 +77,21 @@ def pull_model(base_url: str, path: str = "/model/artifact", timeout: float = 60
     meta = {"feature_order": _split_header(r.headers.get("X-Feature-Order")),
             "categorical": _split_header(r.headers.get("X-Categorical-Features"))}
     return model, version, meta
+
+
+def push_scores(base_url: str, scores: list[dict], timeout: float = 10.0) -> dict:
+    """POST judge scores back to the chatbot so they appear on its Langfuse traces.
+
+    The monitor calls this after judging each trace window; the chatbot forwards the
+    scores to Langfuse using the same trace_id it published in /telemetry/traces.
+
+    scores: [{"trace_id": str, "name": str, "value": float, "comment"?: str}, ...]
+    Returns the response JSON on success. Raises on HTTP/network error (caller degrades)."""
+    r = httpx.post(
+        base_url.rstrip("/") + "/telemetry/scores",
+        json={"scores": scores},
+        headers={**_auth_headers(), "Content-Type": "application/json"},
+        timeout=timeout,
+    )
+    r.raise_for_status()
+    return r.json()
