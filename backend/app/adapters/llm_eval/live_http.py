@@ -209,6 +209,25 @@ class LiveHttpLLMAdapter:
             except Exception as e:  # noqa: BLE001 — signals stand; note the store failure
                 res.errors["trace_store"] = f"{type(e).__name__}: {e}"
 
+            # write-back: post judge scores to the chatbot so they appear on Langfuse traces
+            # (the chatbot forwards them using the trace_id it published in /telemetry/traces)
+            try:
+                from ..telemetry_http import push_scores
+                score_items = [
+                    {"trace_id": tr["trace_id"], "name": name, "value": val, "comment": judge}
+                    for tr, sc in zip(traces, scores)
+                    if tr.get("trace_id")
+                    for name, val in [
+                        ("groundedness", sc["groundedness"]),
+                        ("relevance", sc["relevance"]),
+                        ("hallucination", 1.0 if sc["hallucination"] else 0.0),
+                    ]
+                ]
+                if score_items:
+                    push_scores(self.base_url, score_items)
+            except Exception as e:  # noqa: BLE001 — write-back failure must not kill the tick
+                res.errors["score_writeback"] = f"{type(e).__name__}: {e}"
+
             # one sample per distinct question for the Judge-scores drill-down tab
             seen, sample = set(), []
             for tr, sc in zip(traces, scores):
