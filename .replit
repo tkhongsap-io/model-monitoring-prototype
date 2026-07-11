@@ -1,8 +1,13 @@
 modules = ["nodejs-24", "python-3.12"]
 
+# Reserved VM ("gce"), NOT autoscale: the LIVE monitoring plane keeps in-process state
+# (each model's read cursor + signal history) and uses SQLite — it needs exactly one
+# always-on instance. Autoscale would run N instances / scale to zero and wipe live state.
 [deployment]
 router = "application"
-deploymentTarget = "autoscale"
+deploymentTarget = "gce"
+build = ["bash", "scripts/deploy-build.sh"]
+run = ["bash", "backend/run.sh"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]

@@ -77,7 +77,49 @@ The monitor observes **closed** telemetry windows, so the model apps need real t
 Watch the **Heatmap** and **At A Glance** pages turn Green → Amber → Red as drift ramps, then recover after a
 retrain. The chatbot's judged traces appear in your Langfuse project in real time.
 
-## 4. Plug in a new model (the template pitch)
+## 4. Deploy online (two Replit Reserved VMs)
+
+Everything above also runs on the web — **two deployments, joined only by URLs** (the
+same shape as production: the monitor is one service; the models live elsewhere).
+
+### 4a. Models VM (`ai-use-cases` repo)
+Replit exposes one external port per deployment, so `apps/portfolio-server` runs the
+four apps as subprocesses and reverse-proxies path prefixes (`/churn`, `/chatbot`,
+`/nba`, `/account`) — each model is still an independent service; the gateway is demo
+hosting convenience only.
+
+1. Import the `ai-use-cases` repo into Replit (keep it **private** — CPG Confidential).
+2. Deploy → **Reserved VM** (`.replit` is pre-configured: `deploy/build.sh` +
+   `deploy/run.sh`).
+3. Secrets: `RAI_TELEMETRY_TOKEN` (pick a strong shared secret), optionally
+   `ANTHROPIC_API_KEY` (real Claude on the chatbot's `/chat`), `RAI_CHAT_REPS=4`.
+4. Note the URL, e.g. `https://telco-models.<user>.replit.app` — check `/health`
+   (aggregates all four services).
+
+### 4b. Monitor VM (`model-monitoring-prototype` repo)
+`.replit` is pre-configured for **Reserved VM** — *not* autoscale, because the live
+plane keeps in-process state (read cursors + signal history) and needs exactly one
+always-on instance. The deploy build (`scripts/deploy-build.sh`) builds the dashboard
+and FastAPI serves it, so the deployment is one service: dashboard + `/api` on one URL.
+
+1. Deploy → **Reserved VM**.
+2. Secrets:
+   - `LIVE_CHURN_URL   = https://telco-models.<user>.replit.app/churn`
+   - `LIVE_CHATBOT_URL = https://telco-models.<user>.replit.app/chatbot`
+   - `LIVE_NBA_URL     = https://telco-models.<user>.replit.app/nba`
+   - `LIVE_TELEMETRY_TOKEN` = the same shared secret as 4a
+   - `ANTHROPIC_API_KEY` (real judge), `LLM_JUDGE_MODEL=claude-haiku-4-5`,
+     `LLM_JUDGE_MAX_TRACES=20`
+   - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` (trace push)
+3. Open the monitor URL → the live dashboard. Drive traffic with `tools/traffic.py`
+   pointed at the models URL prefixes, or click **Observe next window**.
+
+**Deferred (enterprise)**: when models sit on-prem behind firewalls, the pull model
+needs either network reach or the push-ingest roadmap item — a Council/architecture
+decision (`MONITORING-CONTRACT.md` §2, §17), not a code change. For the enterprise
+rollout everything lands inside True's ecosystem and this becomes moot.
+
+## 5. Plug in a new model (the template pitch)
 
 This is the story for other IT teams — onboarding a model is **config, not code**:
 
