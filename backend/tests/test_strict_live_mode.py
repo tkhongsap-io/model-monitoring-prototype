@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app import config, db
+from app.api.live_routes import _worker_token_matches
 from app.main import app
 
 
@@ -65,3 +66,15 @@ def test_strict_live_readiness_rejects_insecure_fallbacks(tmp_path, monkeypatch)
         assert "LIVE_TELEMETRY_TOKEN" in errors
         assert "ANTHROPIC_API_KEY" in errors
         assert "external deployment URL" in errors
+
+
+def test_worker_token_auth_fails_closed_for_non_ascii_text(monkeypatch):
+    assert _worker_token_matches("worker-token", "worker-token") is True
+    assert _worker_token_matches("wrong-token", "worker-token") is False
+    assert _worker_token_matches("worker-tokén", "worker-tokén") is False
+
+    monkeypatch.setattr(config, "CONTROL_TOWER_MODE", "live")
+    monkeypatch.setattr(config, "ALLOW_INSECURE_LIVE_TESTING", False)
+    monkeypatch.setattr(config, "LIVE_WORKER_TOKEN", "worker-tokén")
+    assert "LIVE_WORKER_TOKEN must contain printable ASCII characters only" in (
+        config.live_configuration_errors())
