@@ -5,6 +5,7 @@ The demo runs with an empty .env: zero keys, zero network (Langfuse stub default
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -79,14 +80,34 @@ LLM_JUDGE_MODEL = _env("LLM_JUDGE_MODEL", "claude-haiku-4-5")
 LLM_JUDGE_MAX_TRACES = int(_env("LLM_JUDGE_MAX_TRACES", "20"))
 
 _BUILD_SHA_FILE = BACKEND_DIR / ".build-sha"
-BUILD_SHA = (
-    os.getenv("REPLIT_DEPLOYMENT_SHA", "").strip()
-    or os.getenv("GIT_SHA", "").strip()
-    or os.getenv("COMMIT_SHA", "").strip()
-    or (_BUILD_SHA_FILE.read_text(encoding="utf-8").strip()
-        if _BUILD_SHA_FILE.is_file() else "")
-    or "unknown"
-)
+
+
+def _resolve_build_sha(environment: Mapping[str, str], build_sha_file: Path) -> str:
+    """Resolve the source commit without mistaking a deployment ID for Git HEAD."""
+    explicit_git_sha = environment.get("GIT_SHA", "").strip()
+    if explicit_git_sha:
+        return explicit_git_sha
+
+    try:
+        stamped_git_sha = (
+            build_sha_file.read_text(encoding="utf-8").strip()
+            if build_sha_file.is_file()
+            else ""
+        )
+    except OSError:
+        stamped_git_sha = ""
+    if stamped_git_sha:
+        return stamped_git_sha
+
+    # Retain generic CI/deployment values only as backwards-compatible fallbacks.
+    return (
+        environment.get("COMMIT_SHA", "").strip()
+        or environment.get("REPLIT_DEPLOYMENT_SHA", "").strip()
+        or "unknown"
+    )
+
+
+BUILD_SHA = _resolve_build_sha(os.environ, _BUILD_SHA_FILE)
 
 
 def langfuse_cloud_configured() -> bool:
