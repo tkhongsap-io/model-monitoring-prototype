@@ -21,6 +21,22 @@ from . import live_portfolio
 router = APIRouter(prefix="/api")
 
 
+def _worker_token_matches(supplied: str, expected: str) -> bool:
+    """Compare bearer tokens without letting malformed header text raise a 500.
+
+    HTTP bearer credentials are deliberately restricted to ASCII by the strict-live
+    configuration checks.  ``hmac.compare_digest`` raises ``TypeError`` when either
+    string contains non-ASCII text, so encode only validated wire-safe values and fail
+    closed for malformed input.
+    """
+    try:
+        supplied_bytes = supplied.encode("ascii")
+        expected_bytes = expected.encode("ascii")
+    except UnicodeEncodeError:
+        return False
+    return hmac.compare_digest(supplied_bytes, expected_bytes)
+
+
 def _public_payload(payload: dict) -> dict:
     """Defense-in-depth redaction for public observation/detail responses."""
     out = dict(payload)
@@ -93,7 +109,7 @@ def artifact(artifact_id: str):
 async def run_poll_cycle(authorization: str | None = Header(default=None)):
     expected = config.LIVE_WORKER_TOKEN
     supplied = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    if not expected or not supplied or not hmac.compare_digest(supplied, expected):
+    if not expected or not supplied or not _worker_token_matches(supplied, expected):
         raise HTTPException(401, detail="invalid worker token")
     completed = await anyio.to_thread.run_sync(poller().run_once)
     return {

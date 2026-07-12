@@ -158,6 +158,10 @@ def live_configuration_errors() -> list[str]:
         errors.append("LIVE_TELEMETRY_TOKEN is required")
     if not LIVE_WORKER_TOKEN:
         errors.append("LIVE_WORKER_TOKEN is required for authenticated Autoscale wake polls")
+    elif (not LIVE_WORKER_TOKEN.isascii()
+          or any(ord(char) < 33 or ord(char) > 126 for char in LIVE_WORKER_TOKEN)):
+        errors.append(
+            "LIVE_WORKER_TOKEN must contain printable ASCII characters only")
     if not ANTHROPIC_API_KEY:
         errors.append("ANTHROPIC_API_KEY is required for real live judging")
     if not langfuse_cloud_configured():
