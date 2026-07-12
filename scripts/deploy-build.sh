@@ -6,7 +6,10 @@ set -euo pipefail
 cd "$(dirname -- "$0")/.."
 export CONTROL_TOWER_MODE="${CONTROL_TOWER_MODE:-live}"
 
-BUILD_SHA="${REPLIT_GIT_COMMIT:-$(git rev-parse HEAD)}"
+# Replit deployment revisions identify the built artifact and can differ from the
+# GitHub source commit. Stamp the checked-out commit unless an operator supplies an
+# explicit trusted source SHA.
+BUILD_SHA="${GIT_SHA:-$(git rev-parse --verify HEAD)}"
 test -n "$BUILD_SHA"
 printf '%s\n' "$BUILD_SHA" > backend/.build-sha
 # Demo output is tracked only as developer reference; it must not enter the strict-live
