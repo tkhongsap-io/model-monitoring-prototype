@@ -74,6 +74,15 @@ onlyBuiltDependencies:
   - msw
   - unrs-resolver
 
+# pnpm 10.26+ requires an explicit true/false decision for dependency build
+# scripts. Mirror the existing allowlist above so both the CI-pinned pnpm
+# version and Replit's newer pnpm release apply the same reviewed policy.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  msw: true
+  unrs-resolver: true
+
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
