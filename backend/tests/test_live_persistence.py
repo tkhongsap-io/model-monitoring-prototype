@@ -110,6 +110,41 @@ def test_poller_heartbeat_keeps_lease_during_slow_tick(isolated_live_db, monkeyp
     assert result == [True]
 
 
+def test_poller_cycle_lock_blocks_same_process_overlap(isolated_live_db, monkeypatch):
+    monkeypatch.setattr(config, "LIVE_POLL_LEASE_SECONDS", 30)
+    monkeypatch.setattr(live_portfolio, "LIVE_UCS", ["AICT-L01"])
+    started, finish = threading.Event(), threading.Event()
+    tick_calls = 0
+
+    class SlowRunner:
+        def tick(self):
+            nonlocal tick_calls
+            tick_calls += 1
+            started.set()
+            assert finish.wait(3)
+            return {"waiting": True}
+
+    runner = SlowRunner()
+    monkeypatch.setattr(live_runner_module, "live_runner", lambda uc: runner)
+    worker = live_poller.LivePoller()
+    result: list[bool] = []
+    thread = threading.Thread(target=lambda: result.append(worker.run_once()))
+    thread.start()
+    try:
+        assert started.wait(1)
+        # The database lease permits renewal by the same owner.  This call therefore
+        # proves the process-local guard, rather than the cross-instance lease, is what
+        # prevents a wake request from starting a second cycle.
+        assert worker.run_once() is False
+        assert tick_calls == 1
+    finally:
+        finish.set()
+        thread.join(timeout=3)
+        db.release_live_lease(live_poller.LEASE_NAME, worker.owner_id)
+    assert result == [True]
+    assert tick_calls == 1
+
+
 def test_sync_state_reports_tail_idle_stale_and_error(isolated_live_db, monkeypatch):
     real_time = time.time
     db.put_live_observation(

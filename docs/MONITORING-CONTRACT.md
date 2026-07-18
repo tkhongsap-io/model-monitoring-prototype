@@ -54,11 +54,15 @@ the Window envelope (§5) is transport-symmetric by design.
 |---|---|---|---|---|
 | **REQUIRED** | `GET /telemetry/inferences?tick=` · `GET /telemetry/labels?tick=` · `GET /telemetry/reference` | `GET /telemetry/traces?tick=` | `GET /telemetry/recommendations?tick=` · `GET /telemetry/rewards?tick=` · `GET /telemetry/reference` | `GET /health` · `GET /telemetry/meta` |
 | **OPTIONAL** | `GET /model/artifact` | — | `GET /model/artifact` | — |
-| **DEMO-ONLY — do not implement in production** | `POST /admin/tick` · `POST /admin/drift` · `POST /admin/retrain` · `POST /predict` | same + `POST /chat` | same + `POST /recommend` | — |
+| **OUTSIDE THE PULL CONTRACT** | `POST /admin/tick` · `POST /admin/drift` · `POST /admin/retrain` · `POST /predict` | same + `POST /chat` | same + `POST /recommend` | — |
 
-`/admin/*` endpoints exist in the reference apps solely to script degradation demos (a
-drift knob, a retrain trigger). They are **outside the production contract**: a production
-service's traffic, drift, and retraining are real, not injected.
+`/admin/*` endpoints exist in the reference apps solely to script explicit degradation
+demos (a drift knob, a retrain trigger). They are **outside the production contract**: a
+production service's traffic, drift, and retraining are real, not injected. The POC
+intentionally exposes `/predict`, `/chat`, and `/recommend` as its normal inference APIs
+behind a rate-limited operator session; those calls create real activity records but
+remain outside the monitor's read-only pull interface. Strict-live control-tower routes
+never expose the `/admin/*` controls.
 
 `GET /telemetry/meta` returns:
 

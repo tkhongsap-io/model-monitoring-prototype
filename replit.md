@@ -1,45 +1,42 @@
-# [Project name]
+# Model Monitoring Prototype
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Strict-live AI observability control tower for the `ai-use-cases` producer. The monitor
+pulls authenticated telemetry, persists cursors and observations in its own PostgreSQL
+database, evaluates real closed windows, and acknowledges matching window digests back
+to the producer. Production never serves baked scenario data.
 
-## Run & Operate
+## Run and operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `bash scripts/deploy-build.sh` — install dependencies, run migrations, and build the SPA
+- `bash scripts/deploy-run.sh` — start the single-port strict-live deployment
+- `cd backend && .venv/bin/python -m pytest tests` — backend regression suite
+- `cd frontend && pnpm typecheck && pnpm build` — frontend validation
 
-## Stack
+The root `.replit` publishes an Autoscale deployment. `scripts/deploy-run.sh` always sets
+`CONTROL_TOWER_MODE=live`; local demo mode must use a separate development command.
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+## Required Replit Secrets
 
-## Where things live
+- `DATABASE_URL` — monitor-owned managed PostgreSQL, never the producer database
+- `LIVE_CHURN_URL`, `LIVE_CHATBOT_URL`, `LIVE_NBA_URL` — producer gateway service prefixes
+- `LIVE_PRODUCER_URL` — producer gateway root for version checks and acknowledgements
+- `LIVE_TELEMETRY_TOKEN` — same value as producer `RAI_TELEMETRY_TOKEN`
+- `LIVE_WORKER_TOKEN` — same value as GitHub secret `MONITOR_WORKER_TOKEN`
+- `ANTHROPIC_API_KEY` — real Claude judge
+- `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`
+- `LIVE_POLL_SECONDS` — positive warm-instance polling interval
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+`.env` files are excluded from Replit deployment images. Use Replit Secrets for runtime
+credentials. `ALLOW_INSECURE_LIVE_TESTING` must remain unset in production.
 
-## Architecture decisions
+## Architecture and evidence
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Browser presence never advances telemetry; the backend poller owns progress.
+- A PostgreSQL lease elects one polling process across Autoscale instances, and a local
+  cycle guard prevents concurrent wake/background cycles inside one process.
+- Window IDs and SHA-256 content digests are persisted before cursors advance.
+- Public live APIs expose redacted observations only; demo/scenario routes return 404.
+- `GET /api/readiness`, `/api/version`, and `/api/live/sync` are the release diagnostics.
 
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+The source of truth is `docs/MONITORING-CONTRACT.md`; deployment safety and exact URL
+mapping are documented in `docs/STRICT-LIVE.md` and `docs/LIVE-DEMO.md`.
