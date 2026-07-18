@@ -16,6 +16,10 @@ class LivePoller:
         self.owner_id = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:8]}"
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        # The database lease elects one Autoscale *process*, but renewals by the same
+        # owner are intentionally allowed.  Serialize cycles inside that process so an
+        # authenticated wake request cannot overlap the warm background loop.
+        self._cycle_lock = threading.Lock()
         self.last_cycle_error: str | None = None
 
     @property
@@ -39,6 +43,15 @@ class LivePoller:
 
     def run_once(self) -> bool:
         """Run a single lease-protected cycle; public for deterministic tests."""
+        if not self._cycle_lock.acquire(blocking=False):
+            return False
+        try:
+            return self._run_once_with_lease()
+        finally:
+            self._cycle_lock.release()
+
+    def _run_once_with_lease(self) -> bool:
+        """Run one cycle after the process-local guard has been acquired."""
         if not db.acquire_live_lease(
                 LEASE_NAME, self.owner_id, config.LIVE_POLL_LEASE_SECONDS):
             return False

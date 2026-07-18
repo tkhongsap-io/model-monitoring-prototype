@@ -6,6 +6,9 @@
 .migration-backup
 .git
 .github
+.env
+.env.*
+!.env.example
 backend/artifacts
 backend/tests
 backend/**/__pycache__

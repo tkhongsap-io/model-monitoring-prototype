@@ -1,0 +1,11 @@
+# Replit and production run on Linux. Keep source and deployment files on LF so
+# Windows tooling cannot create false whole-file diffs or break shell scripts.
+* text=auto
+
+*.md text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+*.toml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
