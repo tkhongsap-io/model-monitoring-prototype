@@ -25,6 +25,7 @@ import numpy as np
 
 from ..base import LaneResult
 from .live_http import LiveHttpMLAdapter
+from .realized import MIN_COVERAGE, RealizedResult
 
 
 def _tv_distance(p: dict, q: dict) -> float:
@@ -53,6 +54,26 @@ class LiveHttpNBAAdapter(LiveHttpMLAdapter):
 
     def _on_rebaseline(self) -> None:
         self._baseline_mix = None   # re-capture from the first window of the new model
+
+    def _on_empty_window(self, res: LaneResult, t: int) -> None:
+        # No recommendations were served: the Feedback lane and the mix drift are
+        # reasoned-Unknown for this window (the runner excludes them from the rollup).
+        res.errors["acceptance_pending"] = "empty window"
+        res.errors["recommendation_drift_pending"] = "empty window"
+        res.records["offer_mix"] = None
+        res.records["baseline_offer_mix"] = self._baseline_mix
+
+    def _realized_signals(self, joined: RealizedResult) -> dict[str, RealizedResult]:
+        # acceptance_rate needs matched rewards with enough coverage, not both classes:
+        # a window where every offer was accepted (single_class for AUC) still has a
+        # perfectly good acceptance rate.
+        covered = bool(joined.matched) and (joined.coverage or 0.0) >= MIN_COVERAGE
+        acceptance = RealizedResult(
+            float(np.mean(joined.matched)) if covered else None, joined.coverage,
+            "realized" if covered else joined.status, list(joined.matched),
+            None if covered else joined.reason,
+            final=False if covered else joined.final)   # overdue no_labels is final for both
+        return {"realized_roc_auc": joined, "acceptance_rate": acceptance}
 
     def _extend(self, res: LaneResult, inf: list, matched: list,
                 coverage: float | None, pending: str | None, t: int) -> None:

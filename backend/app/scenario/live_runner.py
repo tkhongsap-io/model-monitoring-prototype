@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import threading
 
-from .. import config, db
+from .. import config, db, label_backfill
 from ..adapters.base import ExplainResult, TickContext
 from ..adapters.explain.lime_shap import make_explain
 from ..adapters.explain.live_http import LiveHttpExplainAdapter
@@ -46,6 +46,9 @@ _EXCLUDED_LANES_LLM = set(_HAND_SET_LLM)
 # NBA hand-sets only Safety/Reliability — Feedback is a REAL lane (acceptance_rate);
 # while rewards lag it is reasoned-Unknown and excluded, once arrived it COUNTS.
 _HAND_SET_NBA = {"Safety & security": "Unknown", "Reliability": "Unknown"}
+
+# windows with nothing (or too little) to explain: skip LIME/SHAP, keep the observation
+_NO_EXPLAIN = {"insufficient_sample", "empty_window"}
 
 
 def _source_lag_ms(closed_at: str | None) -> float | None:
@@ -109,6 +112,16 @@ def _commit_tick(runner, payload: dict, telemetry_err: str | None, meta: dict) -
     payload["window_digest"] = payload.get("content_sha256")
     runner._current = payload
 
+    # The just-observed tick's realized rows (normally `pending`: labels lag).  Lives in
+    # live_realized_metrics only — the stored observation above is never rewritten.
+    realized_keys = getattr(runner, "realized_keys", ())
+    if realized_keys:
+        try:
+            label_backfill.record_current_tick(
+                runner.use_case_id, payload["observed_tick"], payload, realized_keys)
+        except Exception as exc:  # noqa: BLE001 — never undo a committed observation
+            db.mark_live_warning(runner.use_case_id, f"realized row: {exc}")
+
     # Acknowledgement is deliberately after the durable local commit.  Its failure is
     # persisted separately and never rolls back or loses the observation.
     if config.LIVE_PRODUCER_URL:
@@ -168,6 +181,13 @@ def _signal_view(sig: dict, s_health: dict, extra: dict | None = None) -> dict:
     return out
 
 
+def _rollup_meta(hand_set: dict, excluded_lanes: set, excluded_keys: set) -> dict:
+    """The rollup inputs, persisted with the payload so `realized_view.apply_realized`
+    can recompute lanes/overall once a lagged label lands (read-time, never a rewrite)."""
+    return {"hand_set_lanes": dict(hand_set), "excluded_lanes": sorted(excluded_lanes),
+            "excluded_keys": sorted(excluded_keys)}
+
+
 def _ahead_of_app(base_url: str, read_tick: int, uc: str) -> tuple[dict | None, dict]:
     """Cursor sync: best-effort /telemetry/meta; the monitor reads only CLOSED windows
     (tick < latest_tick — the latest window is still open: /chat appends to it, contract
@@ -196,7 +216,29 @@ def _ahead_of_app(base_url: str, read_tick: int, uc: str) -> tuple[dict | None, 
     return None, meta
 
 
+def _backfill_labels(runner, meta: dict, current_tick: int) -> None:
+    """Realize lagged labels for recent ticks; a failure here never fails the tick.
+
+    `current_tick` (the monitor's tick) bounds the window.  Finality is judged against
+    the producer's latest CLOSED tick, `latest_tick - 1` (the same `source_tick` that
+    `_commit_tick` stores): while waiting at the tail `current_tick == latest_tick`, the
+    window the producer is still writing, and labels due in it may still be published.
+    """
+    try:
+        latest_tick = meta.get("latest_tick")
+        source_tick = (int(latest_tick) - 1) if latest_tick is not None else current_tick
+        label_backfill.run(
+            runner.use_case_id, runner.ml, current_tick=current_tick,
+            lag=label_backfill.lag_from_meta(meta, kind=runner.lane_kind),
+            metric_keys=runner.realized_keys, source_tick=source_tick)
+    except Exception as exc:  # noqa: BLE001
+        db.mark_live_warning(runner.use_case_id, f"backfill: {type(exc).__name__}: {exc}")
+
+
 class LiveRunner:
+    realized_keys = ("realized_roc_auc",)
+    lane_kind = "ml"
+
     def __init__(self, churn_url: str | None = None, seed: int | None = None) -> None:
         self.use_case_id = LIVE_UC
         self.seed = seed if seed is not None else config.DEMO_SEED
@@ -229,12 +271,14 @@ class LiveRunner:
         return {
             "use_case_id": LIVE_UC, "tick": t, "mode": "live",
             "signals": _signal_view(sig, s_health, extra), "lanes": lanes, "overall": overall,
+            "rollup_meta": _rollup_meta(_HAND_SET, _EXCLUDED_LANES, excluded),
             "lane_reasons": {lane: _NOT_INSTRUMENTED for lane in _HAND_SET},
             "drifted_features": records.get("drifted_features", []),
             "reference_auc": records.get("reference_auc"),
             "model_version": records.get("model_version"),
             "realized_pending_reason": pending,
             "realized_label_coverage": records.get("realized_label_coverage"),
+            **({"empty_window": True} if records.get("empty_window") else {}),
             "lime_top": ex_res.lime_top, "lime_instance": ex_res.instance,
             "artifacts": {**ml_res.artifacts, **ex_res.artifacts},
             "errors": {**ml_res.errors, **ex_res.errors},
@@ -248,13 +292,18 @@ class LiveRunner:
             t = self._read_tick
             waiting, meta = _ahead_of_app(self.base_url, t, LIVE_UC)
             if waiting:
+                if meta:  # producer reachable: labels may have landed for older ticks
+                    _backfill_labels(self, meta, t)
                 return waiting  # don't advance, don't store as _current
             ctx = TickContext(tick=t, seed=self.seed, scenario_id="LIVE")
             ml_res = self.ml.monitor(LIVE_UC, ctx)
-            ex_res = (ExplainResult() if "insufficient_sample" in ml_res.errors
+            ex_res = (ExplainResult() if _NO_EXPLAIN & ml_res.errors.keys()
                       else self.explain.explain(LIVE_UC, ctx))
             payload = self._grade(ml_res, ex_res, t)
-            return _commit_tick(self, payload, ml_res.errors.get("telemetry"), meta)
+            out = _commit_tick(self, payload, ml_res.errors.get("telemetry"), meta)
+            if not out.get("cursor_held"):
+                _backfill_labels(self, meta, t)
+            return out
 
     def state(self) -> dict | None:
         latest = db.get_latest_live_observation(self.use_case_id)
@@ -294,6 +343,7 @@ class LiveLLMRunner:
         return {
             "use_case_id": LIVE_LLM_UC, "tick": t, "mode": "live",
             "signals": _signal_view(sig, s_health), "lanes": lanes, "overall": overall,
+            "rollup_meta": _rollup_meta(_HAND_SET_LLM, _EXCLUDED_LANES_LLM, set()),
             "lane_reasons": {lane: _NOT_INSTRUMENTED for lane in _HAND_SET_LLM},
             "judge": (config.LLM_JUDGE_MODEL if config.ANTHROPIC_API_KEY
                       else ("required-unavailable" if config.strict_live_mode() else "heuristic-v1")),
@@ -335,6 +385,9 @@ class LiveNBARunner:
     Unlike the churn runner, Feedback & action loop is a REAL lane here — graded from
     acceptance_rate once rewards arrive, reasoned-Unknown (excluded from overall) while
     they lag."""
+
+    realized_keys = ("realized_roc_auc", "acceptance_rate")
+    lane_kind = "nba"
 
     def __init__(self, nba_url: str | None = None, seed: int | None = None) -> None:
         self.use_case_id = LIVE_NBA_UC
@@ -383,6 +436,7 @@ class LiveNBARunner:
         return {
             "use_case_id": LIVE_NBA_UC, "tick": t, "mode": "live",
             "signals": _signal_view(sig, s_health, extra), "lanes": lanes, "overall": overall,
+            "rollup_meta": _rollup_meta(hand_set, excluded_lanes, excluded),
             "lane_reasons": {lane: _NOT_INSTRUMENTED for lane in _HAND_SET_NBA},
             "drifted_features": records.get("drifted_features", []),
             "reference_auc": records.get("reference_auc"),
@@ -392,6 +446,7 @@ class LiveNBARunner:
             "acceptance_pending_reason": acc_pending,
             "offer_mix": records.get("offer_mix"),
             "baseline_offer_mix": records.get("baseline_offer_mix"),
+            **({"empty_window": True} if records.get("empty_window") else {}),
             "lime_top": ex_res.lime_top, "lime_instance": ex_res.instance,
             "artifacts": {**ml_res.artifacts, **ex_res.artifacts},
             "errors": {**ml_res.errors, **ex_res.errors},
@@ -404,13 +459,18 @@ class LiveNBARunner:
             t = self._read_tick
             waiting, meta = _ahead_of_app(self.base_url, t, LIVE_NBA_UC)
             if waiting:
+                if meta:
+                    _backfill_labels(self, meta, t)
                 return waiting
             ctx = TickContext(tick=t, seed=self.seed, scenario_id="LIVE")
             ml_res = self.ml.monitor(LIVE_NBA_UC, ctx)
-            ex_res = (ExplainResult() if "insufficient_sample" in ml_res.errors
+            ex_res = (ExplainResult() if _NO_EXPLAIN & ml_res.errors.keys()
                       else self.explain.explain(LIVE_NBA_UC, ctx))
             payload = self._grade(ml_res, ex_res, t)
-            return _commit_tick(self, payload, ml_res.errors.get("telemetry"), meta)
+            out = _commit_tick(self, payload, ml_res.errors.get("telemetry"), meta)
+            if not out.get("cursor_held"):
+                _backfill_labels(self, meta, t)
+            return out
 
     def state(self) -> dict | None:
         latest = db.get_latest_live_observation(self.use_case_id)

@@ -27,8 +27,11 @@ from sklearn.metrics import roc_auc_score
 
 from ...datagen import churn
 from ..base import LaneResult, TickContext
-from ..telemetry_http import pull, pull_model, window_metadata
+from ..telemetry_http import (
+    TelemetryIntegrityError, WindowEvicted, pull, pull_model, window_metadata,
+)
 from . import engines
+from .realized import RealizedResult, join_realized
 
 
 class LiveHttpMLAdapter:
@@ -120,6 +123,78 @@ class LiveHttpMLAdapter:
                 coverage: float | None, pending: str | None, t: int) -> None:
         """Hook for subclass signals over the same pulled windows (NBA adds two)."""
 
+    def _on_empty_window(self, res: LaneResult, t: int) -> None:
+        """Subclass hook for a count=0 window (NBA marks its extra signals pending)."""
+
+    # -- label-lag backfill (contract §7): re-pull an OLD window's inferences + labels --
+    def realize_tick(self, t: int, expected_sha256: str | None, *,
+                     source_tick: int | None = None,
+                     due_tick: int | None = None) -> dict[str, RealizedResult]:
+        """Realized metrics for an already-observed tick, keyed by signal key.
+
+        The inferences are re-pulled and verified against the digest stored with the
+        original observation: a changed digest means the producer rewrote an immutable
+        window and the result is an integrity error, never a value.  Raises
+        `WindowEvicted` only when the producer no longer serves the INFERENCE window.
+
+        Spec B.2 "done" rule: when the labels window is still empty and its
+        `available_at_tick` is at or before `source_tick` — the producer's latest CLOSED
+        tick (`latest_tick - 1`), never the open one it is still writing — the tick is
+        final `no_labels` (`final=True`); before that it is `pending`.  A labels window
+        that carries no `available_at_tick` (a 404, or a producer that omits the field)
+        is `pending` and retried until `due_tick` (the monitor's own `t + lag`) is at or
+        before `source_tick`, then final `no_labels`.  An empty or undersized inference
+        window is final `no_labels` at once: no label can ever realize it.
+        """
+        env = pull(self.base_url, self.inferences_path, {"tick": t})
+        meta = window_metadata(env, t)
+        if expected_sha256 and meta.get("content_sha256") != expected_sha256:
+            raise TelemetryIntegrityError(
+                f"tick {t} digest changed: {expected_sha256} -> {meta.get('content_sha256')}")
+        inf = env.get("records") or []
+        if not inf:
+            return self._realized_signals(
+                RealizedResult(None, None, "no_labels", reason="empty window", final=True))
+        if len(inf) < self.chunk_size:
+            # same rule as the live tick: no statistical metric below the window size
+            return self._realized_signals(RealizedResult(
+                None, None, "no_labels", final=True,
+                reason=f"insufficient sample: {len(inf)} of {self.chunk_size} records"))
+        overdue = (source_tick is not None and due_tick is not None
+                   and int(due_tick) <= int(source_tick))
+        try:
+            labels_env = pull(self.base_url, self.labels_path, {"tick": t})
+        except WindowEvicted as exc:
+            if overdue:
+                return self._realized_signals(RealizedResult(
+                    None, 0.0, "no_labels", final=True,
+                    reason=f"{exc}; due at tick {due_tick}, none by tick {source_tick}"))
+            return self._realized_signals(RealizedResult(None, 0.0, "pending", reason=str(exc)))
+        joined = join_realized(inf, labels_env.get("records", []), id_field=self.id_field,
+                               label_field=self._label_field, proba_field=self.proba_field)
+        if not labels_env.get("records"):
+            available_at = labels_env.get("available_at_tick")
+            if available_at is None:
+                # no producer due tick to go by: fall back to the monitor's own
+                if overdue:
+                    joined.status, joined.final = "no_labels", True
+                    joined.reason = (f"no labels published by tick {source_tick} "
+                                     f"(due at tick {due_tick}, producer gave no "
+                                     f"available_at_tick)")
+                else:
+                    joined.status, joined.reason = "pending", "label lag"
+            elif source_tick is not None and int(available_at) <= int(source_tick):
+                joined.status, joined.final = "no_labels", True
+                joined.reason = (f"no labels published by tick {source_tick} "
+                                 f"(due at tick {available_at})")
+            else:
+                joined.status, joined.reason = "pending", "label lag"
+        return self._realized_signals(joined)
+
+    def _realized_signals(self, joined: RealizedResult) -> dict[str, RealizedResult]:
+        """Hook: map one label join onto this lane's realized signal keys."""
+        return {"realized_roc_auc": joined}
+
     def monitor(self, use_case_id: str, tick: TickContext) -> LaneResult:
         res = LaneResult()
         t = tick.tick
@@ -140,9 +215,20 @@ class LiveHttpMLAdapter:
             inf = inference_env["records"]
             res.metadata.update(window_metadata(inference_env, t))
             if not inf:
+                # Contract §6: a closed window with count=0 is a REAL observation (the
+                # producer saw no traffic), distinct from a missing window (404). It is
+                # stored with every signal Unknown and the cursor advances; it must never
+                # surface as errors["telemetry"], which holds the cursor.
                 for k in self._signal_keys:
                     res.signals[k] = None
-                res.errors["telemetry"] = "empty window (count=0)"
+                res.errors["empty_window"] = "count=0"
+                res.records = {
+                    "drifted_features": [], "reference_auc": self._reference_auc,
+                    "model_version": self._version, "empty_window": True,
+                    "realized_pending_reason": "empty window",
+                    "realized_label_coverage": None, "realized_window_tick": t,
+                }
+                self._on_empty_window(res, t)
                 return res
             order = self._resolve_order(inf)
             cur_feat = pd.DataFrame([r["features"] for r in inf])[order]
@@ -200,23 +286,14 @@ class LiveHttpMLAdapter:
         realized, pending, coverage, matched = None, None, None, []
         try:
             env = pull(self.base_url, self.labels_path, {"tick": t})
-            labels = env.get("records", [])
-            if env.get("available_at_tick") is not None:
+            if env.get("available_at_tick") is not None and not env.get("records"):
                 pending = "label lag"           # window not yet released by the app
-            elif not labels:
-                pending = "label lag"           # nothing arrived yet
             else:
-                lab = {label[self.id_field]: int(label[self._label_field]) for label in labels}
-                pairs = [(lab[r[self.id_field]], p) for r, p in zip(inf, cur_proba)
-                         if r[self.id_field] in lab]
-                matched = [y for y, _ in pairs]
-                coverage = len(pairs) / len(inf) if inf else 0.0
-                if coverage < 0.5:
-                    pending = "label coverage below 50%"
-                elif len(set(matched)) < 2:
-                    pending = "single class in matched labels"
-                else:
-                    realized = float(roc_auc_score(matched, [p for _, p in pairs]))
+                joined = join_realized(inf, env.get("records", []), id_field=self.id_field,
+                                       label_field=self._label_field,
+                                       proba_field=self.proba_field)
+                realized, coverage, matched = joined.value, joined.coverage, joined.matched
+                pending = None if joined.status == "realized" else (joined.reason or joined.status)
         except Exception as e:  # noqa: BLE001
             pending = f"labels pull failed: {type(e).__name__}: {e}"
         res.signals["realized_roc_auc"] = realized

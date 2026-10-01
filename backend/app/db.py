@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import threading
 import time
 import uuid
 from typing import Any
 
 from sqlalchemy import (
-    Column, Float, Integer, LargeBinary, MetaData, String, Table, Text, UniqueConstraint,
-    create_engine, delete, insert, inspect, or_, select, update,
+    Boolean, Column, Float, Integer, LargeBinary, MetaData, String, Table, Text,
+    UniqueConstraint, create_engine, delete, false, insert, inspect, or_, select, update,
 )
 from sqlalchemy.exc import IntegrityError
 
@@ -163,6 +164,33 @@ live_signal_history = Table(
     UniqueConstraint("observation_id", "signal_key", name="uq_live_signal_observation"),
 )
 
+# Label-lag realized metrics (contract §7).  Labels for a window arrive ticks after the
+# window closed, so realized values live ONLY here — never by rewriting the immutable
+# observation payload, and never in live_signal_history (its rows are written once with
+# the observation and are not updated; realized sparklines come from `realized_history`).
+# One row per (source, tick, metric).  `final` says the backfill is done with the tick:
+# set for `realized` and `evicted`, and for `no_labels` once the producer's
+# `available_at_tick` has passed with no labels (spec B.2).  A final row is never
+# overwritten.
+live_realized_metrics = Table(
+    "live_realized_metrics", metadata,
+    Column("source_id", String, nullable=False),
+    Column("tick", Integer, nullable=False),
+    Column("metric_key", String, nullable=False),
+    Column("value", Float),
+    Column("coverage", Float),
+    Column("status", String, nullable=False),
+    Column("reason", Text),
+    Column("computed_at", Float, nullable=False),
+    Column("final", Boolean, nullable=False, server_default=false()),
+    UniqueConstraint("source_id", "tick", "metric_key", name="uq_live_realized_metric"),
+)
+
+# Statuses that are final on their own.  `no_labels` is final only when the writer says
+# so (labels overdue); `pending`, `insufficient_coverage`, `single_class` and `error` are
+# revisited by the backfill.
+REALIZED_FINAL_STATUSES = frozenset({"realized", "evicted"})
+
 live_worker_leases = Table(
     "live_worker_leases", metadata,
     Column("lease_name", String, primary_key=True),
@@ -185,11 +213,24 @@ def migrate_engine(bind) -> list[int]:
             "CREATE INDEX IF NOT EXISTS ix_live_observations_batch_id "
             "ON live_observations(batch_id)")
 
+    def add_realized_final(cx) -> None:
+        columns = {column["name"] for column in inspect(cx).get_columns("live_realized_metrics")}
+        if "final" not in columns:
+            literal = "FALSE" if cx.dialect.name == "postgresql" else "0"
+            cx.exec_driver_sql("ALTER TABLE live_realized_metrics ADD COLUMN final BOOLEAN "
+                               f"NOT NULL DEFAULT {literal}")
+        cx.execute(update(live_realized_metrics).where(
+            live_realized_metrics.c.status.in_(sorted(REALIZED_FINAL_STATUSES))).values(
+                final=True))
+
     migrations = [
         (1, "initial monitor schema", lambda cx: metadata.create_all(bind=cx)),
         (2, "durable live artifact blobs",
          lambda cx: live_artifact_blobs.create(bind=cx, checkfirst=True)),
         (3, "scheduled POC batch correlation", add_live_batch_id),
+        (4, "label-lag realized metrics",
+         lambda cx: live_realized_metrics.create(bind=cx, checkfirst=True)),
+        (5, "realized-metric finality flag", add_realized_final),
     ]
     applied_now: list[int] = []
     # The local lock also makes SQLite thread-contention tests deterministic. Managed
@@ -432,6 +473,12 @@ def mark_live_contact(source_id: str, source_tick: int | None, backlog: int,
     return get_live_source(source_id)
 
 
+def mark_live_warning(source_id: str, warning: str) -> None:
+    """Record a non-fatal live-plane problem. Logged only: a warning must never move a
+    source into the `error` state or hold its cursor (the backfill uses this)."""
+    logging.getLogger(__name__).warning("%s: %s", source_id, warning)
+
+
 def mark_live_error(source_id: str, error: str) -> dict:
     ensure_live_source(source_id)
     now = time.time()
@@ -553,6 +600,21 @@ def get_latest_live_observation(source_id: str) -> dict | None:
     return out
 
 
+def get_live_observation_by_tick(source_id: str, tick: int) -> dict | None:
+    """The persisted observation for one observed tick (None when never observed)."""
+    with engine().begin() as cx:
+        row = cx.execute(select(live_observations).where(
+            (live_observations.c.source_id == source_id)
+            & (live_observations.c.observed_tick == int(tick))).order_by(
+                live_observations.c.observed_at.desc()).limit(1)).mappings().fetchone()
+    if not row:
+        return None
+    out = dict(row)
+    out["payload"] = json.loads(out["payload"])
+    out["provenance_counts"] = json.loads(out["provenance_counts"] or "{}")
+    return out
+
+
 def list_live_observations(source_id: str | None = None, limit: int = 100) -> list[dict]:
     q = select(live_observations)
     if source_id:
@@ -578,6 +640,117 @@ def get_live_signal_history(source_id: str, signal_key: str, limit: int) -> list
     with engine().begin() as cx:
         rows = cx.execute(q).mappings().all()
     return [dict(r) for r in reversed(rows)]
+
+
+# ------------------------------------------------------- label-lag realized metrics
+
+def put_realized_metric(source_id: str, tick: int, metric_key: str, *,
+                        value: float | None, coverage: float | None, status: str,
+                        reason: str | None = None, final: bool | None = None) -> None:
+    """Upsert one realized-metric row; a final row is never changed.
+
+    `final` defaults to `status in REALIZED_FINAL_STATUSES` (realized, evicted).  The
+    backfill passes `final=True` for a `no_labels` row whose labels are overdue (spec
+    B.2: `available_at_tick` ≤ current tick and still no labels), so the tick is not
+    pulled again.  Non-final statuses (pending, insufficient_coverage, single_class,
+    error, and no_labels before the due tick) are replaced in place on every revisit.
+    Once a tick is realized, a later eviction by the producer must not erase the
+    measured value; once evicted, nothing can be measured any more.
+    """
+    is_final = bool(final) if final is not None else status in REALIZED_FINAL_STATUSES
+    row = {
+        "source_id": source_id, "tick": int(tick), "metric_key": metric_key,
+        "value": None if value is None else float(value),
+        "coverage": None if coverage is None else float(coverage),
+        "status": status, "reason": reason, "computed_at": time.time(), "final": is_final,
+    }
+    where = ((live_realized_metrics.c.source_id == source_id)
+             & (live_realized_metrics.c.tick == int(tick))
+             & (live_realized_metrics.c.metric_key == metric_key))
+    with engine().begin() as cx:
+        existing = cx.execute(select(live_realized_metrics.c.final).where(where)).fetchone()
+        if existing is None:
+            try:
+                with cx.begin_nested():
+                    cx.execute(insert(live_realized_metrics), row)
+                return
+            except IntegrityError:  # another lease holder won after our SELECT
+                existing = cx.execute(
+                    select(live_realized_metrics.c.final).where(where)).one()
+        if existing[0]:
+            return
+        cx.execute(update(live_realized_metrics).where(where).values(
+            value=row["value"], coverage=row["coverage"], status=status,
+            reason=reason, computed_at=row["computed_at"], final=is_final))
+
+
+def get_realized_metric(source_id: str, tick: int, metric_key: str) -> dict | None:
+    with engine().begin() as cx:
+        row = cx.execute(select(live_realized_metrics).where(
+            (live_realized_metrics.c.source_id == source_id)
+            & (live_realized_metrics.c.tick == int(tick))
+            & (live_realized_metrics.c.metric_key == metric_key))).mappings().fetchone()
+    return dict(row) if row else None
+
+
+def latest_realized(source_id: str, metric_key: str) -> dict | None:
+    """The highest tick whose row is `realized` (the value the lane is graded on)."""
+    with engine().begin() as cx:
+        row = cx.execute(select(live_realized_metrics).where(
+            (live_realized_metrics.c.source_id == source_id)
+            & (live_realized_metrics.c.metric_key == metric_key)
+            & (live_realized_metrics.c.status == "realized")).order_by(
+                live_realized_metrics.c.tick.desc()).limit(1)).mappings().fetchone()
+    return dict(row) if row else None
+
+
+def realized_history(source_id: str, metric_key: str, limit: int) -> list[dict]:
+    """Realized rows only, ascending tick, shaped like live_signal_history entries."""
+    from .engines import health
+    q = (select(live_realized_metrics.c.tick, live_realized_metrics.c.value)
+         .where((live_realized_metrics.c.source_id == source_id)
+                & (live_realized_metrics.c.metric_key == metric_key)
+                & (live_realized_metrics.c.status == "realized"))
+         .order_by(live_realized_metrics.c.tick.desc()).limit(max(1, limit)))
+    with engine().begin() as cx:
+        rows = cx.execute(q).fetchall()
+    return [{"tick": int(tick), "value": value,
+             "health": health.evaluate(metric_key, value)} for tick, value in reversed(rows)]
+
+
+def ticks_needing_realization(source_id: str, metric_key: str, low: int, high: int) -> list[int]:
+    """Observed ticks in [low, high) whose realized row is absent or not yet `final`."""
+    if high <= low:
+        return []
+    with engine().begin() as cx:
+        observed = cx.execute(select(live_observations.c.observed_tick).distinct().where(
+            (live_observations.c.source_id == source_id)
+            & (live_observations.c.observed_tick >= int(low))
+            & (live_observations.c.observed_tick < int(high)))).scalars().all()
+        final = cx.execute(select(live_realized_metrics.c.tick).where(
+            (live_realized_metrics.c.source_id == source_id)
+            & (live_realized_metrics.c.metric_key == metric_key)
+            & (live_realized_metrics.c.tick >= int(low))
+            & (live_realized_metrics.c.tick < int(high))
+            & (live_realized_metrics.c.final.is_(True)))).scalars().all()
+    return sorted(int(t) for t in set(observed) - set(final))
+
+
+def pending_ticks_below(source_id: str, metric_key: str, below: int) -> list[int]:
+    """Ticks under `below` whose row is still `pending` (labels never confirmed).
+
+    Normally empty: a tick is finalized while it is inside the backfill window.  A
+    producer outage spanning the whole window leaves `pending` rows behind, and the
+    backfill sweeps them once more so they end `realized` or final `no_labels`.
+    """
+    with engine().begin() as cx:
+        rows = cx.execute(select(live_realized_metrics.c.tick).where(
+            (live_realized_metrics.c.source_id == source_id)
+            & (live_realized_metrics.c.metric_key == metric_key)
+            & (live_realized_metrics.c.tick < int(below))
+            & (live_realized_metrics.c.status == "pending")
+            & (live_realized_metrics.c.final.is_(False)))).scalars().all()
+    return sorted(int(t) for t in rows)
 
 
 def set_live_ack(observation_id: str, *, ok: bool, error: str | None = None) -> None:
@@ -613,10 +786,13 @@ def clear_live_state(source_id: str | None = None) -> None:
             cx.execute(delete(live_signal_history).where(
                 live_signal_history.c.observation_id.in_(obs_ids)))
             cx.execute(delete(live_observations).where(live_observations.c.source_id == source_id))
+            cx.execute(delete(live_realized_metrics).where(
+                live_realized_metrics.c.source_id == source_id))
             cx.execute(delete(live_source_cursors).where(live_source_cursors.c.source_id == source_id))
         else:
             cx.execute(delete(live_signal_history))
             cx.execute(delete(live_observations))
+            cx.execute(delete(live_realized_metrics))
             cx.execute(delete(live_source_cursors))
 
 
