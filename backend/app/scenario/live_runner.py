@@ -394,7 +394,7 @@ class LiveNBARunner:
         self.seed = seed if seed is not None else config.DEMO_SEED
         self.base_url = (nba_url or config.LIVE_NBA_URL).rstrip("/")
         writer = _artifact_writer_factory(f"LIVE-{LIVE_NBA_UC}")   # see LiveRunner note
-        self.ml = LiveHttpNBAAdapter(self.base_url, writer)
+        self.ml = LiveHttpNBAAdapter(self.base_url, writer, source_id=LIVE_NBA_UC)
         self.explain = LiveHttpExplainAdapter(
             base_url=self.base_url, artifact_writer=writer, model_name="nba-recommender",
             seed=self.seed, class_names=["decline", "accept"],
@@ -507,6 +507,15 @@ def live_runner(uc: str = LIVE_UC):
         if _ml_runner is None:
             _ml_runner = LiveRunner()
         return _ml_runner
+
+
+def realized_keys_for(uc: str) -> tuple[str, ...]:
+    """The realized-metric keys a use case's runner writes (no runner is constructed)."""
+    if uc == LIVE_UC:
+        return LiveRunner.realized_keys
+    if uc == LIVE_NBA_UC:
+        return LiveNBARunner.realized_keys
+    return ()
 
 
 def reset_live_runner(uc: str | None = None) -> None:
