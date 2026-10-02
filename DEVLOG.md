@@ -47,6 +47,24 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-02 — October batch monitoring MVP plan: push ingestion, PM table format
+
+- Changed: moved `docs/mvp1st/` to `changes/2026-10-02-batch-monitoring-mvp/`
+  (`plan.md`, `issues.md`, `flow.html`) per the repository's change-plan convention.
+  Rewrote `plan.md` as tables for PM readers: sprints at a glance, deadlines for external
+  dependencies with fallbacks, per-sprint task tables (owner, done when, depends on),
+  shared rules, glossary, risks. Sprint 1 now covers getting data out of GCP: agree a
+  JSON body with the GCP job developer and build a token-protected, idempotent receiving
+  API (proposed `POST /api/batch/runs`) that each job calls after publishing. Pull
+  ingestion is recorded as not chosen. `flow.html` relabelled from pull to push;
+  `issues.md` marked out of date for Sprint 1. No application code changed.
+- Evidence: `tests/test_docs.py` 5 passed (run with `uvx` and `--noconftest`; the backend
+  `.venv` was not set up on this host). Diagram labels checked in a browser for overlap.
+- Remaining: push ingestion conflicts with the `CLAUDE.md` rules that the monitor makes
+  no producer demands and that only the poller writes data; needs an ADR, an `intent.md`
+  with a re-assessed risk tier, and a `spec.md` for JSON body v1 before code. Issue drafts
+  need rewriting to match the plan.
+
 ### 2026-10-02 — slow calibration tests C3 and C8: missing OpenMP runtime on macOS
 
 - Changed: `backend/tests/test_calibration.py` reads the estimate through a new

@@ -1,6 +1,8 @@
 # Batch Monitoring MVP — GitHub-ready issue drafts
 
-These are proposed issue bodies, not issues posted to GitHub. Assign an owner and split an issue further if its implementation cannot be independently reviewed. Use the [monthly scaffold](2026-10-02-batch-monitoring-mvp-month.md) and [GCP → AWS flow](2026-10-02-batch-monitoring-flow.html). A use case counts as live only with a verified real completed batch. Preserve the existing three-source v1.1 contract.
+These are proposed issue bodies, not issues posted to GitHub. Assign an owner and split an issue further if its implementation cannot be independently reviewed. Use the [monthly scaffold](plan.md) and [GCP → AWS flow](flow.html). A use case counts as live only with a verified real completed batch. Preserve the existing three-source v1.1 contract.
+
+> **Out of date (2026-10-02):** the [plan](plan.md) now uses push ingestion: each GCP job sends a JSON summary to the monitor API after publishing. The Sprint 1 drafts below (S1-01 to S1-05) still describe read-only pull and are superseded by plan tasks 1.1–1.7. Later drafts that mention pull adapters or manifests need the same update before they are posted.
 
 ## Sprint 1 — Oct 5–9: discovery and first proof
 
