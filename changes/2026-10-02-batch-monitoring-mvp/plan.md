@@ -6,7 +6,7 @@
 | **Date** | 2026-10-02 |
 | **Period** | Mon 2026-10-05 to Fri 2026-10-30 (4 one-week sprints) |
 | **Pull request** | [tkhongsap-io/model-monitoring-prototype#1](https://github.com/tkhongsap-io/model-monitoring-prototype/pull/1) |
-| **Related** | [One-page summary and flows](summary.md) · [Issue drafts](issues.md) · [Older GCP → AWS flow](flow.html) |
+| **Related** | [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) · [Issue drafts](issues.md) · [Older GCP → AWS flow](flow.html) |
 
 ## Goal
 
@@ -28,6 +28,15 @@ developer in Sprint 1.
 |---|---|---|
 | **Push**: GCP job calls the monitor API after publishing | **Chosen** | We work directly with the GCP job developer. The job knows exactly when a run is finished, so the push itself is the completion proof. No cross-cloud read access to buckets is needed. |
 | Pull: monitor reads GCP buckets and job state | Not chosen for MVP | Needs read access into GCP for every source, and the monitor would have to guess when a run is truly published. Some jobs delete raw outputs after harvest. |
+
+## What we measure: the prototype's five LLM metrics (decided 2026-10-03)
+
+Every GCP batch use case is graded with the same five metrics the prototype uses for the
+support chatbot: `hallucination_rate`, `groundedness`, `relevance`, `pii_exposure_rate`
+and `p95_latency_s`, with the same bands and the same Claude judge. GCP jobs send only the
+data those metrics need: run identity plus a sample of redacted records (instruction,
+answer, source material, refused flag, latency). Field list, sample size, PII placeholders
+and an example body are in the [LLM metrics and data standard](llm-metrics-standard.md).
 
 ## Tracing standard: OpenTelemetry (decided 2026-10-03)
 
@@ -64,10 +73,10 @@ discover it in week 4.
 |---|---|---|---|
 | Test host the GCP job can reach in Sprint 1 | Platform | Tue Oct 6 | GCP developer captures the real JSON body from a real run; we replay it into a local monitor and record that delivery was not tested |
 | Agreed JSON body v1 (fields, meaning, examples) | Backend + GCP job developer | Wed Oct 7 | Sprint 1 demo slips; nothing else can start |
-| Security approval of which fields may leave GCP | Security | Thu Oct 8 | Send only IDs, counts, status and timestamps until approved |
+| Security approval: redacted records may leave GCP for the monitor, the Claude judge and Langfuse; PII placeholder approach | Security + RAI | Thu Oct 8 | Send run identity only; the four judged metrics are Unknown; the run still counts |
 | Final list of the 10 use-case IDs, owners and run schedule | PM + source owners | Fri Oct 9 | Sprint 2 onboarding order cannot be planned |
 | Langfuse SDK v2 or v3, and new `opentelemetry-*` pip packages approved | Backend + project owner | Mon Oct 12 | Sprint 2 tracing work waits; data path continues |
-| One use case with a reviewed evaluation rubric | RAI reviewers | Wed Oct 14 | Evaluation shows Unknown; tracing still ships |
+| Task description (for the judge prompt) and any band overrides for the first use case | RAI reviewers | Wed Oct 14 | Judged metrics show Unknown; tracing still ships |
 | GCP → AWS OTLP traffic and allowed span attributes approved | Security + platform | Fri Oct 16 | GCP jobs keep spans local; traces start at the monitor; run summaries still count |
 | AWS cluster owner and access granted | Platform | Wed Oct 14 | Target becomes a local pilot; report that the AWS release is blocked |
 | Each GCP job adds the send step | Each job owner | Sprint 2: 4 jobs; Sprint 3: 8; Sprint 4: 10 | Use case reported as blocked, not live |
@@ -80,13 +89,13 @@ and see one real run arrive.
 
 | # | Task | Owner | Done when | Depends on |
 |---|---|---|---|---|
-| 1.1 | Walk through one GCP job with its developer: where is the "results published" moment, and which fields already exist (run ID, model, token counts, row counts, status, timestamps)? | Backend + GCP job developer | Notes list every field available at the publish step and where it comes from | — |
-| 1.2 | Write **JSON body v1** for a completed run, with 2–3 example files (normal run, partial failure, missing fields). Include the job's trace context (W3C `traceparent`) | Backend | GCP developer, RAI and security have reviewed it; a version number is in the body | 1.1 |
+| 1.1 | Walk through one GCP job with its developer: where is the "results published" moment, and where each field of the [standard](llm-metrics-standard.md) comes from (instruction, answer, source material, refusal signal, whether per-request latency exists)? | Backend + GCP job developer | Notes list every field available at the publish step and where it comes from | — |
+| 1.2 | Write **JSON body v1** for a completed run, following the [LLM metrics and data standard](llm-metrics-standard.md), with 2–3 example files (normal run, partial failure, missing fields). Include the job's trace context (W3C `traceparent`) | Backend | GCP developer, RAI and security have reviewed it; a version number is in the body | 1.1 |
 | 1.3 | Build the receiving API (proposed `POST /api/batch/runs`): checks the token, validates the body, stores the run once | Backend | Tests pass for: valid run saved; same run sent twice = saved once; same run ID with different content = rejected; bad body = rejected; wrong or missing token = rejected | 1.2 |
 | 1.4 | Add the "send summary" step to one GCP job, right after publishing, with retries | GCP job developer | Job sends to the test host and logs the response; a send failure does not break the business job | 1.2, test host |
-| 1.5 | Security check: which fields may leave GCP, where the token is stored (GCP Secret Manager), HTTPS only | Security + platform | Field allowlist and token handling approved, or blocked with a named owner and date | 1.2 |
-| 1.6 | End-to-end: one real run, sent by the real job, stored and visible through the monitor API | Backend + GCP job developer | Run ID, status, counts and freshness visible; no customer text stored | 1.3, 1.4, 1.5 |
-| 1.7 | Inventory of all 10 use cases: ID, owner, GCP job, schedule (which days it runs in October), labels available, data sensitivity | PM + source owners | Table has exactly 10 rows with named owners, and the October run dates are known | — |
+| 1.5 | Security check: redacted records leaving GCP (to the monitor, the Claude judge and Langfuse), PII placeholders, token storage (GCP Secret Manager), HTTPS only | Security + platform | Data flow, placeholder approach and token handling approved, or blocked with a named owner and date | 1.2 |
+| 1.6 | End-to-end: one real run, sent by the real job, stored and visible through the monitor API | Backend + GCP job developer | Run ID, status, counts and freshness visible; stored records contain placeholders, not raw PII | 1.3, 1.4, 1.5 |
+| 1.7 | Inventory of all 10 use cases: ID, owner, GCP job, schedule (which days it runs in October), data sensitivity, Batch API or online calls | PM + source owners | Table has exactly 10 rows with named owners, and the October run dates are known | — |
 | 1.8 | Add the OTel SDK to the monitor: the receiving API starts a span that continues the job's trace from `traceparent`; export to a console or local Collector | Backend | A test shows the ingest span has the trace ID sent in the body; no body content in span attributes | 1.3 |
 | 1.9 | Minimal OTel Collector in the local stack (OTLP/HTTP in; debug and file output) | Platform | Spans from 1.8 appear in the Collector's file output | — |
 | 1.10 | Trace check tool: one command that shows a trace ID's hops (monitor database, Collector, later Langfuse) | Backend | Prints found or missing per hop; non-zero exit when a hop is missing | 1.3 |
@@ -104,7 +113,7 @@ and show 4 use cases on the dashboard.
 |---|---|---|---|---|
 | 2.1 | Source registry: list of allowed use-case IDs, one token per use case | Backend | A token can only write its own use case; unknown IDs are rejected | 1.3 |
 | 2.2 | Onboard **4 different use cases** (at least one with a different output shape) | Job owners + backend | 4 real runs received and confirmed by each owner; configuration or test files alone do not count | 2.1, 1.7 |
-| 2.3 | Evaluate batch runs with the existing judge and scoring, using the reviewed rubric | RAI + backend | Score saved with rubric version, sample size and run ID; missing labels or judge failure gives Unknown, never Green | rubric (Oct 14) |
+| 2.3 | Evaluate batch runs with the prototype's five LLM metrics and Claude judge, using the use case's approved task description | RAI + backend | Scores saved with task description version, judge model, sample size and run ID; fewer than 8 records or judge failure gives Unknown, never Green | task description (Oct 14) |
 | 2.4 | Local stack in Docker Compose: monitor, Postgres, OTel Collector, self-hosted Langfuse (started on this branch) | Platform + backend | A real run creates one trace in Langfuse with its score attached; sending again does not create duplicates | 1.3 |
 | 2.5 | Dashboard and API show each use case: last run, freshness, status, score or Unknown reason, trace link | Frontend + backend | 4 use cases visible; browser uses only read APIs; no Langfuse or database keys reach the browser | 2.2, 2.3, 2.4 |
 | 2.6 | Move the monitor off direct Langfuse SDK v2 calls: judge and evaluator spans go through the OTel Collector; scores use the Langfuse score API on the same trace ID | Backend | Existing chatbot judge tests still pass; a judged trace and its score are read back from local Langfuse | 2.4, SDK decision |
@@ -152,9 +161,10 @@ the operations handoff passes. Otherwise we report what was achieved and what is
 | Rule | Meaning |
 |---|---|
 | Real runs only | A use case is live only when a real completed run from the real GCP job has arrived. Test files, configuration entries and submitted-only jobs do not count. |
-| Unknown is not Green | If something cannot be measured (no labels, judge failed, field missing), show Unknown with the reason. |
+| Unknown is not Green | If something cannot be measured (too few records, judge failed, no per-request latency), show Unknown with the reason. |
 | No invented numbers | No latency, cost or accuracy unless the data actually contains it. Monitor processing time is not Gemini latency. |
-| No customer content | Only approved fields leave GCP. No customer text, identifiers or credentials in storage, traces, logs or the dashboard. |
+| Redacted records only | Only the fields in the [standard](llm-metrics-standard.md) leave GCP. Phone numbers, emails and national IDs are replaced with placeholders before sending. OTel spans and logs never carry text. No credentials anywhere. |
+| Same metrics for all | Every use case uses the five LLM metrics and default bands; a band override needs RAI sign-off. |
 | Store once, never rewrite | A run is stored once per `(use_case_id, run_id)`. Sending again is safe. A stored run is never edited. |
 | The monitor advises | It shows results to people. It never changes or stops a model or a job. |
 | Existing use cases untouched | Contract v1.1 and the three live use cases keep working; their tests must keep passing. |
@@ -167,8 +177,9 @@ the operations handoff passes. Otherwise we report what was achieved and what is
 | Submit / harvest / publish | The three steps of a batch job: send the work to Gemini, collect the results, then deliver them to where the business uses them (GCS, SharePoint). A run is **completed** only after publish. |
 | JSON body | The small summary of one completed run that the GCP job sends to the monitor |
 | Receiving API | The monitor endpoint that accepts the JSON body (proposed `POST /api/batch/runs`) |
-| Rubric | The written rules for judging the quality of one use case's output, with a version number |
-| Judge | The LLM that scores outputs against the rubric |
+| Task description | One sentence per use case telling the judge what the outputs are (for example "summaries of customer invoices"); approved by RAI, versioned |
+| Judge | The LLM (Claude Haiku) that scores each sampled record for groundedness, relevance, hallucination and PII |
+| Record | One sampled request from a run: instruction, answer, source material, refused flag, latency |
 | Labels | Real outcomes ("ground truth") used to measure accuracy. Without them, accuracy is Unknown. |
 | OTel / OpenTelemetry | Open standard for traces (timing records of each processing step). The OTel SDK is the library added to our code to create them. |
 | Span | One timed step inside a trace, such as "harvest" or one Gemini call |
@@ -205,7 +216,7 @@ These need an explicit decision before code merges.
 
 ## Out of scope for October
 
-Moving existing Gemini traffic through LiteLLM; replacing contract v1.1 data windows
+Moving existing Gemini traffic through LiteLLM; metrics beyond the five LLM metrics; replacing contract v1.1 data windows
 (features, labels, reference, chatbot traces) with OTel; an OTel metrics or logs backend
 (Langfuse stores traces only); LIME explanations (next MVP); any number the data does not
 contain.

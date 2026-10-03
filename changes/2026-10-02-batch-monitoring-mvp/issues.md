@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-10-03 |
 | **Status** | Drafts, not yet posted to GitHub |
-| **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) |
+| **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
 Each issue below is ready to paste into GitHub. Every feature issue names the issue it is
 **tested with**: a sender is proven by the receiver that sees its data arrive, and a
@@ -37,7 +37,7 @@ reach the monitor database and Langfuse with the same trace ID?
 
 - Pull request with tests; CI green; `CHANGELOG.md` and `DEVLOG.md` updated when behaviour changes.
 - The PR description lists passed, failed, skipped and unavailable checks. An unavailable check is never reported as passed.
-- No secrets, tokens, prompts or customer text in code, logs, spans, fixtures or screenshots.
+- No secrets or tokens anywhere. No text in OTel spans or logs. Fixtures and screenshots use synthetic or placeholder-redacted text only.
 
 ## All issues
 
@@ -51,7 +51,7 @@ reach the monitor database and Langfuse with the same trace ID?
 | S1-06 | OTel SDK in the monitor; ingest continues the job's trace | Feature | Backend | S1-07 |
 | S1-07 | Minimal OTel Collector in the local stack | Infrastructure | Platform | S1-06 |
 | S1-08 | Trace check tool | Feature | Backend | S1-06 + S1-07 |
-| S1-09 | Approve fields allowed to leave GCP | Decision | Security | — |
+| S1-09 | Approve redacted records leaving GCP and PII placeholders | Decision | Security | — |
 | S1-10 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — |
 | S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-03 + S1-04 + S1-05 |
 | S2-01 | Source registry and one token per use case | Feature | Backend | S2-07 |
@@ -59,7 +59,7 @@ reach the monitor database and Langfuse with the same trace ID?
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
 | S2-04 | OTel helper for GCP jobs | Feature | Backend + GCP job developer | S2-03 |
 | S2-05 | Monitor moves off direct Langfuse SDK v2 calls | Feature | Backend | S2-03 |
-| S2-06 | Batch evaluator with a reviewed rubric | Feature | Backend + RAI | S2-05 |
+| S2-06 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-05 |
 | S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
 | S2-08 | Dashboard and API for batch runs | Feature | Frontend + backend | S2-07 |
 | S2-09 | One run as a single trace, GCP job to score | Verification | Backend + platform | S2-03 + S2-04 + S2-06 |
@@ -95,13 +95,17 @@ reach the monitor database and Langfuse with the same trace ID?
 | Discovery | 1.1 | Backend + GCP job developer | — | Review by GCP developer | S |
 
 **What:** Sit with the GCP job developer and go through one job from submit to publish. Find
-the exact point where results are published to the business, and list every field
-available at that point.
+the exact point where results are published, and map the job to the record fields of the
+[standard](llm-metrics-standard.md): which part of the prompt is the instruction
+(`question`), which is source material (`retrieval_context`), where the output (`answer`)
+is, how a refusal or safety block shows up (`refused`), and whether per-request latency
+exists.
 
 **Acceptance criteria**
-- [ ] A field map table: field name, meaning, type, where it comes from in the job, always present or optional.
+- [ ] A mapping table: each standard field, where it comes from in the job, and any gap.
 - [ ] The "published" moment is identified in the job code (file and function).
-- [ ] Fields that contain customer content are marked and excluded from the summary.
+- [ ] Where PII can appear (instruction, source material, output) is listed, for the redaction step in S1-04.
+- [ ] Batch API or online calls recorded, which decides whether `latency_s` is `null`.
 
 **How to test**
 1. The GCP job developer reviews the table and confirms each row against the code.
@@ -113,16 +117,16 @@ available at that point.
 |---|---|---|---|---|---|
 | Feature | 1.2 | Backend | S1-01 | S1-04 (a real body validates) | M |
 
-**What:** Define the JSON body a GCP job sends after publishing. Publish it as a JSON Schema
-file with example bodies. Proposed fields: `schema_version`, `use_case_id`, `run_id`,
-`status`, `completed_at`, `row_counts`, `model`, `token_usage`, `artifact_digest`,
-`traceparent`, `unknown_reasons`.
+**What:** Turn the [LLM metrics and data standard](llm-metrics-standard.md) into a JSON
+Schema file with example bodies: run identity fields plus the sampled `records`
+(`record_id`, `question`, `answer`, `retrieval_context`, `tool_calls`, `refused`,
+`latency_s`). Unknown fields are rejected.
 
 **Acceptance criteria**
-- [ ] Schema file and 3 examples committed: normal run, partial failure, missing optional fields.
+- [ ] Schema file and 3 examples committed: normal run, partial failure, Batch API run with `latency_s` null. Examples use synthetic text only.
 - [ ] Every field has a description; required and optional fields are explicit.
 - [ ] `traceparent` follows the W3C Trace Context format.
-- [ ] No field can carry free text from customers or prompts.
+- [ ] Free text is allowed only in `question`, `answer`, `retrieval_context` and `tool_calls`; no customer ID field exists.
 - [ ] Reviewed by the GCP job developer, RAI and security (S1-09).
 
 **How to test**
@@ -158,18 +162,22 @@ new `batch_runs` table (additive migration in `backend/app/db.py`). Store `trace
 |---|---|---|---|---|---|
 | Feature | 1.4 | GCP job developer | S1-02, S1-05 | S1-03 | M |
 
-**What:** Add a step at the end of one GCP job, after publish, that builds the run summary
-and sends it with the token from GCP Secret Manager. Retry with backoff on network errors
+**What:** Add a step at the end of one GCP job, after publish, that picks a uniform random
+sample of records (default 50), replaces phone numbers, emails and national IDs with
+`[PHONE]`, `[EMAIL]` and `[NATIONAL_ID]`, builds the run summary and sends it with the
+token from GCP Secret Manager. Retry with backoff on network errors
 and `5xx`. A send failure must not fail the business job.
 
 **Acceptance criteria**
 - [ ] The step runs only after publish succeeds.
 - [ ] Retries on timeouts and `5xx`; no retry on `400`, `401` or `409`.
 - [ ] The job finishes successfully even when the monitor is unreachable, and logs that the send failed.
+- [ ] Sample size follows the registry setting; a run smaller than the sample sends every request.
+- [ ] No raw phone number, email or national ID in the body.
 - [ ] Token read from Secret Manager; never printed.
 
 **How to test**
-1. Unit (GCP repo): the builder produces a body that validates against the S1-02 schema; the sender retries on a fake `503` and stops on `400`.
+1. Unit (GCP repo): the builder produces a body that validates against the S1-02 schema; synthetic PII in input and output becomes placeholders; sample size is respected; the sender retries on a fake `503` and stops on `400`.
 2. Paired with S1-03 on the test host: run the job in the GCP dev project. Expected: the job log shows `201`, and the monitor database has one `batch_runs` row with the same `run_id`. Run it again and expect `200` with still one row.
 3. Failure check: point the job at a wrong URL; the job still succeeds and logs the failed send.
 
@@ -251,20 +259,22 @@ score. Every paired test from here on ends by running it.
 1. Paired with S1-06 + S1-07: send one example body, run the tool with its trace ID; expect "found" for database and Collector.
 2. Run it with a random trace ID; expect "missing" everywhere and a non-zero exit.
 
-### S1-09 — Approve fields allowed to leave GCP
+### S1-09 — Approve redacted records leaving GCP and PII placeholders
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
 | Decision | 1.5 | Security + platform | S1-02 | — | S |
 
-**What:** Approve the run summary fields and the token handling (Secret Manager, HTTPS only).
+**What:** Approve the data flow in the [standard](llm-metrics-standard.md): placeholder-redacted records go from GCP to the monitor, to the Claude judge (Anthropic API) and to Langfuse; retention period; token handling (Secret Manager, HTTPS only).
 
 **Acceptance criteria**
-- [ ] Field allowlist approved in writing, or blocked with an owner and date.
+- [ ] Record fields, placeholder redaction, judge provider and Langfuse storage approved in writing, or blocked with an owner and date.
+- [ ] Retention period for stored records set.
 - [ ] Token storage, rotation owner and transport approved.
 
 **How to test**
-1. The approval is linked in this issue; S1-02's schema matches the approved list field by field.
+1. The approval is linked in this issue; S1-02's schema matches the approved fields one by one.
+2. If not approved by Oct 8: S1-02 ships with run identity only and the judged metrics are Unknown.
 
 ### S1-10 — Inventory of the 10 use cases and October run dates
 
@@ -273,7 +283,7 @@ score. Every paired test from here on ends by running it.
 | Discovery | 1.7 | PM + source owners | — | — | M |
 
 **What:** One table with every use case: ID, owner, GCP job, repository, October run dates,
-labels available, data sensitivity.
+data sensitivity, Batch API or online calls, owner for the task description.
 
 **Acceptance criteria**
 - [ ] Exactly 10 rows, each with a named owner.
@@ -295,7 +305,7 @@ the monitor API.
 **Acceptance criteria**
 - [ ] The source owner confirms the run was a real published run.
 - [ ] `batch_runs` holds it once; the API shows run ID, status, counts and freshness.
-- [ ] No customer text stored.
+- [ ] Stored records contain placeholders, not raw PII.
 
 **How to test**
 1. Trigger or wait for the job's real run.
@@ -416,23 +426,29 @@ stores the dashboard reads stay as they are.
 2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
 3. Paired with S2-03: run one judged chatbot window in the local stack; `scripts/check_trace.py` shows the trace and its score in Langfuse.
 
-### S2-06 — Batch evaluator with a reviewed rubric
+### S2-06 — Batch evaluator with the five LLM metrics
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 2.3 | Backend + RAI | Reviewed rubric (Oct 14), S2-05 | S2-05 | L |
+| Feature | 2.3 | Backend + RAI | Task description (Oct 14), S2-05 | S2-05 | L |
 
-**What:** Evaluate stored batch runs with the existing judge and grading, using the rubric RAI
-approved for the first use case. Emit a `monitor.evaluate` span on the run's trace and
-write the score to Langfuse.
+**What:** Grade each stored run with the prototype's LLM lane: map records to the v1.1
+`Trace` shape, reuse the Claude judge and aggregation in
+`backend/app/adapters/llm_eval/live_http.py`, and grade with `engines/health.py`. Three
+changes from the [standard](llm-metrics-standard.md): the judge prompt takes the use
+case's task description; a placeholder in the answer counts as PII exposure; the judge cap
+equals the registry sample size. Emit a `monitor.evaluate` span and write scores to
+Langfuse.
 
 **Acceptance criteria**
-- [ ] Score stored with rubric version, judge identity, sample size and run ID.
-- [ ] Missing labels, too few samples or judge failure give Unknown with a reason, never Green.
+- [ ] The five metrics, bands and grading match the chatbot lane exactly.
+- [ ] Scores stored with task description version, judge model, sample size and run ID.
+- [ ] Fewer than 8 records, judge failure, or `latency_s` all null give Unknown with a reason, never Green.
+- [ ] Chatbot (`AICT-L02`) tests pass unchanged.
 - [ ] Evaluation problems are not shown as ingest problems, and the reverse.
 
 **How to test**
-1. Unit: `pytest` for each Unknown reason and for the rubric's threshold boundaries.
+1. Unit: `pytest` with a fake judge for each Unknown reason, the band boundaries (for example hallucination exactly 0.02 is Red), and placeholder PII counted only in `answer`.
 2. Paired with S2-05: evaluate a stored real run in the local stack; `scripts/check_trace.py` shows `monitor.evaluate` and the score on the same trace.
 
 ### S2-07 — Onboard 4 use cases
@@ -459,8 +475,8 @@ a different output shape.
 |---|---|---|---|---|---|
 | Feature | 2.5 | Frontend + backend | S2-06 | S2-07 | M |
 
-**What:** Show each batch use case: last run, freshness, status, score or Unknown reason, and
-a link to its Langfuse trace.
+**What:** Show each batch use case with the same five LLM metric cards the chatbot uses, plus
+last run, freshness, status, Unknown reasons and a link to its Langfuse trace.
 
 **Acceptance criteria**
 - [ ] Data comes from read-only monitor API routes; the browser never calls Langfuse or the database.
@@ -486,7 +502,7 @@ a link to its Langfuse trace.
 
 **How to test**
 1. Run `scripts/check_trace.py <trace_id>`; every hop found.
-2. Screenshot of the Langfuse trace and the dashboard row (no customer content) attached.
+2. Screenshot of the Langfuse trace and the dashboard row (placeholder-redacted text only) attached.
 
 ---
 
@@ -588,7 +604,7 @@ list, limit memory, and keep a disk-backed retry queue so spans survive a Langfu
 scan stored data for leaks.
 
 **Acceptance criteria**
-- [ ] No customer text, identifiers, prompts or credentials in `batch_runs`, Langfuse traces, logs or API responses.
+- [ ] No raw phone numbers, emails, national IDs or credentials in `batch_runs`, Langfuse, logs or API responses; OTel spans and logs contain no text at all.
 - [ ] Retention period set for monitor Postgres and Langfuse.
 - [ ] Exceptions listed with owner and date.
 

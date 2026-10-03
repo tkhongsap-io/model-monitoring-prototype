@@ -47,6 +47,28 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-03 — batch MVP: one LLM metric and data standard from the prototype
+
+- Changed: added `changes/2026-10-02-batch-monitoring-mvp/llm-metrics-standard.md`. All
+  10 GCP batch use cases are graded with the prototype's five LLM signals
+  (`hallucination_rate`, `groundedness`, `relevance`, `pii_exposure_rate`,
+  `p95_latency_s`), the contract §11 bands, the Claude Haiku judge, and the minimum sample
+  of 8. GCP jobs send only run identity plus a sample (default 50) of records using the
+  v1.1 `Trace` field names: `question`, `answer`, `retrieval_context`, `tool_calls`,
+  `refused`, `latency_s` (null for the Gemini Batch API). PII is replaced with typed
+  placeholders in GCP, and a placeholder in the answer counts as exposure. Plan, summary
+  and issues now use the standard: "reviewed rubric" became a per-use-case task
+  description for the judge prompt; "no customer text" became "redacted records only,
+  never text in spans or logs"; S1-01, S1-02, S1-04, S1-09, S2-06 and S2-08 updated.
+  No application code changed.
+- Evidence: signal names, bands, judge fields, `MIN_LIVE_TRACES = 8`,
+  `LLM_JUDGE_MAX_TRACES` default 20 and the `latency_missing` handling read from
+  `engines/health.py`, `adapters/llm_eval/live_http.py`, `config.py` and contract §9, §11,
+  §13, §14. `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`).
+- Remaining: redacted text now leaves GCP (to the monitor, the Anthropic judge and
+  Langfuse), which needs security approval by Oct 8 (S1-09). The placeholder rule, the
+  sample size of 50 and the per-use-case task descriptions are open decisions.
+
 ### 2026-10-03 — batch MVP issues rewritten as paired, testable GitHub issues
 
 - Changed: rewrote `changes/2026-10-02-batch-monitoring-mvp/issues.md` as 32 issue drafts
