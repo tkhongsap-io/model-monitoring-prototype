@@ -552,6 +552,9 @@ Rules:
 
 ## Sprint 2 — Oct 12–16: same path for many jobs, plus evaluation and tracing
 
+> Review status (2026-10-03): Sprint 2 review complete. S2-05 is removed. All Sprint 2
+> issues are written in ASD-STE100.
+
 **Sprint 2 prerequisites (answers from 2026-10-03; confirm after S1-05 is complete)**
 
 | Question | Answer | Effect |
@@ -861,21 +864,30 @@ Sprint 2 for the first graded run.
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 2.2 | Job owners + backend | S2-01, S2-04, S1-10 | S2-01, S1-08 | L |
+| Feature | 2.2 | Job developers + backend + platform | S1-10, S2-01, S2-04 | S2-01, S1-08 | L |
 
-**What:** Add the run summary step (sampling and placeholder redaction) and the OTel helper to
-4 different jobs, including one with a different output shape. Map each job to the
-[standard](llm-metrics-standard.md) record fields, as in S1-01.
+**What:** Add the send step (S1-04) and the OTel helper file (S2-04) to 4 different jobs.
+Include one job with a different output shape. Use the order and the developers in the
+S1-10 table.
+
+For each job, do these steps:
+1. Add the use case to the YAML registry (S2-01) in a pull request. Set `mode: identity_only`.
+2. Platform makes the API key with `scripts/batch_keys.py` and puts it into the GCP Secret Manager of that project.
+3. Platform adds the egress IP of the GCP project to the allowlist.
+4. The job developer maps the job to the record fields of the [standard](llm-metrics-standard.md), as in S1-01.
+5. The job developer adds the send step and the helper file. The job uses the shared OTLP token. It needs no Langfuse key.
+6. Run the job. If the job does not run between 12 and 16 October, use a controlled rerun.
+7. After S1-09 approves the records, change `mode` to `records` and set `SEND_RECORDS` to on.
 
 **Acceptance criteria**
-- [ ] 4 real runs received, each confirmed by its owner.
-- [ ] Each use case has an RAI-approved task description and its five metrics graded, or Unknown with a reason.
-- [ ] Each has its own token and one trace per run.
-- [ ] Test files or configuration entries do not count.
+- [ ] 4 real runs arrive. The owner of each use case confirms that the run is real.
+- [ ] Each use case has its own API key and one trace for each run.
+- [ ] Each use case has an approved task description and its five metrics graded, or "Unknown" with a reason.
+- [ ] Test files or configuration entries do not count as a live use case.
 
 **How to test**
-1. For each job: run on its schedule or in the dev project, then `scripts/check_trace.py <trace_id>` shows all hops.
-2. Check one stored run per job: records validate, and a spot check finds placeholders instead of raw PII.
+1. For each job: run `scripts/check_trace.py <trace_id>`. Make sure that all the items are "found".
+2. For each job: examine one stored run. Make sure that the records agree with the schema and contain placeholders, not raw PII.
 3. Record the 4 trace IDs and their five metric values in this issue.
 
 ### S2-08 — Dashboard shows the GCP use cases with the current UI
@@ -923,17 +935,20 @@ of the chatbot uses now. The frontend code does not change.
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Verification | Sprint 2 exit | Backend + platform | S2-03, S2-04, S2-06 | — | S |
+| Verification | Sprint 2 exit | Backend + platform | S2-03, S2-04, S2-06, S2-08 | S1-08 | S |
 
-**What:** The Sprint 2 demo.
+**What:** This is the Sprint 2 demo. Show one real run as one trace in Langfuse, from the
+GCP job to the scores. Show the same run with its grade on the dashboard.
 
 **Acceptance criteria**
-- [ ] One real run shows in Langfuse as one trace: GCP spans, `monitor.ingest`, `monitor.evaluate`, and the score.
+- [ ] Langfuse shows one trace with the GCP spans, `monitor.ingest`, `monitor.evaluate`, the run scores and the record scores.
 - [ ] The dashboard shows the same run with its grade. An engineer finds its trace in Langfuse with the `trace_id` from the API.
+- [ ] If the run is in identity-only mode, the demo shows the trace and the "Unknown" reason `records_not_approved`, without scores. The result says "records not yet approved".
+- [ ] If the task description is not approved, the judged metrics show "Unknown" with the reason `task_description_missing`. The result records this.
 
 **How to test**
-1. Run `scripts/check_trace.py <trace_id>`; every hop found.
-2. Screenshot of the Langfuse trace and the dashboard row (placeholder-redacted text only) attached.
+1. Run `scripts/check_trace.py <trace_id>`. The tool reads Langfuse through the Observations API v2. Make sure that all the items are "found".
+2. Attach the output of the tool and a screenshot of the dashboard row. Do not attach record text or secrets.
 
 ---
 
