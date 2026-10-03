@@ -47,6 +47,27 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-03 — batch MVP plan: OpenTelemetry as the tracing standard
+
+- Changed: added `changes/2026-10-02-batch-monitoring-mvp/summary.md`, a one-page summary
+  with the current flow (contract v1.1 pull on Replit, Langfuse SDK v2 direct, no OTel)
+  and the October target flow as Mermaid diagrams. `plan.md` now records OpenTelemetry as
+  the tracing standard for the monitor and the GCP batch jobs: one trace per batch run,
+  joined through `traceparent` in the run summary; monitor spans go through the OTel
+  Collector to self-hosted Langfuse; scores stay on the Langfuse score API. New tasks 1.8,
+  2.6 and 2.7, plus OTel deadlines, risks, glossary entries and the candidate pip packages.
+  The run summary push and the v1.1 data windows stay outside OTel because grading needs
+  exactly-once, checksummed records and lagged labels. No application code changed.
+- Evidence: a code search found no `opentelemetry`, `otel` or `otlp` usage in `backend/`,
+  `artifacts/`, `scripts/` or `docs/`; `backend/requirements.txt` pins
+  `langfuse>=2.53,<3`; `adapters/llm_eval/stores.py` calls the SDK v2 directly. Both
+  Mermaid diagrams rendered in a browser with Mermaid 11 and no errors.
+  `tests/test_docs.py` 5 passed (run with `uvx` and `--noconftest`; no backend `.venv` on
+  this host).
+- Remaining: the Langfuse SDK v2-or-v3 choice, the OTLP cross-cloud approval and the
+  span attribute allowlist are open decisions. `flow.html` predates the OTel decision and
+  still shows GCP spans as optional.
+
 ### 2026-10-02 — October batch monitoring MVP plan: push ingestion, PM table format
 
 - Changed: moved `docs/mvp1st/` to `changes/2026-10-02-batch-monitoring-mvp/`
