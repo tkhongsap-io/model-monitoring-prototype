@@ -49,11 +49,12 @@ reach the monitor database and Langfuse with the same trace ID?
 | S1-04 | GCP job sends the run summary after publishing | Feature | GCP job developer | S1-03 |
 | S1-05 | Deploy the monitor backend to a test host reachable from GCP | Infrastructure | Platform | S1-04 |
 | S1-06 | OTel in the GCP job and the monitor: one trace per run | Feature | GCP job developer + backend | S1-07 |
-| S1-07 | Minimal OTel Collector (local stack and test host) | Infrastructure | Platform | S1-06 |
+| S1-07 | Minimal OTel Collector and front door (local stack and test host) | Infrastructure | Platform | S1-06 |
 | S1-08 | Trace check tool | Feature | Backend | S1-06 + S1-07 |
-| S1-09 | Approve redacted records leaving GCP and PII placeholders | Decision | Security | — |
+| S1-09 | Security approval for the Sprint 1 data flow | Decision | Security | — |
 | S1-10 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — |
 | S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-03 + S1-04 + S1-05 |
+| S1-12 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-03, S1-08 |
 | S2-01 | Source registry and one token per use case | Feature | Backend | S2-07 |
 | S2-02 | Langfuse SDK version and new packages approved | Decision | Backend + project owner | — |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
@@ -80,8 +81,9 @@ reach the monitor database and Langfuse with the same trace ID?
 
 ## Sprint 1 — Oct 5–9: get data out of GCP
 
-> Review status (2026-10-03): S1-01 to S1-06 revised after review; S1-07 to S1-11 still to
-> be reviewed. Issue IDs stay stable during the review; S1-02 is merged into S1-01, and the
+> Review status (2026-10-03): S1-01 to S1-09 and S1-12 revised after review; S1-10 and
+> S1-11 still to be reviewed. S1-07, S1-08, S1-09 and S1-12 are written in ASD-STE100; the
+> other issues change to STE in the final pass. Issue IDs stay stable during the review; S1-02 is merged into S1-01, and the
 > IDs will be renumbered after all sprints are reviewed.
 
 **Two channels, one trace ID**
@@ -101,7 +103,7 @@ with the stored run.
 |---|---|---|
 | GCP side | S1-01, S1-04, S1-06 part A | GCP job developer |
 | Monitor side | S1-03, S1-06 part B, S1-08 | Backend |
-| Infrastructure | S1-05, S1-07 | Platform (firewall and certificates: your team) |
+| Infrastructure | S1-05, S1-07, S1-12 | Platform (firewall and certificates: your team) |
 
 Both tracks start Monday using the draft schema from S1-01 and meet on the test host.
 
@@ -240,7 +242,7 @@ the GCP dev project can reach.
 |---|---|---|
 | Where does the test host run (AWS account, VM or other)? | Decides firewall and certificate options | Your team |
 | How is traffic between GCP and that host allowed today? | No VPN yet; requests cross the internet | Network team |
-| Which ports may open? `443` for the API; OTLP for the Collector (`4318`, or the same `443` through a reverse proxy) | GCP spans and API calls both need a path | Network team |
+| Can port `443` open for one front door (S1-07)? The front door serves both the API and the Collector | GCP spans and API calls both need a path; one port, one certificate, one allowlist | Network team |
 | What is the GCP job's egress IP (for example Cloud NAT static IP)? | Firewall allowlist (S1-03 network layer) | GCP developer |
 | Public DNS name for the host? | Needed for a public certificate | Your team |
 | Certificate: public CA or private / self-signed? | See below | Your team |
@@ -300,62 +302,116 @@ Gemini call spans, token counts and the attribute allowlist come in Sprint 2 (S2
 3. Paired with S1-07 on the test host: run the job; find the job's spans and the monitor's span with the same trace ID in the Collector output; run `scripts/check_trace.py <trace_id>`.
 4. Fallback if GCP cannot reach the Collector yet: the job exports spans to Cloud Logging; the trace still links because the header reaches the monitor.
 
-### S1-07 — Minimal OTel Collector (local stack and test host)
+### S1-07 — Minimal OTel Collector and front door (local stack and test host)
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Infrastructure | 1.9 | Platform | — | S1-06 | S |
+| Infrastructure | 1.9 | Platform | Local: none. Test host: S1-05 | S1-06 | M |
 
-**What:** Add the OTel Collector (contrib image) to Docker Compose with an OTLP/HTTP receiver,
-the `debug` exporter and the `file` exporter writing to a mounted folder. Run it locally
-and on the test host (S1-05). Langfuse export comes in S2-03.
+**What:** Add the OTel Collector to Docker Compose. Use the contrib image with a fixed
+version. The Collector receives spans on OTLP/HTTP. It writes the spans to the `debug`
+output and to a file in a mounted folder. The Langfuse export comes in S2-03.
+
+On the test host, put one reverse proxy (the front door) in front of the backend and the
+Collector:
+
+| Path | Goes to | Who calls it | Protection |
+|---|---|---|---|
+| `https://<host>/api/*` | Backend | GCP job | API key, IP allowlist |
+| `https://<host>/otlp/*` | Collector | GCP job | OTLP token, IP allowlist |
+| Private network inside the host | Collector | Backend | Not open to the internet |
+
+The firewall opens only port 443. The front door has one certificate (S1-05).
 
 **Acceptance criteria**
 - [ ] `docker compose up` starts the Collector with a health check.
-- [ ] Spans received on OTLP/HTTP appear in the file output.
-- [ ] On the test host, the OTLP endpoint requires a bearer token and HTTPS, and only the GCP egress IP can reach it.
-- [ ] Collector config is in the repository; no secrets in it.
+- [ ] The Collector image has a fixed version. It does not use `latest`.
+- [ ] Spans that come in on OTLP/HTTP appear in the file output.
+- [ ] On the test host, the front door is the only public entry. It accepts only port 443 and only the GCP egress IP.
+- [ ] `/otlp/*` rejects a request without the correct OTLP token. The OTLP token is different from the API key.
+- [ ] The GCP job reads the OTLP token from Secret Manager and sends it with `OTEL_EXPORTER_OTLP_HEADERS`.
+- [ ] The Collector configuration is in the repository. It contains no secrets.
+- [ ] After S2-03 works, a cleanup step deletes the file output on the test host.
 
 **How to test**
-1. Standalone: send synthetic spans with `telemetrygen traces --otlp-http` and check the file output contains them.
-2. Without the token: spans are rejected.
-3. Paired with S1-06 (see that issue).
+1. Local: send test spans with `telemetrygen traces --otlp-http`. Make sure that the file output contains them.
+2. Test host, from the GCP dev project: send test spans to `https://<host>/otlp/v1/traces` with the token. Make sure that the file output contains them.
+3. Send spans without the token. Make sure that they are rejected.
+4. Send a request from an IP that is not on the allowlist. Make sure that the connection is refused.
+5. Paired with S1-06: see the test steps in S1-06.
 
 ### S1-08 — Trace check tool
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 1.10 | Backend | S1-03 | S1-06 + S1-07 | S |
+| Feature | 1.10 | Backend | S1-03, S1-06 part B, S1-07, S1-12 | S1-06 + S1-07 | S |
 
-**What:** A script, `scripts/check_trace.py <trace_id>`, that prints one row per hop: the
-monitor `batch_runs` row, the Collector file output and (from S2-03) the Langfuse trace and
-score. Every paired test from here on ends by running it.
+**What:** Write the script `scripts/check_trace.py <trace_id>`. The script shows the result
+for each item:
+
+| Item | Where the script looks | "Found" means |
+|---|---|---|
+| Run row | Postgres table `batch_runs` | A row has this trace ID |
+| GCP root span | Collector file | A `batch.run` span has this trace ID |
+| Monitor span | Collector file | A `monitor.ingest` span has this trace ID |
+| Parent link | Collector file | The parent of `monitor.ingest` is the job's `batch.send` span |
+| Langfuse trace and score | Langfuse API | Added in S2-03 |
+
+Run the script on the host where the stack runs. The script uses the read-only database
+account from S1-12. It is a tool for developers and operators. It is not part of the
+product.
 
 **Acceptance criteria**
-- [ ] Prints found or missing for each hop, with run ID and timestamps.
-- [ ] Exits non-zero if any expected hop is missing, so CI and drills can use it.
-- [ ] Reads credentials from environment variables; never prints them.
+- [ ] The script shows "found" or "missing" for each item, with the run ID and the times.
+- [ ] If an item is missing, the script stops with a non-zero exit code. CI and the drills can use this code.
+- [ ] The script reads credentials from environment variables. It never shows them.
+- [ ] The script only reads. It does not change the database or the files.
 
 **How to test**
-1. Paired with S1-06 + S1-07: send one example body, run the tool with its trace ID; expect "found" for database and Collector.
-2. Run it with a random trace ID; expect "missing" everywhere and a non-zero exit.
+1. Paired with S1-06 and S1-07: send one example request with a known `traceparent`. Run the script with this trace ID. Make sure that the run row and the monitor span are "found".
+2. On the test host, run the GCP job. Run the script with the trace ID of the run. Make sure that all four items are "found".
+3. Run the script with a random trace ID. Make sure that all items are "missing" and the exit code is not zero.
 
-### S1-09 — Approve redacted records leaving GCP and PII placeholders
+### S1-09 — Security approval for the Sprint 1 data flow
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
 | Decision | 1.5 | Security + platform | S1-01 | — | S |
 
-**What:** Approve the data flow in the [standard](llm-metrics-standard.md): placeholder-redacted records go from GCP to the monitor, to the Claude judge (Anthropic API) and to Langfuse; retention period; token handling (Secret Manager, HTTPS only).
+**What:** Get written approval for all the data that Sprint 1 sends between the clouds.
+
+**PII** means "personally identifiable information". PII is data that can identify a
+person, for example a name, a phone number, an email address, a national ID number, a
+home address or a customer account number. The [standard](llm-metrics-standard.md)
+replaces phone numbers, email addresses and national ID numbers with placeholders before
+the data leaves GCP. Security must tell us if other types of PII must also be replaced.
+If security adds more types, the job must find them before it sends the data. Names are
+difficult to find automatically.
+
+Security must approve these items:
+
+| Item | Issue |
+|---|---|
+| Redacted records leave GCP. They go to the monitor, the Claude judge (Anthropic API) and Langfuse. | S1-01, S1-04 |
+| The list of PII types that the job replaces with placeholders | S1-04 |
+| The retention period for stored records | S1-03 |
+| An API key on the internet without a VPN, with an IP allowlist | S1-03, S1-05 |
+| The certificate type (public CA or private CA) | S1-05 |
+| The OTLP endpoint that GCP can reach through the front door | S1-07 |
+| Real redacted data on the test host | S1-05 |
+| Read access to GCP Cloud Logging for the monitor team | S1-01 |
+| Database accounts, and who can read real data | S1-12 |
 
 **Acceptance criteria**
-- [ ] Record fields, placeholder redaction, judge provider and Langfuse storage approved in writing, or blocked with an owner and date.
-- [ ] Retention period for stored records set.
-- [ ] Token storage, rotation owner and transport approved.
+- [ ] Each item in the table is approved in writing, or blocked with an owner and a date.
+- [ ] The list of PII types is written down.
+- [ ] The name of a security contact is in this issue.
 
 **How to test**
-1. The approval is linked in this issue; S1-01's schema matches the approved fields one by one.
-2. If not approved by Oct 8: S1-01 ships with run identity only and the judged metrics are Unknown.
+1. Link the approval in this issue.
+2. Compare the S1-01 schema with the approved fields, one field at a time.
+3. Compare the S1-04 placeholder list with the approved PII types.
+4. If the approval is not complete by 8 October, the job does not send records. The four judged metrics show "Unknown".
 
 ### S1-10 — Inventory of the 10 use cases and October run dates
 
@@ -392,6 +448,41 @@ the monitor API.
 1. Trigger or wait for the job's real run.
 2. Run `scripts/check_trace.py <trace_id>`; database hop found.
 3. Read the run back from the monitor API; attach the output (no secrets) to the issue.
+
+
+### S1-12 — Database accounts for the backend and the developers
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Infrastructure | New (1.11) | Platform + backend | S1-05 | S1-03, S1-08 | S |
+
+**What:** Make database accounts on the test host. Do not use one shared administrator
+account.
+
+| Account | Type | Used by | Permissions |
+|---|---|---|---|
+| `monitor_app` | Bot | The backend service | Owns the monitor schema. Reads and writes the monitor tables. Runs the migrations when the backend starts, as the backend does now. |
+| `monitor_readonly` | Bot | The S1-08 tool and other checks | Reads the monitor tables only |
+| `dev_<name>` | Person, one for each developer | Developers | Read-only on the test host, because the test host has real redacted data. Full access only on the local stack. |
+| Postgres administrator | Person | Platform only | For emergencies only. The backend and the tools do not use it. |
+
+Rules:
+- Keep the passwords as host secrets. Do not put them in the repository or in chat.
+- The database port is not open to the internet. Developers connect through SSH or a bastion host.
+- Remove a developer account when the person leaves the project.
+- Langfuse gets its own database account in S2-03.
+
+**Acceptance criteria**
+- [ ] Each account in the table exists, with the given permissions.
+- [ ] The backend uses `monitor_app` in `DATABASE_URL`. It does not use the administrator account.
+- [ ] A developer can connect through SSH or the bastion host. A developer cannot connect directly from the internet.
+- [ ] This issue lists the accounts and their owners. It contains no passwords.
+
+**How to test**
+1. Start the backend with `monitor_app`. Make sure that the migrations run and the API stores a run.
+2. Connect as `monitor_readonly`. Make sure that `SELECT` works and `INSERT` fails.
+3. Connect as a `dev_<name>` account on the test host. Make sure that `INSERT` fails.
+4. Try to connect to the database port from the internet. Make sure that the connection is refused.
 
 ---
 
