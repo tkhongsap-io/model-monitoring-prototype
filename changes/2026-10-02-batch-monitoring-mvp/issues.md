@@ -56,7 +56,7 @@ reach the monitor database and Langfuse with the same trace ID?
 | S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-08 (trace check tool) |
 | S1-12 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-03, S1-08 |
 | S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-07 |
-| S2-02 | Langfuse SDK version and new packages approved | Decision | Backend + project owner | — |
+| S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05, S2-06 |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
 | S2-04 | OTel helper for GCP jobs | Feature | Backend + GCP job developer | S2-03 |
 | S2-05 | Monitor moves off direct Langfuse SDK v2 calls | Feature | Backend | S2-03 |
@@ -590,20 +590,38 @@ token to a use case. Spans are not used for grades, so this risk is low.
 2. Load a YAML file with an error. Make sure that the monitor does not start.
 3. Paired with S2-07: each onboarded job sends with its own key and the request is accepted. Change the key of one job to the key of another use case. Make sure that the request is rejected.
 
-### S2-02 — Langfuse SDK version and new packages approved
+### S2-02 — Langfuse SDK v4 in the backend, and package approval
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Decision | Deadline Mon Oct 12 | Backend + project owner | — | — | S |
+| Decision + Feature | Deadline Mon Oct 12 | Backend + project owner | S1-06 | S2-05, S2-06 | M |
 
-**What:** Decide Langfuse Python SDK v2 or v3, and approve the `opentelemetry-*` packages with
-versions in the Sprint 2 spec.
+**Decision (2026-10-03):** Use the Langfuse Python SDK v4 (`langfuse` 4.x) in the backend.
+The backend uses it for these items:
+- The `monitor.evaluate` span. This span can contain the redacted record text that the API accepted.
+- The scores, with `create_score`.
+
+The GCP jobs do not use the Langfuse SDK. They use the OTel SDK and send their spans to the
+Collector (S1-06, S1-07). Thus the Langfuse keys stay in AWS.
+
+**Facts that affect this issue**
+
+| Fact | Effect |
+|---|---|
+| SDK v4 does not have the v2 functions `trace()` and `score()`. The chatbot store (`backend/app/adapters/llm_eval/stores.py`) uses these functions. | When the version changes to v4, the chatbot store stops sending to Langfuse. The code catches the error, so the chatbot continues to work, but its Langfuse traces stop. S2-05 must change the chatbot store in the same pull request. |
+| SDK v4 needs `opentelemetry-api`, `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`, version 1.45 or later. | S1-06 part B must use the same OTel versions. |
+| Langfuse released three major SDK versions in three years. v2 is deprecated. | Pin `langfuse>=4.16,<5`. Read the release notes before an upgrade. |
 
 **Acceptance criteria**
-- [ ] Decision and reason recorded in the spec; package list with pinned version ranges approved.
+- [ ] The spec lists each new or changed package with a version range: `langfuse>=4.16,<5`, the OTel packages, and the OTel instrumentation packages.
+- [ ] The self-hosted Langfuse server has a fixed version that supports SDK v4 (S2-03).
+- [ ] In one backend process, the SDK v4 and the FastAPI OTel instrumentation put `monitor.ingest` and `monitor.evaluate` in the same trace as the GCP spans.
+- [ ] The version change and the S2-05 chatbot change are in the same pull request.
 
 **How to test**
-1. `backend/requirements.txt` changes in S2-05 match the approved list exactly.
+1. Compare `backend/requirements.txt` with the approved list.
+2. Run the full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
+3. In the local stack, send one run with a known `traceparent`. Make sure that Langfuse shows the GCP spans, `monitor.ingest`, `monitor.evaluate` and the scores in one trace.
 
 ### S2-03 — Collector exports to self-hosted Langfuse
 
