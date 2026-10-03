@@ -75,11 +75,11 @@ pull request first.
 | S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-07 |
 | S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05, S2-06 |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
-| S2-04 | OTel helper for GCP jobs | Feature | Backend + GCP job developer | S2-03 |
+| S2-04 | OTel helper file for the GCP jobs | Feature | GCP job developer (backend reviews) | S2-03 |
 | S2-05 | Chatbot store changes from Langfuse SDK v2 to v4 | Feature | Backend | S2-03 |
 | S2-06 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-03 |
 | S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
-| S2-08 | Dashboard and API for batch runs | Feature | Frontend + backend | S2-07 |
+| S2-08 | Dashboard shows the GCP use cases with the current UI | Feature | Backend | S2-07 |
 | S2-09 | One run as a single trace, GCP job to score | Verification | Backend + platform | S2-03 + S2-04 + S2-06 |
 | S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job owners + backend | S1-08 |
 | S3-02 | Missed-run detection and alert | Feature | Backend | S3-04 |
@@ -713,30 +713,40 @@ Most other Langfuse read APIs can be up to 10 minutes behind, so the tool would 
 3. Open the Langfuse sign-up page without an account. Make sure that sign-up is refused.
 4. Paired with S2-04 and S2-06: see the test steps in those issues.
 
-### S2-04 — OTel helper for GCP jobs
+### S2-04 — OTel helper file for the GCP jobs
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 2.7 | Backend + GCP job developer | S1-04, S1-06 | S2-03 | L |
+| Feature | 2.7 | GCP job developer; backend reviews | S1-06 | S2-03 | M |
 
-**What:** A small shared helper that GCP jobs import to send OTel spans: a root `batch.run`
-span; child spans `batch.submit`, `batch.harvest`, `batch.publish`; one span per Gemini call
-with model and token counts (OTel GenAI conventions). It also puts the current
-`traceparent` into the run summary. Attributes pass through an allowlist, so prompts and
-customer text cannot be attached.
+**What:** Move the OTel code from S1-06 part A into one reusable Python file,
+`otel_helper.py`. Add the token data and the attribute allowlist. Use the file in the first
+job. The other jobs get the file in S2-07, S3-01 and S4-03. Each job repository copies the
+file, because we have no package registry.
+
+| Function | Detail |
+|---|---|
+| Run trace | The root span `batch.run` and the step spans, as in S1-06 |
+| Token totals, Batch API jobs | Attributes on the `batch.harvest` span: model, input tokens, output tokens |
+| Token data, online jobs | One span for each sampled request only, with model, tokens and the real call time. The totals go on `batch.run`. Select the sample before the calls start, so the same requests get spans and become records. |
+| Attribute names | The OTel GenAI names: `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens` |
+| Attribute allowlist | Only the allowed keys go into a span. The helper drops other keys and logs only the key name. GCP spans contain no text. |
+| Export | OTLP/HTTP to the front door (`/otlp/*`) with the OTLP token. If the export fails, the job continues. |
 
 **Acceptance criteria**
-- [ ] One trace per run; the run summary's `traceparent` matches the root span.
-- [ ] Gemini call spans carry model, input tokens, output tokens and real call duration.
-- [ ] Attributes outside the allowlist are dropped, with a debug log of the dropped key name only.
-- [ ] Export failure never fails the job.
-- [ ] Added to the first job (the one from S1-04).
+- [ ] One trace for each run, with the step spans from S1-06.
+- [ ] Batch API jobs: the token totals are on `batch.harvest`.
+- [ ] Online jobs: spans exist only for the sampled requests; the totals are on `batch.run`.
+- [ ] An attribute that is not on the allowlist (for example `prompt`) is dropped. The log shows only its key name.
+- [ ] No span attribute contains record text.
+- [ ] If the Collector is not available, the job ends normally and writes a log entry.
+- [ ] The first job uses the file. The file has a version number at the top.
 
 **How to test**
-1. Unit (GCP repo): in-memory exporter; assert span names, parent-child links, attributes, and that a forbidden attribute (for example `prompt`) is dropped.
-2. Local paired test with S2-03: run the job code locally against a recorded Gemini response, with `OTEL_EXPORTER_OTLP_ENDPOINT` pointed at the local Collector and the run summary pointed at the local monitor.
-3. Real paired test with S2-03 on the test host: run the job in the GCP dev project.
-4. For both: run `scripts/check_trace.py <trace_id>`. Expected: the `batch_runs` row in monitor Postgres, the spans in the Collector output, and one Langfuse trace containing both the GCP spans and `monitor.ingest`, all with the same trace ID.
+1. Unit (GCP repository): use an in-memory span exporter. Make sure that the span names, the parent links and the GenAI attributes are correct. Make sure that a forbidden attribute is dropped. Stop the exporter and make sure that the job ends normally.
+2. Paired with S2-03, local: run the first job with a recorded Gemini response. Send the spans to the local Collector and the run summary to the local backend.
+3. Paired with S2-03, test host: run the first job in the GCP dev project.
+4. For tests 2 and 3: run `scripts/check_trace.py`. Make sure that Langfuse shows the GCP spans with the token attributes in the same trace as `monitor.ingest`.
 
 ### S2-05 — Chatbot store changes from Langfuse SDK v2 to v4
 
@@ -887,24 +897,46 @@ Sprint 2 for the first graded run.
 2. Check one stored run per job: records validate, and a spot check finds placeholders instead of raw PII.
 3. Record the 4 trace IDs and their five metric values in this issue.
 
-### S2-08 — Dashboard and API for batch runs
+### S2-08 — Dashboard shows the GCP use cases with the current UI
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 2.5 | Frontend + backend | S2-06 | S2-07 | M |
+| Feature | 2.5 | Backend | S2-01, S2-06 | S2-07 | M |
 
-**What:** Show each batch use case with the same five LLM metric cards the chatbot uses, plus
-last run, freshness, status, Unknown reasons and a link to its Langfuse trace.
+**Decision (2026-10-03):** The dashboard shows only the GCP batch use cases. The UI does not
+change. The dashboard shows no record text.
+
+**What:** The frontend reads only two endpoints: `GET /api/live/portfolio` and
+`GET /api/live/use-case/{id}`. It does not contain fixed use-case IDs. Thus the backend
+returns the GCP use cases through these two endpoints, in the same shape that the LLM lane
+of the chatbot uses now. The frontend code does not change.
+
+| UI field | Source for a GCP use case |
+|---|---|
+| Name and owner | YAML registry (S2-01) |
+| Five LLM signals, lanes and grade | `batch_evaluations` (S2-06) |
+| Freshness | `completed_at` of the latest run |
+| `judge` | The judge identity |
+| `judge_sample` | Always empty. No record text goes to the browser. |
+| Errors and "Unknown" reasons | The reasons from S2-06 |
+
+- On the test host and on AWS, the three prototype use cases are not configured. `LIVE_CHURN_URL`, `LIVE_CHATBOT_URL` and `LIVE_NBA_URL` are not set. Thus they do not appear on the dashboard.
+- The current UI has no place for a Langfuse link. The API returns `trace_id`. Engineers search for this ID in Langfuse. A link in the UI needs a later UI change.
+- The dashboard uses port 8443 (Sprint 2 prerequisites).
 
 **Acceptance criteria**
-- [ ] Data comes from read-only monitor API routes; the browser never calls Langfuse or the database.
-- [ ] Missing score or trace shows a clear reason.
-- [ ] No Langfuse keys or tokens in the browser bundle.
+- [ ] On the test host, the portfolio shows only the GCP use cases.
+- [ ] Each use case shows the latest run, the freshness, the five signals, the grade and the "Unknown" reasons in the current cards.
+- [ ] No API response for a GCP use case contains question, answer or source text.
+- [ ] The frontend files do not change (`artifacts/control-tower/src`).
+- [ ] The API response contains `trace_id`.
+- [ ] `pnpm run typecheck`, `pnpm run build:live` and `pnpm run check:strict-live` pass.
 
 **How to test**
-1. API tests for each state: scored, Unknown, stale, no trace.
-2. `pnpm run typecheck`; `pnpm run build:live` and `pnpm run check:strict-live` in CI.
-3. Paired with S2-07: the 4 onboarded use cases appear with correct freshness.
+1. API tests for each state: scored, each "Unknown" reason, stale, identity-only.
+2. Search all API responses for the text in the S1-01 examples. Make sure that the text is not found.
+3. Run the pnpm checks. `build:live` and `check:strict-live` run in CI on Linux.
+4. Paired with S2-07: open the dashboard on port 8443. Make sure that the onboarded use cases show the correct freshness and grades.
 
 ### S2-09 — One run as a single trace, GCP job to score
 
