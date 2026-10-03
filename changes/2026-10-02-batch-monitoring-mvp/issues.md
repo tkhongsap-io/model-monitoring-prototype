@@ -561,7 +561,7 @@ Ports on the test host (until a DNS name exists):
 |---|---|---|---|
 | 443 | Front door: `/api/*` and `/otlp/*` | GCP jobs | GCP egress IPs |
 | 8443 | Monitor dashboard | RAI team, engineers | Office or VPN IPs |
-| 3443 | Langfuse UI | Engineers, RAI team | Office or VPN IPs |
+| 3443 | Langfuse UI | Engineers only | Office or VPN IPs of the engineers |
 | None | PostgreSQL, ClickHouse, Redis, MinIO | — | Closed to the network. Developers use SSH (S1-12). |
 
 Langfuse uses its own port because it does not work easily under a URL path.
@@ -685,11 +685,11 @@ GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse p
 | Question | Owner |
 |---|---|
 | Is the test host large enough for Langfuse (CPU, memory, disk)? Examine the Langfuse self-hosting requirements. | Platform |
-| How do the engineers and the RAI team open the Langfuse UI? The front door allows only the GCP IP now. Options: add the office or VPN IP, or use an SSH tunnel. | Network team |
+| How do the engineers open the Langfuse UI? The front door allows only the GCP IP now. Options: add the office or VPN IP, or use an SSH tunnel. | Network team |
 
 **Rules**
 - Langfuse uses its own PostgreSQL container and account. It does not share the monitor database (S1-12).
-- Turn off public sign-up in Langfuse. Make one account for each engineer and each RAI user who needs one.
+- Turn off public sign-up in Langfuse. Make one account for each engineer. Langfuse is for engineers. The RAI team uses the dashboard.
 - The Collector exporter sends the header `x-langfuse-ingestion-version: 4`. Without this header, new data can appear in Langfuse up to 10 minutes late.
 - Set the retention period in Langfuse from S1-09.
 - Keep the Langfuse keys as host secrets. Do not put them in files in git.
@@ -921,7 +921,7 @@ of the chatbot uses now. The frontend code does not change.
 | Errors and "Unknown" reasons | The reasons from S2-06 |
 
 - On the test host and on AWS, the three prototype use cases are not configured. `LIVE_CHURN_URL`, `LIVE_CHATBOT_URL` and `LIVE_NBA_URL` are not set. Thus they do not appear on the dashboard.
-- The current UI has no place for a Langfuse link. The API returns `trace_id`. Engineers search for this ID in Langfuse. A link in the UI needs a later UI change.
+- The dashboard is for the RAI team. It has no Langfuse link, because Langfuse is for engineers. The API returns `trace_id`, so an engineer can find the trace in Langfuse.
 - The dashboard uses port 8443 (Sprint 2 prerequisites).
 
 **Acceptance criteria**
@@ -948,7 +948,7 @@ of the chatbot uses now. The frontend code does not change.
 
 **Acceptance criteria**
 - [ ] One real run shows in Langfuse as one trace: GCP spans, `monitor.ingest`, `monitor.evaluate`, and the score.
-- [ ] The dashboard shows the same run with a working trace link.
+- [ ] The dashboard shows the same run with its grade. An engineer finds its trace in Langfuse with the `trace_id` from the API.
 
 **How to test**
 1. Run `scripts/check_trace.py <trace_id>`; every hop found.
