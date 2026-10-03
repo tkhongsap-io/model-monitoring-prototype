@@ -33,6 +33,23 @@ reach the monitor database and Langfuse with the same trace ID?
 | **Test host** | The same Compose stack, reachable over HTTPS from the GCP dev project | Tests with real GCP job code |
 | **AWS cluster** | Target Kubernetes deployment | Release (Sprint 4) |
 
+## Fixed versions (checked 2026-10-03)
+
+Use these exact versions. Do not use `latest`. To change a version, change this table in a
+pull request first.
+
+| Component | Image or package | Version | Note |
+|---|---|---|---|
+| Python (backend) | `python:3.12.15-slim-bookworm` | 3.12.15 | Released 2026-10-01. Python 3.12 gets security fixes only, until 2028-10-31. |
+| PostgreSQL (monitor and Langfuse) | `postgres:17.11-bookworm` | 17.11 | Released 2026-08-10. PostgreSQL 17 is supported until 2029-11-08. |
+| OTel Collector | `otel/opentelemetry-collector-contrib` | 0.161.0 | Newest image on Docker Hub. Release 0.162.0 (2026-09-29) has no Docker Hub image yet. |
+| Langfuse web | `langfuse/langfuse` | 4.50.0 | Released 2026-10-02 |
+| Langfuse worker | `langfuse/langfuse-worker` | 4.50.0 | Must be the same version as Langfuse web |
+| ClickHouse | `clickhouse/clickhouse-server` | 25.12.11.4 | Newest patch of the 25.12 line that the Langfuse Compose file uses. Version 26.9 exists, but Langfuse does not use it. |
+| Redis | `redis` | 7.4.11 | Newest patch of the 7 line that the Langfuse Compose file uses. Version 8 exists, but Langfuse does not use it. |
+| S3 storage (MinIO) | `cgr.dev/chainguard/minio` | Fix by image digest | The image that the Langfuse Compose file uses. The free Chainguard image has only the `latest` tag, so record its digest. |
+| Langfuse Python SDK | `langfuse` | `>=4.16,<5` | S2-02 |
+
 ## Done for every issue
 
 - Pull request with tests; CI green; `CHANGELOG.md` and `DEVLOG.md` updated when behaviour changes.
@@ -334,7 +351,7 @@ The firewall opens only port 443. The front door has one certificate (S1-05).
 
 **Acceptance criteria**
 - [ ] `docker compose up` starts the Collector with a health check.
-- [ ] The Collector image has a fixed version. It does not use `latest`.
+- [ ] The Collector image has the version from the fixed-versions table. It does not use `latest`.
 - [ ] Spans that come in on OTLP/HTTP appear in the file output.
 - [ ] On the test host, the front door is the only public entry. It accepts only port 443 and only the GCP egress IP.
 - [ ] `/otlp/*` rejects a request without the correct OTLP token. The OTLP token is different from the API key.
@@ -627,23 +644,45 @@ Collector (S1-06, S1-07). Thus the Langfuse keys stay in AWS.
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Infrastructure | 2.4 | Platform | S1-07 | S2-04, S2-05 | L |
+| Infrastructure | 2.4 | Platform | S1-07, S1-12, Sprint 2 prerequisites | S2-04, S2-06 | L |
 
-**What:** Add self-hosted Langfuse (web, worker, Postgres, ClickHouse, Redis, S3-compatible
-storage) to Compose. Add an `otlphttp` exporter in the Collector that sends to Langfuse's
-OTLP endpoint (`/api/public/otel`) with project keys from environment variables. Keep the
-file exporter for tests. Extend S1-08 to query Langfuse.
+**What:** Add self-hosted Langfuse to Docker Compose: Langfuse web, Langfuse worker,
+PostgreSQL, ClickHouse, Redis and S3 storage (MinIO). Use the versions in the
+fixed-versions table. Add an `otlphttp` exporter to the Collector. This exporter sends the
+GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse project keys.
+
+**Prerequisites (answer after S1-05 is complete)**
+
+| Question | Owner |
+|---|---|
+| Is the test host large enough for Langfuse (CPU, memory, disk)? Examine the Langfuse self-hosting requirements. | Platform |
+| How do the engineers and the RAI team open the Langfuse UI? The front door allows only the GCP IP now. Options: add the office or VPN IP, or use an SSH tunnel. | Network team |
+
+**Rules**
+- Langfuse uses its own PostgreSQL container and account. It does not share the monitor database (S1-12).
+- Turn off public sign-up in Langfuse. Make one account for each engineer and each RAI user who needs one.
+- The Collector exporter sends the header `x-langfuse-ingestion-version: 4`. Without this header, new data can appear in Langfuse up to 10 minutes late.
+- Set the retention period in Langfuse from S1-09.
+- Keep the Langfuse keys as host secrets. Do not put them in files in git.
+- When this issue works, delete the Sprint 1 file output on the test host (S1-07).
+
+**Change to S1-08:** The trace check tool reads Langfuse through the Observations API v2.
+Most other Langfuse read APIs can be up to 10 minutes behind, so the tool would show
+"missing" for a correct trace.
 
 **Acceptance criteria**
-- [ ] `docker compose up` brings up Langfuse with persistent volumes; data survives a restart.
-- [ ] Spans sent to the Collector appear as traces in Langfuse.
-- [ ] Langfuse keys only in environment files that are not committed.
-- [ ] `scripts/check_trace.py` reports the Langfuse hop.
+- [ ] `docker compose up` starts all Langfuse containers with the fixed versions and health checks.
+- [ ] Langfuse data stays after `docker compose restart`.
+- [ ] Spans that the Collector receives appear as traces in Langfuse within one minute.
+- [ ] Public sign-up is off. A person without an account cannot open a project.
+- [ ] No Langfuse key is in the repository.
+- [ ] `scripts/check_trace.py` shows the Langfuse trace and its scores through the Observations API v2.
 
 **How to test**
-1. Standalone: `telemetrygen` spans arrive in Langfuse; read back with the Langfuse public API (`GET /api/public/traces/{traceId}`).
-2. Restart: `docker compose restart`; the same trace is still there.
-3. Paired with S2-04 and S2-05 (see those issues).
+1. Send test spans with `telemetrygen`. Make sure that they appear in Langfuse within one minute.
+2. Run `docker compose restart`. Make sure that the same trace is still in Langfuse.
+3. Open the Langfuse sign-up page without an account. Make sure that sign-up is refused.
+4. Paired with S2-04 and S2-06: see the test steps in those issues.
 
 ### S2-04 — OTel helper for GCP jobs
 
