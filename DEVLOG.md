@@ -47,6 +47,19 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-03 — batch MVP issues rewritten as paired, testable GitHub issues
+
+- Changed: rewrote `changes/2026-10-02-batch-monitoring-mvp/issues.md` as 32 issue drafts
+  (11, 9, 6 and 6 per sprint). Each has type, plan task, owner, dependencies, a "tested
+  with" partner issue, size, acceptance criteria and test steps. Each sprint opens with a
+  paired-test table; for example, the GCP OTel helper (S2-04) is proven by the Collector to
+  Langfuse issue (S2-03), with the run summary checked in monitor Postgres under the same
+  trace ID. Added plan tasks 1.9 (minimal Collector) and 1.10 (trace check tool,
+  `scripts/check_trace.py`), which every paired test uses. No application code changed.
+- Evidence: `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`).
+- Remaining: issues are not posted to GitHub (account suspended). Test host location and
+  the Langfuse SDK version are still open.
+
 ### 2026-10-03 — batch MVP plan: OpenTelemetry as the tracing standard
 
 - Changed: added `changes/2026-10-02-batch-monitoring-mvp/summary.md`, a one-page summary

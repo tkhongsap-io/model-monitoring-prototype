@@ -88,6 +88,8 @@ and see one real run arrive.
 | 1.6 | End-to-end: one real run, sent by the real job, stored and visible through the monitor API | Backend + GCP job developer | Run ID, status, counts and freshness visible; no customer text stored | 1.3, 1.4, 1.5 |
 | 1.7 | Inventory of all 10 use cases: ID, owner, GCP job, schedule (which days it runs in October), labels available, data sensitivity | PM + source owners | Table has exactly 10 rows with named owners, and the October run dates are known | — |
 | 1.8 | Add the OTel SDK to the monitor: the receiving API starts a span that continues the job's trace from `traceparent`; export to a console or local Collector | Backend | A test shows the ingest span has the trace ID sent in the body; no body content in span attributes | 1.3 |
+| 1.9 | Minimal OTel Collector in the local stack (OTLP/HTTP in; debug and file output) | Platform | Spans from 1.8 appear in the Collector's file output | — |
+| 1.10 | Trace check tool: one command that shows a trace ID's hops (monitor database, Collector, later Langfuse) | Backend | Prints found or missing per hop; non-zero exit when a hop is missing | 1.3 |
 
 **Sprint 1 is done when:** JSON body v1 is agreed and versioned, the receiving API is
 merged with tests, one real run has arrived from a real GCP job, the monitor emits an

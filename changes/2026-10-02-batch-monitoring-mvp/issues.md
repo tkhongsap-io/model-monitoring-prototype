@@ -1,235 +1,722 @@
-# Batch Monitoring MVP — GitHub-ready issue drafts
+# Batch Monitoring MVP — GitHub Issues by Sprint
+
+| | |
+|---|---|
+| **Date** | 2026-10-03 |
+| **Status** | Drafts, not yet posted to GitHub |
+| **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) |
+
+Each issue below is ready to paste into GitHub. Every feature issue names the issue it is
+**tested with**: a sender is proven by the receiver that sees its data arrive, and a
+receiver is proven by a real sender. One shared tool (S1-08) follows a single trace ID
+through every hop, so each paired test ends with the same question: did this run's data
+reach the monitor database and Langfuse with the same trace ID?
+
+## How to read an issue
+
+| Field | Meaning |
+|---|---|
+| Type | Feature, Infrastructure, Decision, Discovery or Verification |
+| Plan task | The matching row in [plan.md](plan.md) |
+| Depends on | Issues that must be merged or decided first |
+| Tested with | The partner issue used to prove this one works end to end |
+| Size | Rough estimate: S (under 1 day), M (1–3 days), L (3–5 days) |
+| Acceptance criteria | Checkboxes a reviewer ticks before closing |
+| How to test | Exact steps, from unit tests to the paired end-to-end test |
+
+## Test environments
+
+| Name | What runs there | Used for |
+|---|---|---|
+| **Unit** | `pytest` in `backend/`; OTel in-memory span exporter | Logic, validation, span content |
+| **Local stack** | Docker Compose: monitor, Postgres, OTel Collector, self-hosted Langfuse | Integration and paired tests on a laptop |
+| **Test host** | The same Compose stack, reachable over HTTPS from the GCP dev project | Tests with real GCP job code |
+| **AWS cluster** | Target Kubernetes deployment | Release (Sprint 4) |
+
+## Done for every issue
+
+- Pull request with tests; CI green; `CHANGELOG.md` and `DEVLOG.md` updated when behaviour changes.
+- The PR description lists passed, failed, skipped and unavailable checks. An unavailable check is never reported as passed.
+- No secrets, tokens, prompts or customer text in code, logs, spans, fixtures or screenshots.
+
+## All issues
+
+| ID | Title | Type | Owner | Tested with |
+|---|---|---|---|---|
+| S1-01 | Walk through one GCP job and map its fields | Discovery | Backend + GCP job developer | Review by GCP developer |
+| S1-02 | Run summary JSON body v1 | Feature | Backend | S1-04 (real body validates) |
+| S1-03 | Receiving API `POST /api/batch/runs` | Feature | Backend | S1-04 |
+| S1-04 | GCP job sends the run summary after publishing | Feature | GCP job developer | S1-03 |
+| S1-05 | Test host reachable from GCP | Infrastructure | Platform | S1-04 |
+| S1-06 | OTel SDK in the monitor; ingest continues the job's trace | Feature | Backend | S1-07 |
+| S1-07 | Minimal OTel Collector in the local stack | Infrastructure | Platform | S1-06 |
+| S1-08 | Trace check tool | Feature | Backend | S1-06 + S1-07 |
+| S1-09 | Approve fields allowed to leave GCP | Decision | Security | — |
+| S1-10 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — |
+| S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-03 + S1-04 + S1-05 |
+| S2-01 | Source registry and one token per use case | Feature | Backend | S2-07 |
+| S2-02 | Langfuse SDK version and new packages approved | Decision | Backend + project owner | — |
+| S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
+| S2-04 | OTel helper for GCP jobs | Feature | Backend + GCP job developer | S2-03 |
+| S2-05 | Monitor moves off direct Langfuse SDK v2 calls | Feature | Backend | S2-03 |
+| S2-06 | Batch evaluator with a reviewed rubric | Feature | Backend + RAI | S2-05 |
+| S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
+| S2-08 | Dashboard and API for batch runs | Feature | Frontend + backend | S2-07 |
+| S2-09 | One run as a single trace, GCP job to score | Verification | Backend + platform | S2-03 + S2-04 + S2-06 |
+| S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job owners + backend | S1-08 |
+| S3-02 | Missed-run detection and alert | Feature | Backend | S3-04 |
+| S3-03 | Collector hardening: auth, TLS, redaction, durable queue | Infrastructure | Platform | S3-04, S3-05 |
+| S3-04 | Failure and recovery drills | Verification | Backend + platform | S3-02 + S3-03 |
+| S3-05 | Security and retention review with leak scan | Verification | Security + platform | S3-03 |
+| S3-06 | Kubernetes manifests | Infrastructure | Platform | S4-01 |
+| S4-01 | Deploy the stack to the target AWS cluster | Infrastructure | Platform | S4-02 |
+| S4-02 | Switch every GCP job to the AWS endpoints | Feature | Job owners + platform | S4-01 |
+| S4-03 | Finish all 10 use cases | Feature | Job owners + backend | S4-04 |
+| S4-04 | 10-row evidence checklist | Verification | Backend + frontend + RAI | S1-08 |
+| S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S4-01 |
+| S4-06 | Release sign-off | Decision | RAI + platform owners | S4-04 + S4-05 |
+
+---
+
+## Sprint 1 — Oct 5–9: get data out of GCP
+
+**Paired tests this sprint**
+
+| Feature | Tested with | The test proves | Environment |
+|---|---|---|---|
+| S1-04 GCP sender | S1-03 receiving API | A real run summary from GCP lands as one row in monitor Postgres | Test host |
+| S1-06 monitor OTel | S1-07 Collector | The ingest span reaches the Collector with the trace ID the job sent | Local stack |
+| S1-08 trace check tool | S1-06 + S1-07 | One command shows the same trace ID in the database and in the Collector output | Local stack |
+
+### S1-01 — Walk through one GCP job and map its fields
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Discovery | 1.1 | Backend + GCP job developer | — | Review by GCP developer | S |
+
+**What:** Sit with the GCP job developer and go through one job from submit to publish. Find
+the exact point where results are published to the business, and list every field
+available at that point.
+
+**Acceptance criteria**
+- [ ] A field map table: field name, meaning, type, where it comes from in the job, always present or optional.
+- [ ] The "published" moment is identified in the job code (file and function).
+- [ ] Fields that contain customer content are marked and excluded from the summary.
+
+**How to test**
+1. The GCP job developer reviews the table and confirms each row against the code.
+2. Attach the reviewed table to the issue before closing.
+
+### S1-02 — Run summary JSON body v1
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 1.2 | Backend | S1-01 | S1-04 (a real body validates) | M |
+
+**What:** Define the JSON body a GCP job sends after publishing. Publish it as a JSON Schema
+file with example bodies. Proposed fields: `schema_version`, `use_case_id`, `run_id`,
+`status`, `completed_at`, `row_counts`, `model`, `token_usage`, `artifact_digest`,
+`traceparent`, `unknown_reasons`.
+
+**Acceptance criteria**
+- [ ] Schema file and 3 examples committed: normal run, partial failure, missing optional fields.
+- [ ] Every field has a description; required and optional fields are explicit.
+- [ ] `traceparent` follows the W3C Trace Context format.
+- [ ] No field can carry free text from customers or prompts.
+- [ ] Reviewed by the GCP job developer, RAI and security (S1-09).
+
+**How to test**
+1. Unit: `pytest` validates every example against the schema; a broken example (missing `run_id`, wrong type) fails validation.
+2. Paired with S1-04: the GCP developer generates a body from a real run and it validates against the schema.
+
+### S1-03 — Receiving API `POST /api/batch/runs`
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 1.3 | Backend | S1-02 | S1-04 | L |
+
+**What:** Add an authenticated endpoint that validates a run summary and stores it once in a
+new `batch_runs` table (additive migration in `backend/app/db.py`). Store `trace_id` from
+`traceparent`. A stored row is never edited.
+
+**Acceptance criteria**
+- [ ] Valid body with a valid token: `201`, one row stored.
+- [ ] Same body sent again: `200`, still one row.
+- [ ] Same `(use_case_id, run_id)` with different content: `409`, original row unchanged.
+- [ ] Invalid body: `400` with field errors; nothing stored.
+- [ ] Missing or wrong token: `401`; nothing stored; token never logged.
+- [ ] Existing v1.1 live tests still pass; demo-mode routes unaffected.
+
+**How to test**
+1. Unit and integration: `pytest` covers each criterion above using the S1-02 examples.
+2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
+3. Paired with S1-04: a real GCP job sends to the test host; check one row exists for that `run_id`.
+
+### S1-04 — GCP job sends the run summary after publishing
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 1.4 | GCP job developer | S1-02, S1-05 | S1-03 | M |
+
+**What:** Add a step at the end of one GCP job, after publish, that builds the run summary
+and sends it with the token from GCP Secret Manager. Retry with backoff on network errors
+and `5xx`. A send failure must not fail the business job.
+
+**Acceptance criteria**
+- [ ] The step runs only after publish succeeds.
+- [ ] Retries on timeouts and `5xx`; no retry on `400`, `401` or `409`.
+- [ ] The job finishes successfully even when the monitor is unreachable, and logs that the send failed.
+- [ ] Token read from Secret Manager; never printed.
+
+**How to test**
+1. Unit (GCP repo): the builder produces a body that validates against the S1-02 schema; the sender retries on a fake `503` and stops on `400`.
+2. Paired with S1-03 on the test host: run the job in the GCP dev project. Expected: the job log shows `201`, and the monitor database has one `batch_runs` row with the same `run_id`. Run it again and expect `200` with still one row.
+3. Failure check: point the job at a wrong URL; the job still succeeds and logs the failed send.
 
-These are proposed issue bodies, not issues posted to GitHub. Assign an owner and split an issue further if its implementation cannot be independently reviewed. Use the [monthly scaffold](plan.md) and [GCP → AWS flow](flow.html). A use case counts as live only with a verified real completed batch. Preserve the existing three-source v1.1 contract.
+### S1-05 — Test host reachable from GCP
 
-> **Out of date (2026-10-02):** the [plan](plan.md) now uses push ingestion: each GCP job sends a JSON summary to the monitor API after publishing. The Sprint 1 drafts below (S1-01 to S1-05) still describe read-only pull and are superseded by plan tasks 1.1–1.7. Later drafts that mention pull adapters or manifests need the same update before they are posted.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Infrastructure | Deadline Tue Oct 6 | Platform | — | S1-04 | M |
 
-## Sprint 1 — Oct 5–9: discovery and first proof
+**What:** Run the monitor (and later the local stack) on a host the GCP dev project can reach
+over HTTPS, with its own database and secrets.
 
-### S1-01 — Map the ten production use cases
+**Acceptance criteria**
+- [ ] HTTPS with a valid certificate; plain HTTP refused.
+- [ ] Database and Collector ports are not public.
+- [ ] Tokens stored as host secrets, not in the repository.
 
-Owner: Source owners + backend
+**How to test**
+1. From the GCP dev project: `curl https://<test-host>/api/health` returns `200`.
+2. `POST /api/batch/runs` without a token returns `401`.
+3. Port scan from outside shows only `443` open.
+4. Fallback if late: the GCP developer captures a real body to a file and we replay it into the local stack; record that real delivery was not tested.
 
-What to do: Obtain the authoritative ten-ID list and map each ID to its actual GCP deployment, owner, schedule, output location/retention, publication-based completion signal, run identifiers, data class, and label availability. Reconcile the six inspected logical pipelines against that list.
+### S1-06 — OTel SDK in the monitor; ingest continues the job's trace
 
-Acceptance criteria:
-- [ ] Inventory contains exactly ten distinct production IDs with named owners, not assumed config-to-use-case mappings.
-- [ ] Every entry distinguishes submission, harvest and business publication, and records an output/access path or an explicit blocker.
-- [ ] Source owners confirm deployed cadence, retention and which results can be accessed from AWS.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 1.8 | Backend | S1-03, package entry in the Sprint 1 spec | S1-07 | M |
 
-### S1-02 — Decide secure cross-cloud handoff and cluster ownership
+**What:** Add the OpenTelemetry SDK to the backend. `POST /api/batch/runs` starts a
+`monitor.ingest` span that continues the trace from the body's `traceparent`. Export over
+OTLP/HTTP to the Collector; the endpoint comes from `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
-Owner: Platform + security
+**Acceptance criteria**
+- [ ] `monitor.ingest` has the same trace ID as the incoming `traceparent`, and the job's span as parent.
+- [ ] Span attributes: `use_case_id`, `run_id`, result (`stored`, `duplicate`, `rejected`). No body content.
+- [ ] With no Collector configured, the API still works and no error is raised.
+- [ ] A body without `traceparent` starts a new trace and stores its ID.
 
-What to do: For each source, select approved read-only pull or minimal authenticated post-publication manifest; document egress, identity, data minimization, network path and secrets ownership. Identify target AWS Kubernetes operator and access date without assuming EKS.
+**How to test**
+1. Unit: in-memory span exporter; assert trace ID, parent span ID and attribute list for each criterion.
+2. Paired with S1-07: run the local stack, send an example body with a known `traceparent` using `curl`, and find that trace ID in the Collector output.
 
-Acceptance criteria:
-- [ ] Per-source transport and data-permission decision is documented and approved or flagged as blocked with owner/date.
-- [ ] AWS cluster owner, access date, ingress/TLS and secret-management decision are recorded.
-- [ ] No proposed raw-data transfer or public OTLP/database endpoint bypasses security review.
+### S1-07 — Minimal OTel Collector in the local stack
 
-### S1-03 — Define the completed-run contract and prove one parser
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Infrastructure | 1.9 | Platform | — | S1-06 | S |
 
-Owner: Monitoring backend
+**What:** Add the OTel Collector (contrib image) to Docker Compose with an OTLP/HTTP receiver,
+the `debug` exporter and the `file` exporter writing to a mounted folder. Langfuse export
+comes in S2-03.
 
-What to do: Specify a batch-run record separate from the existing v1.1 closed-window contract. Include stable use-case/run IDs, artifact identity/version, completion/freshness, status, allowlisted model/usage, source references, missing-value reasons and optional evaluation evidence. Parse a sanitized fixture from one approved source.
+**Acceptance criteria**
+- [ ] `docker compose up` starts the Collector with a health check.
+- [ ] Spans received on OTLP/HTTP appear in the file output.
+- [ ] Collector config is in the repository; no secrets in it.
 
-Acceptance criteria:
-- [ ] Contract explicitly says which signal proves completed business publication; output-object existence alone is insufficient.
-- [ ] Parser tests cover a valid fixture, absent timing/labels and malformed or sensitive fields without logging raw contents.
-- [ ] Existing three-source contract tests continue to pass; no inferred latency, cost or accuracy is populated.
+**How to test**
+1. Standalone: send synthetic spans with `telemetrygen traces --otlp-http --otlp-insecure` and check the file output contains them.
+2. Paired with S1-06: send a run summary to the monitor and find its `monitor.ingest` span in the file output.
 
-### S1-04 — Approve the first batch evaluation policy
+### S1-08 — Trace check tool
 
-Owner: RAI reviewers + backend
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 1.10 | Backend | S1-03 | S1-06 + S1-07 | S |
 
-What to do: Select one use case with permitted evaluation inputs. Specify a versioned task-specific rubric, sample rule, reference-label coverage if any, judge provider/privacy and budget; map results into existing backend score/health machinery without applying the chatbot rubric unchanged.
+**What:** A script, `scripts/check_trace.py <trace_id>`, that prints one row per hop: the
+monitor `batch_runs` row, the Collector file output and (from S2-03) the Langfuse trace and
+score. Every paired test from here on ends by running it.
 
-Acceptance criteria:
-- [ ] RAI/use-case owner signs off rubric, policy version, judge identity, sample size and supported metrics.
-- [ ] Policy states when an outcome is Unknown (no labels, missing inputs or judge failure) rather than silently Green.
-- [ ] Sensitive evaluation inputs and outputs have explicit redaction/retention approval.
+**Acceptance criteria**
+- [ ] Prints found or missing for each hop, with run ID and timestamps.
+- [ ] Exits non-zero if any expected hop is missing, so CI and drills can use it.
+- [ ] Reads credentials from environment variables; never prints them.
 
-### S1-05 — Demonstrate one authorized completed batch
+**How to test**
+1. Paired with S1-06 + S1-07: send one example body, run the tool with its trace ID; expect "found" for database and Collector.
+2. Run it with a random trace ID; expect "missing" everywhere and a non-zero exit.
 
-Owner: Source owner + backend + frontend
+### S1-09 — Approve fields allowed to leave GCP
 
-What to do: Import one real published run using the approved handoff, store run/evidence identity and apply the reviewed evaluation policy where evidence permits. Show run status, supported usage, evaluation provenance or Unknown reason in the monitor API/dashboard.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Decision | 1.5 | Security + platform | S1-02 | — | S |
 
-Acceptance criteria:
-- [ ] Source owner confirms completion after business publication and the monitor retains the run/artifact reference.
-- [ ] API/dashboard show the actual run ID and metric provenance without raw customer content.
-- [ ] A contract/integration test covers the ingest; any unavailable evaluation is explicitly Unknown. A fixture-only demo does not pass.
+**What:** Approve the run summary fields and the token handling (Secret Manager, HTTPS only).
 
-## Sprint 2 — Oct 12–16: repeatable local system
+**Acceptance criteria**
+- [ ] Field allowlist approved in writing, or blocked with an owner and date.
+- [ ] Token storage, rotation owner and transport approved.
 
-### S2-01 — Build a registry and idempotent batch ingestion
+**How to test**
+1. The approval is linked in this issue; S1-02's schema matches the approved list field by field.
 
-Owner: Monitoring backend
+### S1-10 — Inventory of the 10 use cases and October run dates
 
-What to do: Add a configurable batch source registry, reusable pull/manifest adapter boundary, normalized-run store and durable checkpoints. Key by `(use_case_id, run_id)` and retain artifact digest/version; do not wait on a batch within an HTTP request.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Discovery | 1.7 | PM + source owners | — | — | M |
 
-Acceptance criteria:
-- [ ] Tests show an identical replay creates no duplicate observation and a changed artifact under the same ID raises an integrity error.
-- [ ] Restart resumes from a durable checkpoint after an observation is stored; an ingest failure does not advance it.
-- [ ] Existing v1.1 sources remain functional and batch reads are asynchronous to the reverse-proxy response.
+**What:** One table with every use case: ID, owner, GCP job, repository, October run dates,
+labels available, data sensitivity.
 
-### S2-02 — Onboard four real sources through the common path
+**Acceptance criteria**
+- [ ] Exactly 10 rows, each with a named owner.
+- [ ] Every use case has at least one October run date, or a booked controlled rerun.
+- [ ] Onboarding order for Sprints 2–4 agreed.
 
-Owner: Source owners + backend
+**How to test**
+1. Each owner confirms their row in the issue comments.
 
-What to do: Configure and validate at least four distinct production IDs, including a second output or completion pattern. Add source-specific parser fixtures and minimal post-publication manifest exporters only where read-only access is not viable.
+### S1-11 — First real run end to end
 
-Acceptance criteria:
-- [ ] Four unique IDs each show a source-owner-verified completed run and artifact/version provenance.
-- [ ] Parser tests cover the observed source variants; submission-only or unpublished results are excluded.
-- [ ] Source-specific blocked metrics appear as Unknown instead of fabricated values.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Verification | 1.6 | Backend + GCP job developer | S1-03, S1-04, S1-05, S1-09 | — | S |
 
-### S2-03 — Adapt backend evaluator for approved batch rubrics
+**What:** The Sprint 1 demo: one real run, sent by the real job, stored and visible through
+the monitor API.
 
-Owner: RAI reviewers + backend
+**Acceptance criteria**
+- [ ] The source owner confirms the run was a real published run.
+- [ ] `batch_runs` holds it once; the API shows run ID, status, counts and freshness.
+- [ ] No customer text stored.
 
-What to do: Reuse the existing judge, score persistence and health grading while adding task-specific policy selection, versioned rubric metadata, sample counts and reasoned Unknown outcomes. Avoid an automatic English-only heuristic for Thai or mixed-language material.
+**How to test**
+1. Trigger or wait for the job's real run.
+2. Run `scripts/check_trace.py <trace_id>`; database hop found.
+3. Read the run back from the monitor API; attach the output (no secrets) to the issue.
 
-Acceptance criteria:
-- [ ] Tests cover missing labels, insufficient samples, judge failure and policy-specific threshold boundaries.
-- [ ] Scores retain judge identity, policy version, evidence/run IDs and sample size; quality failures do not masquerade as ingest failures.
-- [ ] At least one approved real run has a durable evaluation score; unsupported accuracy remains Unknown.
+---
 
-### S2-04 — Verify Collector → Langfuse trace and score correlation
+## Sprint 2 — Oct 12–16: same path for many jobs, plus evaluation and tracing
 
-Owner: Platform + backend
+**Paired tests this sprint**
 
-What to do: Integrate monitor, PostgreSQL, OTel Collector and self-hosted Langfuse in local Compose. Emit allowlisted importer/evaluator spans per completed run, link monitor-owned scores through a tested Langfuse score-write path and store stable trace IDs. Check version/auth compatibility rather than assuming OTLP writes scores.
+| Feature | Tested with | The test proves | Environment |
+|---|---|---|---|
+| S2-04 GCP OTel helper | S2-03 Collector → Langfuse | The job's spans flow through the Collector into Langfuse, and the run summary lands in monitor Postgres, all with one trace ID | Local stack, then test host |
+| S2-05 monitor off SDK v2 | S2-03 Collector → Langfuse | Judge spans arrive through the Collector and the score is attached to the same trace | Local stack |
+| S2-06 batch evaluator | S2-05 | The evaluation score appears on the run's trace in Langfuse | Local stack |
+| S2-01 registry | S2-07 onboarding | Each real job can write only its own use case | Test host |
 
-Acceptance criteria:
-- [ ] A real completed run's trace is read back in Langfuse with matching use-case/run ID; its score is attached to that trace and read back by ID.
-- [ ] Retrying trace or score export does not duplicate the run, generation or score; transport failure is recorded for retry.
-- [ ] No importer duration is labeled original Gemini latency; secrets and raw customer content are absent from spans.
+### S2-01 — Source registry and one token per use case
 
-### S2-05 — Show evidence and authorized trace links in the RAI dashboard
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 2.1 | Backend | S1-03 | S2-07 | M |
 
-Owner: Frontend + backend
+**What:** A registry of allowed use-case IDs, each with its own token (stored as a hash).
 
-What to do: Expose latest completed run, freshness, operational state, signal provenance, score/Unknown reason and trace reference via the monitor API. Keep database and Langfuse credentials server-side.
+**Acceptance criteria**
+- [ ] Token for use case A writing use case B: `403`.
+- [ ] Unknown use-case ID: `403`.
+- [ ] Rotating a token does not lose stored runs.
 
-Acceptance criteria:
-- [ ] Four real sources are visible with run identity and correct freshness; missing measurements say Unknown.
-- [ ] Browser uses only read APIs and authorized links, not direct PostgreSQL access or Langfuse project keys.
-- [ ] API/UI tests cover unavailable score and trace, redacted payload and a stale source.
+**How to test**
+1. Unit and integration: `pytest` for each criterion.
+2. Paired with S2-07: each onboarded job sends with its own token and succeeds; a swapped token is rejected.
 
-## Sprint 3 — Oct 19–23: broaden and harden
+### S2-02 — Langfuse SDK version and new packages approved
 
-### S3-01 — Onboard eight sources with nontrivial completion paths
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Decision | Deadline Mon Oct 12 | Backend + project owner | — | — | S |
 
-Owner: Source owners + backend
+**What:** Decide Langfuse Python SDK v2 or v3, and approve the `opentelemetry-*` packages with
+versions in the Sprint 2 spec.
 
-What to do: Reach at least eight distinct production IDs. Handle submit/harvest across different executions, short-lived raw outputs, post-tasks and partial publication with source-specific completion checks; create a sanitized manifest where needed.
+**Acceptance criteria**
+- [ ] Decision and reason recorded in the spec; package list with pinned version ranges approved.
 
-Acceptance criteria:
-- [ ] Eight source-owner-confirmed real published batches are visible, not eight configs or fixture rows.
-- [ ] Tests exclude a submitted-but-unharvested job and an artifact present before business publication.
-- [ ] One disappearing-output path survives via an approved, idempotent post-publication manifest.
+**How to test**
+1. `backend/requirements.txt` changes in S2-05 match the approved list exactly.
 
-### S3-02 — Make evaluation coverage and provenance inspectable
+### S2-03 — Collector exports to self-hosted Langfuse
 
-Owner: Backend + RAI reviewers
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Infrastructure | 2.4 | Platform | S1-07 | S2-04, S2-05 | L |
 
-What to do: Separate label/judge coverage and quality results from ingestion failures; show policy version, sample count, lag and reasoned Unknown per run. Preserve stable model/prompt and approved sample references for a possible later explanation artifact.
+**What:** Add self-hosted Langfuse (web, worker, Postgres, ClickHouse, Redis, S3-compatible
+storage) to Compose. Add an `otlphttp` exporter in the Collector that sends to Langfuse's
+OTLP endpoint (`/api/public/otel`) with project keys from environment variables. Keep the
+file exporter for tests. Extend S1-08 to query Langfuse.
 
-Acceptance criteria:
-- [ ] Tests cover missing timing, malformed rows, insufficient labels, unsupported rubrics and a changed artifact digest.
-- [ ] API reports coverage, judge identity and evaluated-versus-Unknown reason without inventing ground truth or money cost.
-- [ ] Batch policies are reviewed for each newly scored task; LIME is not executed in this MVP.
+**Acceptance criteria**
+- [ ] `docker compose up` brings up Langfuse with persistent volumes; data survives a restart.
+- [ ] Spans sent to the Collector appear as traces in Langfuse.
+- [ ] Langfuse keys only in environment files that are not committed.
+- [ ] `scripts/check_trace.py` reports the Langfuse hop.
 
-### S3-03 — Prove failure and recovery behavior
+**How to test**
+1. Standalone: `telemetrygen` spans arrive in Langfuse; read back with the Langfuse public API (`GET /api/public/traces/{traceId}`).
+2. Restart: `docker compose restart`; the same trace is still there.
+3. Paired with S2-04 and S2-05 (see those issues).
 
-Owner: Backend + platform
+### S2-04 — OTel helper for GCP jobs
 
-What to do: Add bounded retries, bad-record quarantine, staleness/error alerts and durable trace/score export retry. Exercise restarts, Collector outage and Langfuse score-write failure without losing completed-run evidence.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 2.7 | Backend + GCP job developer | S1-04, S1-06 | S2-03 | L |
 
-Acceptance criteria:
-- [ ] Automated tests prove failed import does not advance the checkpoint and one bad record does not stop other sources.
-- [ ] Outage/restart drill preserves normalized runs; recovery produces one observation and one linked score per run.
-- [ ] Stale/failed ingestion is surfaced separately from model quality and does not generate a false Green.
+**What:** A small shared helper that GCP jobs import to send OTel spans: a root `batch.run`
+span; child spans `batch.submit`, `batch.harvest`, `batch.publish`; one span per Gemini call
+with model and token counts (OTel GenAI conventions). It also puts the current
+`traceparent` into the run summary. Attributes pass through an allowlist, so prompts and
+customer text cannot be attached.
 
-### S3-04 — Complete security and data-retention review
+**Acceptance criteria**
+- [ ] One trace per run; the run summary's `traceparent` matches the root span.
+- [ ] Gemini call spans carry model, input tokens, output tokens and real call duration.
+- [ ] Attributes outside the allowlist are dropped, with a debug log of the dropped key name only.
+- [ ] Export failure never fails the job.
+- [ ] Added to the first job (the one from S1-04).
 
-Owner: Security + platform + source owners
+**How to test**
+1. Unit (GCP repo): in-memory exporter; assert span names, parent-child links, attributes, and that a forbidden attribute (for example `prompt`) is dropped.
+2. Local paired test with S2-03: run the job code locally against a recorded Gemini response, with `OTEL_EXPORTER_OTLP_ENDPOINT` pointed at the local Collector and the run summary pointed at the local monitor.
+3. Real paired test with S2-03 on the test host: run the job in the GCP dev project.
+4. For both: run `scripts/check_trace.py <trace_id>`. Expected: the `batch_runs` row in monitor Postgres, the spans in the Collector output, and one Langfuse trace containing both the GCP spans and `monitor.ingest`, all with the same trace ID.
 
-What to do: Audit GCP↔AWS identity, allowlisted metadata, TLS/auth, secrets, judge payloads, logs/spans and retention for all onboarded sources; record exceptions and remediation ownership.
+### S2-05 — Monitor moves off direct Langfuse SDK v2 calls
 
-Acceptance criteria:
-- [ ] Unauthorized access is rejected in an integration test; no browser or public endpoint receives a service credential.
-- [ ] Sample traces, logs and dashboard responses show no raw customer identifiers, invoice text or credentials.
-- [ ] Transfer/retention approvals and remaining exceptions are documented per source.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 2.6 | Backend | S2-02, S2-03 | S2-03 | L |
 
-### S3-05 — Prepare target-cluster deployment and connectivity
+**What:** The chatbot judge currently calls the Langfuse SDK v2 directly
+(`adapters/llm_eval/stores.py`). Replace that with OTel spans through the Collector, and
+write scores with the Langfuse score API on the same trace ID. The SQLite and Postgres
+stores the dashboard reads stay as they are.
 
-Owner: Platform
+**Acceptance criteria**
+- [ ] No direct Langfuse trace calls remain; scores use the score API with the span's trace ID.
+- [ ] Existing chatbot judge tests pass unchanged.
+- [ ] Langfuse unavailable: judging and grading continue; the score write is recorded for retry.
+- [ ] Sending the same score twice does not create a duplicate (stable score ID).
 
-What to do: Package monitor, Collector, Langfuse and backing services for target AWS Kubernetes with persistent storage, secrets, TLS ingress, health probes, resource bounds and a rollback path. Exercise locally if possible and test target-cluster access/networking once granted.
+**How to test**
+1. Unit: in-memory exporter for spans; a fake score API for score calls, including a failing one.
+2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
+3. Paired with S2-03: run one judged chatbot window in the local stack; `scripts/check_trace.py` shows the trace and its score in Langfuse.
 
-Acceptance criteria:
-- [ ] Deployment configuration passes validation and a disposable-cluster smoke test if available; unavailable tooling is reported, not counted as passing.
-- [ ] GCP artifact and judge network paths, Langfuse persistence, and AWS cluster credentials/owner have an explicit tested or blocked result.
-- [ ] Backup/restore and rollback procedures are written before release week.
+### S2-06 — Batch evaluator with a reviewed rubric
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 2.3 | Backend + RAI | Reviewed rubric (Oct 14), S2-05 | S2-05 | L |
+
+**What:** Evaluate stored batch runs with the existing judge and grading, using the rubric RAI
+approved for the first use case. Emit a `monitor.evaluate` span on the run's trace and
+write the score to Langfuse.
+
+**Acceptance criteria**
+- [ ] Score stored with rubric version, judge identity, sample size and run ID.
+- [ ] Missing labels, too few samples or judge failure give Unknown with a reason, never Green.
+- [ ] Evaluation problems are not shown as ingest problems, and the reverse.
+
+**How to test**
+1. Unit: `pytest` for each Unknown reason and for the rubric's threshold boundaries.
+2. Paired with S2-05: evaluate a stored real run in the local stack; `scripts/check_trace.py` shows `monitor.evaluate` and the score on the same trace.
+
+### S2-07 — Onboard 4 use cases
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 2.2 | Job owners + backend | S2-01, S2-04, S1-10 | S2-01, S1-08 | L |
+
+**What:** Add the run summary step and the OTel helper to 4 different jobs, including one with
+a different output shape.
+
+**Acceptance criteria**
+- [ ] 4 real runs received, each confirmed by its owner.
+- [ ] Each has its own token and one trace per run.
+- [ ] Test files or configuration entries do not count.
+
+**How to test**
+1. For each job: run on its schedule or in the dev project, then `scripts/check_trace.py <trace_id>` shows all hops.
+2. Record the 4 trace IDs in this issue.
+
+### S2-08 — Dashboard and API for batch runs
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 2.5 | Frontend + backend | S2-06 | S2-07 | M |
+
+**What:** Show each batch use case: last run, freshness, status, score or Unknown reason, and
+a link to its Langfuse trace.
+
+**Acceptance criteria**
+- [ ] Data comes from read-only monitor API routes; the browser never calls Langfuse or the database.
+- [ ] Missing score or trace shows a clear reason.
+- [ ] No Langfuse keys or tokens in the browser bundle.
+
+**How to test**
+1. API tests for each state: scored, Unknown, stale, no trace.
+2. `pnpm run typecheck`; `pnpm run build:live` and `pnpm run check:strict-live` in CI.
+3. Paired with S2-07: the 4 onboarded use cases appear with correct freshness.
+
+### S2-09 — One run as a single trace, GCP job to score
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Verification | Sprint 2 exit | Backend + platform | S2-03, S2-04, S2-06 | — | S |
+
+**What:** The Sprint 2 demo.
+
+**Acceptance criteria**
+- [ ] One real run shows in Langfuse as one trace: GCP spans, `monitor.ingest`, `monitor.evaluate`, and the score.
+- [ ] The dashboard shows the same run with a working trace link.
+
+**How to test**
+1. Run `scripts/check_trace.py <trace_id>`; every hop found.
+2. Screenshot of the Langfuse trace and the dashboard row (no customer content) attached.
+
+---
+
+## Sprint 3 — Oct 19–23: scale to 8 and harden
+
+**Paired tests this sprint**
+
+| Feature | Tested with | The test proves | Environment |
+|---|---|---|---|
+| S3-03 Collector hardening | S3-04 drills | Spans survive a Langfuse outage and arrive after recovery, once | Local stack |
+| S3-03 Collector hardening | S3-05 leak scan | Forbidden attributes are removed before storage | Local stack, test host |
+| S3-02 missed-run alert | S3-04 drills | A run that never arrives raises a delivery alert, not a quality alert | Local stack |
+
+### S3-01 — Onboard 8 use cases, including split submit and harvest
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 3.1 | Job owners + backend | S2-07 | S1-08 | L |
+
+**What:** Reach 8 use cases. For jobs where submit and harvest run in different executions,
+store the submit `traceparent` with the batch job ID so harvest continues the same trace.
+
+**Acceptance criteria**
+- [ ] 8 real runs confirmed by owners.
+- [ ] A submitted-only job sends nothing.
+- [ ] Split submit and harvest still show as one trace.
+
+**How to test**
+1. Per job: `scripts/check_trace.py <trace_id>` shows all hops; record trace IDs here.
+2. Split job: the Langfuse trace shows submit and harvest spans under the same root.
+
+### S3-02 — Missed-run detection and alert
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 3.2 | Backend | S1-10 | S3-04 | M |
+
+**What:** Use each use case's schedule to detect a run that did not arrive in time, and alert
+through the existing alert path.
+
+**Acceptance criteria**
+- [ ] Late run: use case shown as stale, alert opened as a delivery problem.
+- [ ] Run arrives: alert resolves.
+- [ ] Never turns a model-quality grade Green or Red.
+
+**How to test**
+1. Unit: fixed clock; expected run missing past the grace period opens an alert; arrival resolves it.
+2. Paired with S3-04: stop one job's send in the drill and watch the alert open and resolve.
+
+### S3-03 — Collector hardening: auth, TLS, redaction, durable queue
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Infrastructure | 3.4 | Platform | S2-03, approved attribute list | S3-04, S3-05 | L |
+
+**What:** Require a token on the OTLP receiver, use TLS, drop attributes outside the approved
+list, limit memory, and keep a disk-backed retry queue so spans survive a Langfuse outage.
+
+**Acceptance criteria**
+- [ ] OTLP without a valid token is rejected.
+- [ ] Attributes outside the allowlist never reach Langfuse.
+- [ ] Langfuse down for 10 minutes: spans arrive after recovery, without duplicates.
+- [ ] Collector restart does not lose queued spans.
+
+**How to test**
+1. Send spans without a token; expect rejection in the Collector log.
+2. Send a span with a forbidden attribute; it is missing in Langfuse.
+3. Outage and restart steps in S3-04.
+
+### S3-04 — Failure and recovery drills
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Verification | 3.3 | Backend + platform | S3-02, S3-03 | — | M |
+
+**What:** Break each part on purpose and check nothing is lost or duplicated.
+
+**Acceptance criteria**
+
+| Drill | Expected result |
+|---|---|
+| Monitor down while a job sends | Job retries; run stored once after recovery |
+| Collector down | Run summary still stored; spans arrive after recovery or the gap is recorded |
+| Langfuse down | Spans queued; score write retried; one score per run after recovery |
+| Monitor restart mid-ingest | No half-written run; resend succeeds once |
+| Job never sends | Missed-run alert (S3-02) |
+
+**How to test**
+1. Run each drill in the local stack, then `scripts/check_trace.py` for the affected trace IDs.
+2. Record results (pass, fail, not run) in this issue.
+
+### S3-05 — Security and retention review with leak scan
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Verification | 3.4 | Security + platform + source owners | S3-03, S3-01 | S3-03 | M |
+
+**What:** Review identity, transport, secrets and retention for all onboarded use cases, and
+scan stored data for leaks.
+
+**Acceptance criteria**
+- [ ] No customer text, identifiers, prompts or credentials in `batch_runs`, Langfuse traces, logs or API responses.
+- [ ] Retention period set for monitor Postgres and Langfuse.
+- [ ] Exceptions listed with owner and date.
+
+**How to test**
+1. A leak scan script searches a sample of stored runs, Langfuse traces and logs for forbidden patterns (token formats, email, phone, ID numbers); expect zero matches.
+2. Unauthorized requests to the API and Collector are rejected.
+
+### S3-06 — Kubernetes manifests
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Infrastructure | 3.5 | Platform | S3-03 | S4-01 | L |
+
+**What:** Manifests for the monitor, Collector, Langfuse and their storage, with secrets, TLS
+ingress, health checks, resource limits and a rollback path.
+
+**Acceptance criteria**
+- [ ] Manifests pass schema validation.
+- [ ] Smoke test on a disposable cluster (for example kind) if available; otherwise recorded as not run.
+- [ ] Backup, restore and rollback steps written.
+
+**How to test**
+1. `kubectl apply --dry-run=server` or `kubeconform` passes.
+2. On a disposable cluster: send one example run and spans; `scripts/check_trace.py` shows all hops.
+
+---
 
 ## Sprint 4 — Oct 26–30: AWS release and handoff
 
-### S4-01 — Complete all ten real source integrations
+**Paired tests this sprint**
 
-Owner: Source owners + backend
+| Feature | Tested with | The test proves | Environment |
+|---|---|---|---|
+| S4-02 jobs switched to AWS | S4-01 AWS stack | Real runs and spans from GCP arrive in the AWS monitor and Langfuse | AWS cluster |
+| S4-03 all 10 use cases | S4-04 evidence checklist | Every use case has a real run with matching trace and score | AWS cluster |
 
-What to do: Finish the remaining production IDs and obtain a real scheduled published batch for each; if cadence does not permit one, arrange an approved controlled real rerun. Reconcile the dashboard list to the authoritative ten-ID inventory.
+### S4-01 — Deploy the stack to the target AWS cluster
 
-Acceptance criteria:
-- [ ] Exactly ten named sources have source-owner-verified real completed batches, artifact identity and freshness.
-- [ ] No synthetic run, configured-only entry, submitted job or raw result before publication is counted as live.
-- [ ] Missing evidence or access is reported as a blocked source, not hidden by a fixture.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Infrastructure | 4.1 | Platform | S3-06, cluster access | S4-02 | L |
 
-### S4-02 — Deploy and smoke-test the target AWS Kubernetes stack
+**What:** Deploy the monitor, Collector, Langfuse and backing services to the target cluster.
 
-Owner: Platform
+**Acceptance criteria**
+- [ ] Only the monitor API and the authenticated Collector endpoint are reachable from GCP; databases are private.
+- [ ] Data survives a pod restart.
+- [ ] Cluster name and deployed version recorded.
 
-What to do: Deploy the monitor, Collector, self-hosted Langfuse and backing services to the actual target AWS cluster. Verify network path to approved GCP outputs and judge, secret delivery, ingress/TLS, storage and health.
+**How to test**
+1. Send one example run and spans from a GCP dev machine; `scripts/check_trace.py` shows all hops.
+2. Delete the monitor and Langfuse pods; after restart, the same trace and run are still there.
 
-Acceptance criteria:
-- [ ] Actual cluster smoke test reads one authorized real GCP run and shows its imported trace in Langfuse with linked score where evidence permits.
-- [ ] Authenticated endpoints, storage survival after pod restart and non-public backing services/OTLP are verified.
-- [ ] Cluster identity, deployment version and any unmet infrastructure prerequisites are recorded.
+### S4-02 — Switch every GCP job to the AWS endpoints
 
-### S4-03 — Reconcile per-source dashboard, evaluation and trace evidence
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 4.2 | Job owners + platform | S4-01 | S4-01 | M |
 
-Owner: Backend + frontend + RAI reviewers
+**What:** Point each job's run summary URL and OTLP endpoint at AWS; rotate tokens for
+production.
 
-What to do: For each of the ten IDs, compare source completion, stored normalized run, monitor API/dashboard state, OTel/Langfuse trace and score attachment. Explain gaps explicitly rather than making Langfuse the browser's business-status source.
+**Acceptance criteria**
+- [ ] Each job's next run arrives in AWS with its trace in Langfuse.
+- [ ] Test host tokens revoked.
 
-Acceptance criteria:
-- [ ] A ten-row checklist records run ID, completion evidence, last-run freshness, policy/coverage or Unknown reason, and trace ID.
-- [ ] Each approved scored run's trace/score IDs match; unsupported scores have an explicit reason and no invented Green.
-- [ ] RAI reviewers accept the displayed provenance, including any unavailable latency, cost or accuracy.
+**How to test**
+1. After each job's next run, `scripts/check_trace.py <trace_id>` against AWS shows all hops.
 
-### S4-04 — Exercise operations and document ownership
+### S4-03 — Finish all 10 use cases
 
-Owner: Platform + operations
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 4.3 | Job owners + backend | S4-02 | S4-04 | L |
 
-What to do: Run target-cluster restart, backup/restore, rollback, alert and score-export recovery drills. Publish runbooks for stuck sources, failed egress, Langfuse outage, permissions and on-call escalation.
+**What:** Onboard the last use cases and get a real run for each, on schedule or as an agreed
+controlled rerun.
 
-Acceptance criteria:
-- [ ] Recorded drill shows recovery without duplicate runs/scores or data loss after restart/restore.
-- [ ] Alerts distinguish source staleness from evaluation quality; rollback and restore have an owner and tested steps.
-- [ ] Runbook names service owners, source owners, credential rotation and incident escalation.
+**Acceptance criteria**
+- [ ] 10 owner-confirmed real runs in AWS.
+- [ ] No test data or configuration-only entries counted.
 
-### S4-05 — Sign off release against evidence, not configuration
+**How to test**
+1. Covered by the S4-04 checklist.
 
-Owner: RAI + platform owners
+### S4-04 — 10-row evidence checklist
 
-What to do: Review the ten-source checklist and cluster drill record. Approve release only if both real source coverage and target-cluster verification pass; otherwise publish the completed pilot and its blockers.
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Verification | 4.4 | Backend + frontend + RAI | S4-03 | S1-08 | M |
 
-Acceptance criteria:
-- [ ] RAI and platform owners sign off 10/10 real completed sources and the target AWS Kubernetes operational result.
-- [ ] Any missing source, data-egress approval, trace correlation or cluster access is recorded as an unmet gate with owner and next action.
-- [ ] Handoff distinguishes production release from local Compose or fixture-only validation.
+**What:** One table with a row per use case: run ID, completion time, freshness, score or
+Unknown reason, trace ID, and the result of `scripts/check_trace.py`.
 
-**Out of scope:** Mandatory LiteLLM migration, producer-side OTel SDK in all ten jobs, fabricated latency/accuracy/cost, and LIME execution. Langfuse and the Collector are mandatory AWS components; batch evaluation policy stays in the monitoring backend.
+**Acceptance criteria**
+- [ ] 10 rows filled in; trace and score IDs match between the monitor and Langfuse.
+- [ ] RAI accepts what the dashboard shows, including any Unknown.
+
+**How to test**
+1. Run `scripts/check_trace.py` for all 10 trace IDs; attach the output.
+
+### S4-05 — Operations drills and runbooks on AWS
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Verification | 4.5 | Platform + operations | S4-01 | — | M |
+
+**What:** Repeat the S3-04 drills on the cluster, plus backup and restore and rollback; write
+runbooks.
+
+**Acceptance criteria**
+- [ ] Restore and rollback tested with no duplicates or data loss.
+- [ ] Runbooks name service owners, source owners, token rotation and escalation.
+
+**How to test**
+1. Run each drill; check affected trace IDs with `scripts/check_trace.py`; record results.
+
+### S4-06 — Release sign-off
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Decision | 4.6 | RAI + platform owners | S4-04, S4-05 | — | S |
+
+**What:** Approve the release only on evidence.
+
+**Acceptance criteria**
+- [ ] 10 of 10 real use cases and the AWS drills passed; otherwise publish the pilot result and its open blockers.
+- [ ] Any unmet item recorded with owner and next action.
+
+**How to test**
+1. Reviewers check the S4-04 checklist and the S4-05 drill record.
