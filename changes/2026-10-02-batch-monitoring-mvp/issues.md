@@ -537,6 +537,35 @@ Rules:
 
 ## Sprint 2 — Oct 12–16: same path for many jobs, plus evaluation and tracing
 
+**Sprint 2 prerequisites (answers from 2026-10-03; confirm after S1-05 is complete)**
+
+| Question | Answer | Effect |
+|---|---|---|
+| Is the test host large enough for Langfuse? | The test server does not exist yet. Request this size. | See the server size below. |
+| How do the engineers and the RAI team open the dashboard and Langfuse? | Through the IP address and a port. A DNS name comes later. | See the ports below. Use a private CA certificate that contains the IP address. When the DNS name exists, change the certificate and the Langfuse URL setting. |
+| Can the test host send traffic out to the Anthropic API? | Probably yes. If not, the judge uses a local model on an on-premises server. | S2-06 must support a second judge provider. RAI must examine the local judge before use. |
+
+Server size for the test host:
+
+| Item | Minimum | Recommended | Reason |
+|---|---|---|---|
+| CPU | 6 vCPU | 8 vCPU | Langfuse alone needs at least 4 cores (Langfuse self-hosting guide). The monitor backend, two PostgreSQL databases and the Collector need more. |
+| Memory | 24 GiB | 32 GiB | Langfuse alone needs at least 16 GiB. The monitor backend loads pandas, Evidently and NannyML. |
+| Disk | 150 GiB SSD | 200 GiB SSD | Langfuse recommends 100 GiB for its data. The monitor database, the logs and the Docker images need more. |
+| Operating system | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS | Docker Engine and Docker Compose v2 |
+| AWS example | `t3.xlarge` is too small for all services | `m6i.2xlarge` or `t3.2xlarge` | — |
+
+Ports on the test host (until a DNS name exists):
+
+| Port | Service | Who connects | Allowlist |
+|---|---|---|---|
+| 443 | Front door: `/api/*` and `/otlp/*` | GCP jobs | GCP egress IPs |
+| 8443 | Monitor dashboard | RAI team, engineers | Office or VPN IPs |
+| 3443 | Langfuse UI | Engineers, RAI team | Office or VPN IPs |
+| None | PostgreSQL, ClickHouse, Redis, MinIO | — | Closed to the network. Developers use SSH (S1-12). |
+
+Langfuse uses its own port because it does not work easily under a URL path.
+
 **Paired tests this sprint**
 
 | Feature | Tested with | The test proves | Environment |
