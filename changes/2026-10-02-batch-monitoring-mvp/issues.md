@@ -147,7 +147,8 @@ new `batch_runs` table (additive migration in `backend/app/db.py`). Store `trace
 - [ ] Valid body with a valid token: `201`, one row stored.
 - [ ] Same body sent again: `200`, still one row.
 - [ ] Same `(use_case_id, run_id)` with different content: `409`, original row unchanged.
-- [ ] Invalid body: `400` with field errors; nothing stored.
+- [ ] Invalid body: `400` with field errors; nothing stored. This includes unknown fields, a missing record field from the [standard](llm-metrics-standard.md), `latency_s` of `0`, and more records than the registry sample size allows.
+- [ ] Records are stored inside the run exactly as received; `record_id` is kept so the evaluator can use it as the v1.1 `trace_id`.
 - [ ] Missing or wrong token: `401`; nothing stored; token never logged.
 - [ ] Existing v1.1 live tests still pass; demo-mode routes unaffected.
 
@@ -457,17 +458,20 @@ Langfuse.
 |---|---|---|---|---|---|
 | Feature | 2.2 | Job owners + backend | S2-01, S2-04, S1-10 | S2-01, S1-08 | L |
 
-**What:** Add the run summary step and the OTel helper to 4 different jobs, including one with
-a different output shape.
+**What:** Add the run summary step (sampling and placeholder redaction) and the OTel helper to
+4 different jobs, including one with a different output shape. Map each job to the
+[standard](llm-metrics-standard.md) record fields, as in S1-01.
 
 **Acceptance criteria**
 - [ ] 4 real runs received, each confirmed by its owner.
+- [ ] Each use case has an RAI-approved task description and its five metrics graded, or Unknown with a reason.
 - [ ] Each has its own token and one trace per run.
 - [ ] Test files or configuration entries do not count.
 
 **How to test**
 1. For each job: run on its schedule or in the dev project, then `scripts/check_trace.py <trace_id>` shows all hops.
-2. Record the 4 trace IDs in this issue.
+2. Check one stored run per job: records validate, and a spot check finds placeholders instead of raw PII.
+3. Record the 4 trace IDs and their five metric values in this issue.
 
 ### S2-08 — Dashboard and API for batch runs
 
@@ -526,7 +530,7 @@ last run, freshness, status, Unknown reasons and a link to its Langfuse trace.
 store the submit `traceparent` with the batch job ID so harvest continues the same trace.
 
 **Acceptance criteria**
-- [ ] 8 real runs confirmed by owners.
+- [ ] 8 real runs confirmed by owners, each with an approved task description and its five metrics graded or Unknown with a reason.
 - [ ] A submitted-only job sends nothing.
 - [ ] Split submit and harvest still show as one trace.
 
@@ -685,6 +689,7 @@ controlled rerun.
 
 **Acceptance criteria**
 - [ ] 10 owner-confirmed real runs in AWS.
+- [ ] Every use case has an approved task description and follows the [standard](llm-metrics-standard.md).
 - [ ] No test data or configuration-only entries counted.
 
 **How to test**
@@ -696,8 +701,9 @@ controlled rerun.
 |---|---|---|---|---|---|
 | Verification | 4.4 | Backend + frontend + RAI | S4-03 | S1-08 | M |
 
-**What:** One table with a row per use case: run ID, completion time, freshness, score or
-Unknown reason, trace ID, and the result of `scripts/check_trace.py`.
+**What:** One table with a row per use case: run ID, completion time, freshness, records
+judged, the five metric values (or Unknown with reason), overall grade, task description
+version, trace ID, and the result of `scripts/check_trace.py`.
 
 **Acceptance criteria**
 - [ ] 10 rows filled in; trace and score IDs match between the monitor and Langfuse.
