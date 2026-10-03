@@ -43,13 +43,13 @@ reach the monitor database and Langfuse with the same trace ID?
 
 | ID | Title | Type | Owner | Tested with |
 |---|---|---|---|---|
-| S1-01 | Walk through one GCP job and map its fields | Discovery | Backend + GCP job developer | Review by GCP developer |
-| S1-02 | Run summary JSON body v1 | Feature | Backend | S1-04 (real body validates) |
-| S1-03 | Receiving API `POST /api/batch/runs` | Feature | Backend | S1-04 |
+| S1-01 | Map one GCP job and write JSON body v1 | Feature | GCP job developer (backend reviews) | S1-04 (a real body validates) |
+| S1-02 | *Merged into S1-01* | — | — | — |
+| S1-03 | Receiving API `POST /api/batch/runs` with API key | Feature | Backend | S1-04 |
 | S1-04 | GCP job sends the run summary after publishing | Feature | GCP job developer | S1-03 |
-| S1-05 | Test host reachable from GCP | Infrastructure | Platform | S1-04 |
-| S1-06 | OTel SDK in the monitor; ingest continues the job's trace | Feature | Backend | S1-07 |
-| S1-07 | Minimal OTel Collector in the local stack | Infrastructure | Platform | S1-06 |
+| S1-05 | Deploy the monitor backend to a test host reachable from GCP | Infrastructure | Platform | S1-04 |
+| S1-06 | OTel in the GCP job and the monitor: one trace per run | Feature | GCP job developer + backend | S1-07 |
+| S1-07 | Minimal OTel Collector (local stack and test host) | Infrastructure | Platform | S1-06 |
 | S1-08 | Trace check tool | Feature | Backend | S1-06 + S1-07 |
 | S1-09 | Approve redacted records leaving GCP and PII placeholders | Decision | Security | — |
 | S1-10 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — |
@@ -80,80 +80,118 @@ reach the monitor database and Langfuse with the same trace ID?
 
 ## Sprint 1 — Oct 5–9: get data out of GCP
 
+> Review status (2026-10-03): S1-01 to S1-06 revised after review; S1-07 to S1-11 still to
+> be reviewed. Issue IDs stay stable during the review; S1-02 is merged into S1-01, and the
+> IDs will be renumbered after all sprints are reviewed.
+
+**Two channels, one trace ID**
+
+| Channel | Carries | Path | If it fails |
+|---|---|---|---|
+| Receiving API (S1-03, S1-04) | The run summary: the official data | GCP job → HTTPS `POST` → monitor → Postgres | Job retries; the run must arrive |
+| OpenTelemetry (S1-06, S1-07) | Timing of each step and the trace ID | GCP job and monitor → OTLP/HTTP → Collector | Data still arrives; the trace has a gap |
+
+The GCP job's OTel SDK adds a W3C `traceparent` header to its API call automatically. The
+monitor reads that header, so its spans join the job's trace and the trace ID is saved
+with the stored run.
+
+**Who does what**
+
+| Track | Issues | Owner |
+|---|---|---|
+| GCP side | S1-01, S1-04, S1-06 part A | GCP job developer |
+| Monitor side | S1-03, S1-06 part B, S1-08 | Backend |
+| Infrastructure | S1-05, S1-07 | Platform (firewall and certificates: your team) |
+
+Both tracks start Monday using the draft schema from S1-01 and meet on the test host.
+
 **Paired tests this sprint**
 
 | Feature | Tested with | The test proves | Environment |
 |---|---|---|---|
 | S1-04 GCP sender | S1-03 receiving API | A real run summary from GCP lands as one row in monitor Postgres | Test host |
-| S1-06 monitor OTel | S1-07 Collector | The ingest span reaches the Collector with the trace ID the job sent | Local stack |
-| S1-08 trace check tool | S1-06 + S1-07 | One command shows the same trace ID in the database and in the Collector output | Local stack |
+| S1-06 part A, GCP OTel | S1-07 Collector | The job's spans reach the Collector | Test host |
+| S1-06 part B, monitor OTel | S1-06 part A + S1-07 | The monitor's span has the same trace ID as the job's root span | Test host |
+| S1-08 trace check tool | S1-06 + S1-07 | One command shows the same trace ID in the database and in the Collector output | Local stack, then test host |
 
-### S1-01 — Walk through one GCP job and map its fields
+### S1-01 — Map one GCP job and write JSON body v1
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Discovery | 1.1 | Backend + GCP job developer | — | Review by GCP developer | S |
+| Feature | 1.1 + 1.2 | GCP job developer; backend reviews and approves | — | S1-04 (a real body validates) | M |
 
-**What:** Sit with the GCP job developer and go through one job from submit to publish. Find
-the exact point where results are published, and map the job to the record fields of the
-[standard](llm-metrics-standard.md): which part of the prompt is the instruction
-(`question`), which is source material (`retrieval_context`), where the output (`answer`)
-is, how a refusal or safety block shows up (`refused`), and whether per-request latency
-exists.
+**What:** The GCP job developer maps one job to the record fields of the
+[standard](llm-metrics-standard.md) and writes the JSON Schema for the run summary, with
+example bodies. The schema lives in this repository because the monitor validates every
+request against it, so backend reviews and approves it. There is no separate mapping
+table: each field's description in the schema says where its value comes from in the job.
+
+Questions the developer answers in the schema or the pull request:
+- Where is the "results published" point (file and function)? The send step goes after it.
+- Which part of the prompt is the instruction (`question`) and which is source material (`retrieval_context`)?
+- How does a refusal or safety block show up (`refused`)?
+- Does the job use the Gemini Batch API (`latency_s` is `null`) or online calls?
+- Where can PII appear? The redaction in S1-04 covers those places.
+- When the job fails, what does it log today, and can it still send a run summary with status `failed`?
 
 **Acceptance criteria**
-- [ ] A mapping table: each standard field, where it comes from in the job, and any gap.
-- [ ] The "published" moment is identified in the job code (file and function).
-- [ ] Where PII can appear (instruction, source material, output) is listed, for the redaction step in S1-04.
-- [ ] Batch API or online calls recorded, which decides whether `latency_s` is `null`.
+- [ ] Schema file and 3 examples committed: normal run, partial failure, Batch API run with `latency_s` null. Synthetic text only.
+- [ ] Every field has a description that includes its source in the job; required and optional fields are explicit; unknown fields are rejected.
+- [ ] Free text only in `question`, `answer`, `retrieval_context` and `tool_calls`; no customer ID field.
+- [ ] No trace field in the body: the trace ID travels in the `traceparent` HTTP header (S1-06).
+- [ ] Logging agreed with the GCP developer: the job writes a log entry when the job fails and when sending to the monitor fails, and the monitor team can read those logs (access or export) during the pilot.
+- [ ] Reviewed by backend, RAI and security (S1-09).
 
 **How to test**
-1. The GCP job developer reviews the table and confirms each row against the code.
-2. Attach the reviewed table to the issue before closing.
+1. Unit: `pytest` validates every example against the schema; a broken example (missing `run_id`, wrong type, unknown field) fails.
+2. Paired with S1-04: a body built from a real run validates against the schema.
 
-### S1-02 — Run summary JSON body v1
+### S1-02 — Merged into S1-01
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 1.2 | Backend | S1-01 | S1-04 (a real body validates) | M |
+The JSON body work is now part of S1-01, owned by the GCP job developer.
 
-**What:** Turn the [LLM metrics and data standard](llm-metrics-standard.md) into a JSON
-Schema file with example bodies: run identity fields plus the sampled `records`
-(`record_id`, `question`, `answer`, `retrieval_context`, `tool_calls`, `refused`,
-`latency_s`). Unknown fields are rejected.
-
-**Acceptance criteria**
-- [ ] Schema file and 3 examples committed: normal run, partial failure, Batch API run with `latency_s` null. Examples use synthetic text only.
-- [ ] Every field has a description; required and optional fields are explicit.
-- [ ] `traceparent` follows the W3C Trace Context format.
-- [ ] Free text is allowed only in `question`, `answer`, `retrieval_context` and `tool_calls`; no customer ID field exists.
-- [ ] Reviewed by the GCP job developer, RAI and security (S1-09).
-
-**How to test**
-1. Unit: `pytest` validates every example against the schema; a broken example (missing `run_id`, wrong type) fails validation.
-2. Paired with S1-04: the GCP developer generates a body from a real run and it validates against the schema.
-
-### S1-03 — Receiving API `POST /api/batch/runs`
+### S1-03 — Receiving API `POST /api/batch/runs` with API key
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 1.3 | Backend | S1-02 | S1-04 | L |
+| Feature | 1.3 | Backend | S1-01 (draft schema is enough to start) | S1-04 | L |
 
-**What:** Add an authenticated endpoint that validates a run summary and stores it once in a
-new `batch_runs` table (additive migration in `backend/app/db.py`). Store `trace_id` from
-`traceparent`. A stored row is never edited.
+**What:** Add an endpoint that checks an API key, validates the run summary against the
+S1-01 schema, and stores it once in a new `batch_runs` table (additive migration in
+`backend/app/db.py`). A stored row is never edited. The trace ID comes from the
+`traceparent` header through the OTel context (S1-06 part B) and is saved with the row.
+
+**Authentication: static API key now, Google identity token later**
+
+There is no VPN between GCP and AWS yet, so the request crosses the internet. Three layers
+protect it:
+
+| Layer | How | Owner |
+|---|---|---|
+| API key | `Authorization: Bearer <key>`. A random key of at least 32 bytes for this use case. The GCP job reads it from Secret Manager. The monitor stores only its SHA-256 hash and compares in constant time. | Backend + GCP developer |
+| Encryption | HTTPS only, so the key is never visible on the network (S1-05) | Platform |
+| Network | Firewall allows only the GCP job's egress IP, for example a Cloud NAT static IP (S1-05) | Your team |
+
+Options considered:
+
+| Option | Shared secret | Effort | Decision |
+|---|---|---|---|
+| Static API key + HTTPS + IP allowlist | Yes | Low; same pattern as the monitor's existing tokens | **Sprint 1** |
+| Google service-account ID token (OIDC): the job gets a Google-signed token; the monitor checks the signature and the service-account email | No | Medium; needs the `google-auth` package (plan entry) | Upgrade candidate in Sprint 3 (S3-03) |
+| Mutual TLS | No | High; a client certificate for every job | Not planned |
+| VPN or private link | — | Depends on network team | Not available yet |
 
 **Acceptance criteria**
-- [ ] Valid body with a valid token: `201`, one row stored.
+- [ ] Valid body with a valid key: `201`, one row stored.
 - [ ] Same body sent again: `200`, still one row.
 - [ ] Same `(use_case_id, run_id)` with different content: `409`, original row unchanged.
-- [ ] Invalid body: `400` with field errors; nothing stored. This includes unknown fields, a missing record field from the [standard](llm-metrics-standard.md), `latency_s` of `0`, and more records than the registry sample size allows.
-- [ ] Records are stored inside the run exactly as received; `record_id` is kept so the evaluator can use it as the v1.1 `trace_id`.
-- [ ] Missing or wrong token: `401`; nothing stored; token never logged.
+- [ ] Invalid body: `400` with field errors; nothing stored. This includes unknown fields, a missing record field, `latency_s` of `0`, and more records than the sample size allows.
+- [ ] Missing or wrong key: `401`; nothing stored; the key and the body are never logged.
+- [ ] Records stored inside the run exactly as received; `record_id` kept for the evaluator.
 - [ ] Existing v1.1 live tests still pass; demo-mode routes unaffected.
 
 **How to test**
-1. Unit and integration: `pytest` covers each criterion above using the S1-02 examples.
+1. Unit and integration: `pytest` covers each criterion above using the S1-01 examples.
 2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
 3. Paired with S1-04: a real GCP job sends to the test host; check one row exists for that `run_id`.
 
@@ -161,85 +199,127 @@ new `batch_runs` table (additive migration in `backend/app/db.py`). Store `trace
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 1.4 | GCP job developer | S1-02, S1-05 | S1-03 | M |
+| Feature | 1.4 | GCP job developer | Build: S1-01. End-to-end test: S1-03 and S1-05 | S1-03 | M |
 
-**What:** Add a step at the end of one GCP job, after publish, that picks a uniform random
-sample of records (default 50), replaces phone numbers, emails and national IDs with
-`[PHONE]`, `[EMAIL]` and `[NATIONAL_ID]`, builds the run summary and sends it with the
-token from GCP Secret Manager. Retry with backoff on network errors
-and `5xx`. A send failure must not fail the business job.
+**What:** This is a feature in the GCP job's code, not a test step. Add a step after publish
+that picks a uniform random sample of records (default 50), replaces phone numbers, emails
+and national IDs with `[PHONE]`, `[EMAIL]` and `[NATIONAL_ID]`, builds the run summary and
+sends it with the API key from Secret Manager. Retry with backoff on network errors and
+`5xx`. A send failure must not fail the business job.
+
+The developer can build and unit test it from Monday with the S1-01 schema and a fake
+server. Only the end-to-end test waits for the real API (S1-03) on the test host (S1-05).
 
 **Acceptance criteria**
 - [ ] The step runs only after publish succeeds.
 - [ ] Retries on timeouts and `5xx`; no retry on `400`, `401` or `409`.
-- [ ] The job finishes successfully even when the monitor is unreachable, and logs that the send failed.
-- [ ] Sample size follows the registry setting; a run smaller than the sample sends every request.
+- [ ] The job finishes successfully even when the monitor is unreachable.
+- [ ] Every failed send writes a log entry with `run_id`, HTTP status or error type, and attempt number; never the key or the body.
+- [ ] A failed job writes a log entry, and sends a `failed` run summary if S1-01 agreed it can.
+- [ ] Sample size follows the setting; a run smaller than the sample sends every request.
 - [ ] No raw phone number, email or national ID in the body.
-- [ ] Token read from Secret Manager; never printed.
+- [ ] HTTPS certificate is verified. With a private or self-signed certificate (S1-05), the job trusts that CA file; it never turns verification off.
 
 **How to test**
-1. Unit (GCP repo): the builder produces a body that validates against the S1-02 schema; synthetic PII in input and output becomes placeholders; sample size is respected; the sender retries on a fake `503` and stops on `400`.
-2. Paired with S1-03 on the test host: run the job in the GCP dev project. Expected: the job log shows `201`, and the monitor database has one `batch_runs` row with the same `run_id`. Run it again and expect `200` with still one row.
-3. Failure check: point the job at a wrong URL; the job still succeeds and logs the failed send.
+1. Unit (GCP repo): the body validates against the S1-01 schema; synthetic PII becomes placeholders; sample size is respected; the sender retries on a fake `503`, stops on `400`, and logs each failure.
+2. Paired with S1-03 on the test host: run the job in the GCP dev project. Expected: the job log shows `201`, and the monitor database has one `batch_runs` row with the same `run_id`. Run it again: `200`, still one row.
+3. Failure check: point the job at a wrong URL; the job still succeeds, and Cloud Logging shows the failed-send entries.
 
-### S1-05 — Test host reachable from GCP
+### S1-05 — Deploy the monitor backend to a test host reachable from GCP
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Infrastructure | Deadline Tue Oct 6 | Platform | — | S1-04 | M |
+| Infrastructure | Deadline Tue Oct 6 | Platform | Prerequisites below | S1-04 | M |
 
-**What:** Run the monitor (and later the local stack) on a host the GCP dev project can reach
-over HTTPS, with its own database and secrets.
+**What:** Deploy the monitor backend, its database and the Collector (S1-07) on a test host
+the GCP dev project can reach.
+
+**Prerequisites (ask the network team first)**
+
+| Question | Why it matters | Owner |
+|---|---|---|
+| Where does the test host run (AWS account, VM or other)? | Decides firewall and certificate options | Your team |
+| How is traffic between GCP and that host allowed today? | No VPN yet; requests cross the internet | Network team |
+| Which ports may open? `443` for the API; OTLP for the Collector (`4318`, or the same `443` through a reverse proxy) | GCP spans and API calls both need a path | Network team |
+| What is the GCP job's egress IP (for example Cloud NAT static IP)? | Firewall allowlist (S1-03 network layer) | GCP developer |
+| Public DNS name for the host? | Needed for a public certificate | Your team |
+| Certificate: public CA or private / self-signed? | See below | Your team |
+
+**Certificate options — both are real HTTPS**
+
+| Option | Needs | GCP job side |
+|---|---|---|
+| Public CA (for example Let's Encrypt or AWS Certificate Manager) | A public DNS name and a way to prove ownership (DNS or HTTP challenge) | Nothing; trusted by default |
+| Private CA or self-signed | Nothing public; we create and rotate the certificate | Job trusts our CA file (S1-04); verification stays on |
+
+Plain HTTP is not allowed: the API key would travel unencrypted.
 
 **Acceptance criteria**
-- [ ] HTTPS with a valid certificate; plain HTTP refused.
-- [ ] Database and Collector ports are not public.
-- [ ] Tokens stored as host secrets, not in the repository.
+- [ ] Prerequisites answered and recorded in this issue.
+- [ ] Monitor backend, Postgres and Collector running on the test host.
+- [ ] HTTPS on the API (public or private CA); plain HTTP refused.
+- [ ] Only the GCP egress IP can reach the API and the OTLP endpoint; the database port is closed to the internet.
+- [ ] API key and other secrets stored as host secrets, not in the repository.
 
 **How to test**
-1. From the GCP dev project: `curl https://<test-host>/api/health` returns `200`.
-2. `POST /api/batch/runs` without a token returns `401`.
-3. Port scan from outside shows only `443` open.
-4. Fallback if late: the GCP developer captures a real body to a file and we replay it into the local stack; record that real delivery was not tested.
+1. From the GCP dev project: `curl https://<test-host>/api/health` returns `200` (with `--cacert` for a private CA).
+2. From an IP that is not allowlisted: the connection is refused.
+3. `POST /api/batch/runs` without a key returns `401`.
+4. Port scan from outside shows only the agreed ports.
+5. Fallback if late: the GCP developer saves a real body to a file and we replay it into the local stack; record that real delivery was not tested.
 
-### S1-06 — OTel SDK in the monitor; ingest continues the job's trace
+### S1-06 — OTel in the GCP job and the monitor: one trace per run
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 1.8 | Backend | S1-03, package entry in the Sprint 1 spec | S1-07 | M |
+| Feature | 1.8 | Part A: GCP job developer. Part B: backend | S1-04 (A), S1-03 (B), package entries in the Sprint 1 spec | S1-07 | M + M |
 
-**What:** Add the OpenTelemetry SDK to the backend. `POST /api/batch/runs` starts a
-`monitor.ingest` span that continues the trace from the body's `traceparent`. Export over
-OTLP/HTTP to the Collector; the endpoint comes from `OTEL_EXPORTER_OTLP_ENDPOINT`.
+**What:** Add the OpenTelemetry SDK on both sides so one batch run is one trace.
+
+| Step | Where | What happens |
+|---|---|---|
+| 1 | GCP job (part A) | Start a root span `batch.run` with `use_case_id` and `run_id` |
+| 2 | GCP job (part A) | Child spans `batch.submit`, `batch.harvest`, `batch.publish`, `batch.send` |
+| 3 | GCP job (part A) | The API call uses an OTel-instrumented HTTP client, which adds the `traceparent` header automatically |
+| 4 | Monitor (part B) | FastAPI instrumentation reads the header; the `monitor.ingest` span becomes a child of the job's `batch.send` span |
+| 5 | Monitor (part B) | The trace ID is saved in the `batch_runs` row |
+| 6 | Both | Spans are exported over OTLP/HTTP to the Collector (S1-07) |
+
+Gemini call spans, token counts and the attribute allowlist come in Sprint 2 (S2-04).
 
 **Acceptance criteria**
-- [ ] `monitor.ingest` has the same trace ID as the incoming `traceparent`, and the job's span as parent.
-- [ ] Span attributes: `use_case_id`, `run_id`, result (`stored`, `duplicate`, `rejected`). No body content.
-- [ ] With no Collector configured, the API still works and no error is raised.
-- [ ] A body without `traceparent` starts a new trace and stores its ID.
+- [ ] Part A: one trace per run; `batch.send` is the parent of the HTTP client span; the request carries `traceparent`.
+- [ ] Part B: `monitor.ingest` has the same trace ID as the job's root span; the `batch_runs` row stores that trace ID.
+- [ ] A request without `traceparent` starts a new trace on the monitor, and its ID is stored.
+- [ ] Spans carry IDs and status only (`use_case_id`, `run_id`, result); no text from the body.
+- [ ] If the Collector is unreachable, the job and the API still work; the job logs the export failure.
 
 **How to test**
-1. Unit: in-memory span exporter; assert trace ID, parent span ID and attribute list for each criterion.
-2. Paired with S1-07: run the local stack, send an example body with a known `traceparent` using `curl`, and find that trace ID in the Collector output.
+1. Unit, part A (GCP repo): in-memory span exporter; check span names, parent links, and that the outgoing request has a `traceparent` header.
+2. Unit, part B (monitor): send a request with a known `traceparent`; check the span's trace ID and parent, and the stored trace ID.
+3. Paired with S1-07 on the test host: run the job; find the job's spans and the monitor's span with the same trace ID in the Collector output; run `scripts/check_trace.py <trace_id>`.
+4. Fallback if GCP cannot reach the Collector yet: the job exports spans to Cloud Logging; the trace still links because the header reaches the monitor.
 
-### S1-07 — Minimal OTel Collector in the local stack
+### S1-07 — Minimal OTel Collector (local stack and test host)
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
 | Infrastructure | 1.9 | Platform | — | S1-06 | S |
 
 **What:** Add the OTel Collector (contrib image) to Docker Compose with an OTLP/HTTP receiver,
-the `debug` exporter and the `file` exporter writing to a mounted folder. Langfuse export
-comes in S2-03.
+the `debug` exporter and the `file` exporter writing to a mounted folder. Run it locally
+and on the test host (S1-05). Langfuse export comes in S2-03.
 
 **Acceptance criteria**
 - [ ] `docker compose up` starts the Collector with a health check.
 - [ ] Spans received on OTLP/HTTP appear in the file output.
+- [ ] On the test host, the OTLP endpoint requires a bearer token and HTTPS, and only the GCP egress IP can reach it.
 - [ ] Collector config is in the repository; no secrets in it.
 
 **How to test**
-1. Standalone: send synthetic spans with `telemetrygen traces --otlp-http --otlp-insecure` and check the file output contains them.
-2. Paired with S1-06: send a run summary to the monitor and find its `monitor.ingest` span in the file output.
+1. Standalone: send synthetic spans with `telemetrygen traces --otlp-http` and check the file output contains them.
+2. Without the token: spans are rejected.
+3. Paired with S1-06 (see that issue).
 
 ### S1-08 — Trace check tool
 
@@ -264,7 +344,7 @@ score. Every paired test from here on ends by running it.
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Decision | 1.5 | Security + platform | S1-02 | — | S |
+| Decision | 1.5 | Security + platform | S1-01 | — | S |
 
 **What:** Approve the data flow in the [standard](llm-metrics-standard.md): placeholder-redacted records go from GCP to the monitor, to the Claude judge (Anthropic API) and to Langfuse; retention period; token handling (Secret Manager, HTTPS only).
 
@@ -274,8 +354,8 @@ score. Every paired test from here on ends by running it.
 - [ ] Token storage, rotation owner and transport approved.
 
 **How to test**
-1. The approval is linked in this issue; S1-02's schema matches the approved fields one by one.
-2. If not approved by Oct 8: S1-02 ships with run identity only and the judged metrics are Unknown.
+1. The approval is linked in this issue; S1-01's schema matches the approved fields one by one.
+2. If not approved by Oct 8: S1-01 ships with run identity only and the judged metrics are Unknown.
 
 ### S1-10 — Inventory of the 10 use cases and October run dates
 
