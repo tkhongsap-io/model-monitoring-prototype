@@ -77,7 +77,7 @@ pull request first.
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
 | S2-04 | OTel helper for GCP jobs | Feature | Backend + GCP job developer | S2-03 |
 | S2-05 | Chatbot store changes from Langfuse SDK v2 to v4 | Feature | Backend | S2-03 |
-| S2-06 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-05 |
+| S2-06 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-03 |
 | S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
 | S2-08 | Dashboard and API for batch runs | Feature | Frontend + backend | S2-07 |
 | S2-09 | One run as a single trace, GCP job to score | Verification | Backend + platform | S2-03 + S2-04 + S2-06 |
@@ -780,26 +780,91 @@ Other changes:
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 2.3 | Backend + RAI | Task description (Oct 14), S2-05 | S2-05 | L |
+| Feature | 2.3 | Backend + RAI | S2-01, S2-02, S2-03, task description (Wed 14 October) | S2-03 | L |
 
-**What:** Grade each stored run with the prototype's LLM lane: map records to the v1.1
-`Trace` shape, reuse the Claude judge and aggregation in
-`backend/app/adapters/llm_eval/live_http.py`, and grade with `engines/health.py`. Three
-changes from the [standard](llm-metrics-standard.md): the judge prompt takes the use
-case's task description; a placeholder in the answer counts as PII exposure; the judge cap
-equals the registry sample size. Emit a `monitor.evaluate` span and write scores to
-Langfuse.
+**What:** Grade each stored run with the LLM lane of the prototype. Map the records to the
+v1.1 `Trace` shape. Use the Claude judge and the aggregation in
+`backend/app/adapters/llm_eval/live_http.py`. Grade with `backend/app/engines/health.py`.
+The five metrics, the bands and the grading rules do not change.
+
+Three changes from the [standard](llm-metrics-standard.md):
+1. The judge prompt uses the task description of the use case from the YAML registry (S2-01).
+2. A placeholder (`[PHONE]`, `[EMAIL]`, `[NATIONAL_ID]`) in the answer counts as PII exposure.
+3. The judge examines all the records of the run, up to the sample size in the registry.
+
+**When the evaluation runs**
+
+The background worker that has the lease (`backend/app/live_poller.py`) finds the stored
+runs that have no evaluation and evaluates them. The `POST /api/batch/runs` request does
+not wait for the judge. It returns immediately.
+
+**Where the results go**
+
+| Result | Our database | Langfuse |
+|---|---|---|
+| The five run metrics and the grade | Table `batch_evaluations` | Scores on the trace of the run |
+| The four judge results of each record | Table `batch_record_judgments` | Scores on the observation of that record |
+| The redacted text of each judged record | Already in the stored run (S1-03) | Input and output of the record observation, under `monitor.evaluate` |
+
+- The stored run never changes. The evaluation is a separate row.
+- If the task description changes, add a new evaluation row with the new version. Keep the old row.
+- The dashboard and the grade use our database. Langfuse is for engineers.
+
+**Langfuse (SDK v4, S2-02)**
+
+```
+Trace of the run (same trace ID as the GCP spans)
+  Scores: the five run metrics
+  └─ monitor.evaluate
+      ├─ record <record_id>   Scores: groundedness, relevance, hallucination, pii
+      └─ … one observation for each judged record
+```
+
+- Use a stable `score_id`: from the run ID and the metric name for a run score, and from the run ID, the record ID and the metric name for a record score. If a score is sent again, Langfuse does not make a duplicate.
+- If a write to Langfuse fails, record it and try again in the next worker cycle. A Langfuse failure does not change the grade.
+
+**Judge provider**
+
+| Provider | When | Rule |
+|---|---|---|
+| Claude, `claude-haiku-4-5` (now) | The test host can reach the Anthropic API | `ANTHROPIC_API_KEY` is a host secret |
+| Local model on the on-premises server | The test host cannot reach the Anthropic API | RAI compares its scores with the Claude scores on a sample before use. Thai text needs special care. |
+
+Each score records the judge identity. The offline heuristic judge is never used in
+strict live mode.
+
+**When a metric is "Unknown"**
+
+| Condition | Reason |
+|---|---|
+| Identity-only run (`records: []`) | `records_not_approved` |
+| Fewer than 8 records | `insufficient_sample` |
+| The judge fails | `judge_failed` |
+| No task description is approved | `task_description_missing` |
+| All `latency_s` values are `null` | `latency_not_reported` (only `p95_latency_s`; excluded from the rollup) |
+
+An "Unknown" is never shown as Green. An evaluation problem is never shown as a delivery
+problem, and a delivery problem is never shown as an evaluation problem.
 
 **Acceptance criteria**
-- [ ] The five metrics, bands and grading match the chatbot lane exactly.
-- [ ] Scores stored with task description version, judge model, sample size and run ID.
-- [ ] Fewer than 8 records, judge failure, or `latency_s` all null give Unknown with a reason, never Green.
-- [ ] Chatbot (`AICT-L02`) tests pass unchanged.
-- [ ] Evaluation problems are not shown as ingest problems, and the reverse.
+- [ ] The five metrics, the bands and the grading are the same as in the chatbot lane.
+- [ ] The worker evaluates each new run one time. The `POST` request does not wait for it.
+- [ ] `batch_evaluations` stores the metrics with the task description version, the judge identity, the sample size and the run ID.
+- [ ] `batch_record_judgments` stores the four results of each judged record.
+- [ ] Each condition in the "Unknown" table gives "Unknown" with its reason.
+- [ ] Langfuse shows the run scores on the trace and the record scores on each record observation.
+- [ ] A score that is sent two times makes one score in Langfuse.
+- [ ] If Langfuse is not available, the grade is stored, and the score write is tried again later.
+- [ ] The chatbot (`AICT-L02`) tests pass.
 
 **How to test**
-1. Unit: `pytest` with a fake judge for each Unknown reason, the band boundaries (for example hallucination exactly 0.02 is Red), and placeholder PII counted only in `answer`.
-2. Paired with S2-05: evaluate a stored real run in the local stack; `scripts/check_trace.py` shows `monitor.evaluate` and the score on the same trace.
+1. Unit: use a fake judge. Make sure that each "Unknown" condition gives its reason. Make sure that the band limits are correct, for example a hallucination rate of exactly 0.02 is Red. Make sure that a placeholder counts as PII only in `answer`.
+2. Unit: use a fake Langfuse client. Make sure that the `score_id` values are stable, and that a failed write is tried again.
+3. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
+4. Paired with S2-03: store one run in the local stack and let the worker evaluate it. Run `scripts/check_trace.py`. Make sure that `monitor.evaluate`, the run scores and the record scores are "found" on the same trace.
+
+**Risk:** The task description is due Wednesday 14 October. Then only two days remain in
+Sprint 2 for the first graded run.
 
 ### S2-07 — Onboard 4 use cases
 
