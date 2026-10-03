@@ -137,7 +137,8 @@ Questions the developer answers in the schema or the pull request:
 - When the job fails, what does it log today, and can it still send a run summary with status `failed`?
 
 **Acceptance criteria**
-- [ ] Schema file and 3 examples committed: normal run, partial failure, Batch API run with `latency_s` null. Synthetic text only.
+- [ ] Schema file and 4 examples committed: normal run, partial failure, Batch API run with `latency_s` null, and an identity-only run (S1-04). Synthetic text only.
+- [ ] The schema accepts `records: []` with the reason `records_not_approved`. This is the identity-only mode.
 - [ ] Every field has a description that includes its source in the job; required and optional fields are explicit; unknown fields are rejected.
 - [ ] Free text only in `question`, `answer`, `retrieval_context` and `tool_calls`; no customer ID field.
 - [ ] No trace field in the body: the trace ID travels in the `traceparent` HTTP header (S1-06).
@@ -190,6 +191,7 @@ Options considered:
 - [ ] Invalid body: `400` with field errors; nothing stored. This includes unknown fields, a missing record field, `latency_s` of `0`, and more records than the sample size allows.
 - [ ] Missing or wrong key: `401`; nothing stored; the key and the body are never logged.
 - [ ] Records stored inside the run exactly as received; `record_id` kept for the evaluator.
+- [ ] An identity-only body (`records: []`, reason `records_not_approved`) is stored. Later, the four judged metrics for this run show "Unknown" with this reason.
 - [ ] Existing v1.1 live tests still pass; demo-mode routes unaffected.
 
 **How to test**
@@ -209,6 +211,12 @@ and national IDs with `[PHONE]`, `[EMAIL]` and `[NATIONAL_ID]`, builds the run s
 sends it with the API key from Secret Manager. Retry with backoff on network errors and
 `5xx`. A send failure must not fail the business job.
 
+**Identity-only mode (decided 2026-10-03).** A setting `SEND_RECORDS` controls the
+records. Until security approves (S1-09), the setting is off. Then the job sends only the
+run identity, with `records: []` and the reason `records_not_approved`. No text leaves GCP.
+With this mode, the team can test the send step, the API key, the retries and OTel from
+6 October. When security approves, set `SEND_RECORDS` to on. No code change is necessary.
+
 The developer can build and unit test it from Monday with the S1-01 schema and a fake
 server. Only the end-to-end test waits for the real API (S1-03) on the test host (S1-05).
 
@@ -220,12 +228,14 @@ server. Only the end-to-end test waits for the real API (S1-03) on the test host
 - [ ] A failed job writes a log entry, and sends a `failed` run summary if S1-01 agreed it can.
 - [ ] Sample size follows the setting; a run smaller than the sample sends every request.
 - [ ] No raw phone number, email or national ID in the body.
+- [ ] With `SEND_RECORDS` off, the body has `records: []` and the reason `records_not_approved`. The default is off.
 - [ ] HTTPS certificate is verified. With a private or self-signed certificate (S1-05), the job trusts that CA file; it never turns verification off.
 
 **How to test**
 1. Unit (GCP repo): the body validates against the S1-01 schema; synthetic PII becomes placeholders; sample size is respected; the sender retries on a fake `503`, stops on `400`, and logs each failure.
 2. Paired with S1-03 on the test host: run the job in the GCP dev project. Expected: the job log shows `201`, and the monitor database has one `batch_runs` row with the same `run_id`. Run it again: `200`, still one row.
 3. Failure check: point the job at a wrong URL; the job still succeeds, and Cloud Logging shows the failed-send entries.
+4. Identity-only check: with `SEND_RECORDS` off, run the job. Make sure that the stored run has no records and has the reason `records_not_approved`.
 
 ### S1-05 — Deploy the monitor backend to a test host reachable from GCP
 
