@@ -55,7 +55,7 @@ reach the monitor database and Langfuse with the same trace ID?
 | S1-10 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — |
 | S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-08 (trace check tool) |
 | S1-12 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-03, S1-08 |
-| S2-01 | Source registry and one token per use case | Feature | Backend | S2-07 |
+| S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-07 |
 | S2-02 | Langfuse SDK version and new packages approved | Decision | Backend + project owner | — |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
 | S2-04 | OTel helper for GCP jobs | Feature | Backend + GCP job developer | S2-03 |
@@ -529,22 +529,66 @@ Rules:
 | S2-06 batch evaluator | S2-05 | The evaluation score appears on the run's trace in Langfuse | Local stack |
 | S2-01 registry | S2-07 onboarding | Each real job can write only its own use case | Test host |
 
-### S2-01 — Source registry and one token per use case
+### S2-01 — Source registry: YAML settings and API key hashes
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 2.1 | Backend | S1-03 | S2-07 | M |
+| Feature | 2.1 | Backend + platform | S1-03, S1-12 | S2-07 | M |
 
-**What:** A registry of allowed use-case IDs, each with its own token (stored as a hash).
+**What:** Make a registry of the batch use cases in two parts. This follows the YAML
+registry in section 15 of the [monitoring contract](../../docs/MONITORING-CONTRACT.md).
+
+| Part | Location | Contains | How it changes |
+|---|---|---|---|
+| Settings | YAML file in the repository | Use-case ID, name, owner, developer, mode (`identity_only` or `records`), sample size, task description with version and approver, run schedule, data classification, band overrides | Pull request, approved by backend. RAI also approves changes to the task description or the bands. |
+| API key hashes | Database table | The SHA-256 hash of each API key, the use-case ID, and the key status | The script `scripts/batch_keys.py` |
+
+The API key itself is kept only in the GCP Secret Manager of that project. Never put a
+key or a key hash in git, chat or email.
+
+Example entry:
+
+```yaml
+use_case_id: GCP-UC-03
+name: Invoice summary
+owner: billing-ai-team
+developer: <job developer>
+mode: identity_only
+sample_size: 50
+task_description:
+  text: "summaries of customer invoices for the billing team"
+  version: 1
+  approved_by: <RAI reviewer>
+schedule: "daily 02:00 UTC"
+data_classification: confidential
+band_overrides: {}
+```
+
+How a request is accepted:
+1. The monitor finds the hash of the API key in the database.
+2. The monitor finds the use case of that key in the YAML file.
+3. The use case in the body must be the same as the use case of the key.
+
+**Key rotation:** The monitor accepts two active keys for one use case. Make the new key,
+put it in Secret Manager, wait for one successful run, then remove the old key.
+
+**OTLP token:** All GCP jobs use one OTLP token (S1-07). The Collector cannot connect a
+token to a use case. Spans are not used for grades, so this risk is low.
 
 **Acceptance criteria**
-- [ ] Token for use case A writing use case B: `403`.
-- [ ] Unknown use-case ID: `403`.
-- [ ] Rotating a token does not lose stored runs.
+- [ ] The monitor reads the YAML file when it starts. If the file has an error, the monitor does not start and shows the error.
+- [ ] A key for use case A with a body for use case B: `403`.
+- [ ] A correct key for a use case that is not in the YAML file: `403`.
+- [ ] A removed key: `401`.
+- [ ] During rotation, both keys work. After the old key is removed, only the new key works.
+- [ ] Key rotation does not change or remove stored runs.
+- [ ] `scripts/batch_keys.py` can make, list and remove keys. It shows a new key one time only and never writes the key to a log.
+- [ ] Platform puts each new key directly into GCP Secret Manager.
 
 **How to test**
-1. Unit and integration: `pytest` for each criterion.
-2. Paired with S2-07: each onboarded job sends with its own token and succeeds; a swapped token is rejected.
+1. Unit and integration: `pytest` for each acceptance criterion.
+2. Load a YAML file with an error. Make sure that the monitor does not start.
+3. Paired with S2-07: each onboarded job sends with its own key and the request is accepted. Change the key of one job to the key of another use case. Make sure that the request is rejected.
 
 ### S2-02 — Langfuse SDK version and new packages approved
 
