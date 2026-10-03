@@ -53,7 +53,7 @@ reach the monitor database and Langfuse with the same trace ID?
 | S1-08 | Trace check tool | Feature | Backend | S1-06 + S1-07 |
 | S1-09 | Security approval for the Sprint 1 data flow | Decision | Security | — |
 | S1-10 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — |
-| S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-03 + S1-04 + S1-05 |
+| S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-08 (trace check tool) |
 | S1-12 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-03, S1-08 |
 | S2-01 | Source registry and one token per use case | Feature | Backend | S2-07 |
 | S2-02 | Langfuse SDK version and new packages approved | Decision | Backend + project owner | — |
@@ -81,9 +81,8 @@ reach the monitor database and Langfuse with the same trace ID?
 
 ## Sprint 1 — Oct 5–9: get data out of GCP
 
-> Review status (2026-10-03): S1-01 to S1-09 and S1-12 revised after review; S1-10 and
-> S1-11 still to be reviewed. S1-07, S1-08, S1-09 and S1-12 are written in ASD-STE100; the
-> other issues change to STE in the final pass. Issue IDs stay stable during the review; S1-02 is merged into S1-01, and the
+> Review status (2026-10-03): Sprint 1 review complete. S1-07 to S1-12 are written in
+> ASD-STE100; S1-01 to S1-06 change to STE in the final pass. Issue IDs stay stable during the review; S1-02 is merged into S1-01, and the
 > IDs will be renumbered after all sprints are reviewed.
 
 **Two channels, one trace ID**
@@ -429,36 +428,59 @@ Security must approve these items:
 |---|---|---|---|---|---|
 | Discovery | 1.7 | PM + source owners | — | — | M |
 
-**What:** One table with every use case: ID, owner, GCP job, repository, October run dates,
-data sensitivity, Batch API or online calls, owner for the task description.
+**What:** Make one table with one row for each of the 10 GCP use cases. Sprints 2, 3 and 4
+use this table to select the order of the use cases. The due date is Friday 9 October.
+
+| Column | Why we need it |
+|---|---|
+| Use-case ID | The registry and the API use this ID |
+| Owner | The person who confirms that a run is real |
+| GCP job and repository | The location of the code that sends the data |
+| Developer of the job | The person who adds the send step and OTel. This person can be different for each job. |
+| GCP project and egress IP | The firewall allows only known IP addresses (S1-05). Each project can have a different IP. |
+| October run dates | The dates when a real run can arrive. If a job does not run in October, book a controlled rerun. |
+| Batch API or online calls | With the Batch API, `latency_s` is `null` |
+| Approximate number of requests in each run | This number sets the sample size and the judge cost |
+| Language: Thai, English or mixed | RAI must know the language that the judge examines |
+| Data sensitivity | Security uses this for the approval (S1-09) |
+| Owner of the task description | The person who writes the task description for the judge, with RAI |
 
 **Acceptance criteria**
-- [ ] Exactly 10 rows, each with a named owner.
-- [ ] Every use case has at least one October run date, or a booked controlled rerun.
-- [ ] Onboarding order for Sprints 2–4 agreed.
+- [ ] The table has exactly 10 rows. Each row has a named owner and a named developer.
+- [ ] Each use case has at least one October run date, or a booked controlled rerun.
+- [ ] Each GCP project has a known egress IP for the allowlist.
+- [ ] The order of the use cases for Sprints 2 to 4 is agreed.
 
 **How to test**
 1. Each owner confirms their row in the issue comments.
+2. Platform adds all the egress IPs to the allowlist plan (S1-05).
+
+**Risk:** The team examined only 6 pipelines in 4 repositories. If the table has fewer
+than 10 real jobs on 9 October, change the October goal and tell the project owner.
 
 ### S1-11 — First real run end to end
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Verification | 1.6 | Backend + GCP job developer | S1-03, S1-04, S1-05, S1-09 | — | S |
+| Verification | 1.6 | Backend + GCP job developer | S1-01, S1-03, S1-04, S1-05, S1-06, S1-07, S1-08, S1-12 | S1-08 (trace check tool) | S |
 
-**What:** The Sprint 1 demo: one real run, sent by the real job, stored and visible through
-the monitor API.
+**What:** This is the Sprint 1 demo. One real GCP job does one real run. Show that the data
+and the trace arrived. Use the S1-08 tool to show the result. Sprint 1 has no read API.
+The read API for the dashboard comes in S2-08.
 
 **Acceptance criteria**
-- [ ] The source owner confirms the run was a real published run.
-- [ ] `batch_runs` holds it once; the API shows run ID, status, counts and freshness.
-- [ ] Stored records contain placeholders, not raw PII.
+- [ ] The source owner confirms that the run was a real published run.
+- [ ] The `batch_runs` table has the run one time only.
+- [ ] The job spans and the `monitor.ingest` span have the same trace ID in the Collector.
+- [ ] The parent of `monitor.ingest` is the job's `batch.send` span.
+- [ ] If records were sent, they contain placeholders and no raw PII.
+- [ ] If security did not approve records yet, the run is in identity-only mode. The result says "records not yet approved".
 
 **How to test**
-1. Trigger or wait for the job's real run.
-2. Run `scripts/check_trace.py <trace_id>`; database hop found.
-3. Read the run back from the monitor API; attach the output (no secrets) to the issue.
-
+1. Start the real run, or wait for the scheduled run.
+2. Find the trace ID of the run in the job log.
+3. Run `scripts/check_trace.py <trace_id>` on the test host. Make sure that all four items are "found".
+4. Attach the output of the tool to this issue. Do not attach secrets or record text.
 
 ### S1-12 — Database accounts for the backend and the developers
 
