@@ -50,6 +50,20 @@ pull request first.
 | S3 storage (MinIO) | `cgr.dev/chainguard/minio` | Fix by image digest | The image that the Langfuse Compose file uses. The free Chainguard image has only the `latest` tag, so record its digest. |
 | Langfuse Python SDK | `langfuse` | `>=4.16,<5` | S2-02 |
 
+## Rule for prototype code (decided 2026-10-03)
+
+The three prototype use cases (churn `AICT-L01`, chatbot `AICT-L02`, NBA `AICT-L03`) are a
+scaffold. The real work is the GCP use cases.
+
+| Code type | Example | Rule |
+|---|---|---|
+| Shared code: the GCP path uses it | The judge and the aggregation in `live_http.py`, `engines/health.py`, the alerts, the worker lease, the portfolio endpoints, the Langfuse settings in `config.py` | Keep it. Keep its tests. If a change breaks it, fix it. |
+| Prototype-only code: the GCP path does not use it | The v1.1 telemetry adapter, the ML lane (Evidently, NannyML), the explanations (LIME, SHAP), the label backfill, the demo and scenario routes, the chatbot's Langfuse v2 store | Do not maintain it. If a change breaks it, remove it in the same pull request. Do not fix it. |
+
+Before you remove code, search the repository to make sure that the GCP path does not use
+it. The test host and AWS do not configure the prototype use cases. S4-07 removes the
+remaining prototype-only code.
+
 ## Done for every issue
 
 - Pull request with tests; CI green; `CHANGELOG.md` and `DEVLOG.md` updated when behaviour changes.
@@ -73,10 +87,10 @@ pull request first.
 | S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-08 (trace check tool) |
 | S1-12 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-03, S1-08 |
 | S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-07 |
-| S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05, S2-06 |
-| S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
+| S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-06 |
+| S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-06 |
 | S2-04 | OTel helper file for the GCP jobs | Feature | GCP job developer (backend reviews) | S2-03 |
-| S2-05 | Chatbot store changes from Langfuse SDK v2 to v4 | Feature | Backend | S2-03 |
+| S2-05 | *Removed: prototype-only code (see S2-02)* | — | — | — |
 | S2-06 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-03 |
 | S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
 | S2-08 | Dashboard shows the GCP use cases with the current UI | Feature | Backend | S2-07 |
@@ -93,6 +107,7 @@ pull request first.
 | S4-04 | 10-row evidence checklist | Verification | Backend + frontend + RAI | S1-08 |
 | S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S4-01 |
 | S4-06 | Release sign-off | Decision | RAI + platform owners | S4-04 + S4-05 |
+| S4-07 | Remove the prototype-only code | Feature | Backend | Full test suite |
 
 ---
 
@@ -571,8 +586,7 @@ Langfuse uses its own port because it does not work easily under a URL path.
 | Feature | Tested with | The test proves | Environment |
 |---|---|---|---|
 | S2-04 GCP OTel helper | S2-03 Collector → Langfuse | The job's spans flow through the Collector into Langfuse, and the run summary lands in monitor Postgres, all with one trace ID | Local stack, then test host |
-| S2-05 monitor off SDK v2 | S2-03 Collector → Langfuse | Judge spans arrive through the Collector and the score is attached to the same trace | Local stack |
-| S2-06 batch evaluator | S2-05 | The evaluation score appears on the run's trace in Langfuse | Local stack |
+| S2-06 batch evaluator | S2-03 Collector → Langfuse | The run scores and the record scores appear on the run's trace in Langfuse | Local stack |
 | S2-01 registry | S2-07 onboarding | Each real job can write only its own use case | Test host |
 
 ### S2-01 — Source registry: YAML settings and API key hashes
@@ -640,7 +654,7 @@ token to a use case. Spans are not used for grades, so this risk is low.
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Decision + Feature | Deadline Mon Oct 12 | Backend + project owner | S1-06 | S2-05, S2-06 | M |
+| Decision + Feature | Deadline Mon Oct 12 | Backend + project owner | S1-06 | S2-06 | M |
 
 **Decision (2026-10-03):** Use the Langfuse Python SDK v4 (`langfuse` 4.x) in the backend.
 The backend uses it for these items:
@@ -654,7 +668,7 @@ Collector (S1-06, S1-07). Thus the Langfuse keys stay in AWS.
 
 | Fact | Effect |
 |---|---|
-| SDK v4 does not have the v2 functions `trace()` and `score()`. The chatbot store (`backend/app/adapters/llm_eval/stores.py`) uses these functions. | When the version changes to v4, the chatbot store stops sending to Langfuse. The code catches the error, so the chatbot continues to work, but its Langfuse traces stop. S2-05 must change the chatbot store in the same pull request. |
+| SDK v4 does not have the v2 functions `trace()` and `score()`. The chatbot store (`backend/app/adapters/llm_eval/stores.py`) uses these functions. | The class `LangfuseCloudStore` is prototype-only code. Remove it in the same pull request, and make the chatbot use only its local store. Do not change it to v4. |
 | SDK v4 needs `opentelemetry-api`, `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`, version 1.45 or later. | S1-06 part B must use the same OTel versions. |
 | Langfuse released three major SDK versions in three years. v2 is deprecated. | Pin `langfuse>=4.16,<5`. Read the release notes before an upgrade. |
 
@@ -662,7 +676,7 @@ Collector (S1-06, S1-07). Thus the Langfuse keys stay in AWS.
 - [ ] The spec lists each new or changed package with a version range: `langfuse>=4.16,<5`, the OTel packages, and the OTel instrumentation packages.
 - [ ] The self-hosted Langfuse server has a fixed version that supports SDK v4 (S2-03).
 - [ ] In one backend process, the SDK v4 and the FastAPI OTel instrumentation put `monitor.ingest` and `monitor.evaluate` in the same trace as the GCP spans.
-- [ ] The version change and the S2-05 chatbot change are in the same pull request.
+- [ ] `LangfuseCloudStore` is removed in the same pull request. `judge.py` and `live_http.py` use only the local store for the chatbot. No call to the v2 functions `trace()` or `score()` remains.
 
 **How to test**
 1. Compare `backend/requirements.txt` with the approved list.
@@ -748,43 +762,10 @@ file, because we have no package registry.
 3. Paired with S2-03, test host: run the first job in the GCP dev project.
 4. For tests 2 and 3: run `scripts/check_trace.py`. Make sure that Langfuse shows the GCP spans with the token attributes in the same trace as `monitor.ingest`.
 
-### S2-05 — Chatbot store changes from Langfuse SDK v2 to v4
+### S2-05 — Removed
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 2.6 | Backend | S2-02, S2-03 | S2-03 | M |
-
-**Decision (2026-10-03):** The chatbot is a prototype, so we change it to SDK v4 in
-Sprint 2. This change and the S2-02 version change go in the same pull request.
-
-**What:** The chatbot store (`backend/app/adapters/llm_eval/stores.py`, class
-`LangfuseCloudStore`) uses the SDK v2 functions `trace()` and `score()`. SDK v4 does not
-have these functions. Change the store to the SDK v4 functions:
-
-| Now (SDK v2) | After (SDK v4) |
-|---|---|
-| `self._lf.trace(name, input, output, metadata)` | `start_observation(name=..., input=..., output=..., metadata=...)` |
-| `trace.score(name, value)` | `create_score(name=..., value=..., trace_id=..., score_id=...)` |
-| `flush()` | `flush()` (no change) |
-
-Other changes:
-- The store sends to the self-hosted Langfuse (S2-03). The address comes from `LANGFUSE_HOST`, as it does now.
-- Use a stable `score_id`, for example made from the chatbot trace ID and the metric name. If the score is sent again, Langfuse does not make a duplicate.
-- Now, if Langfuse fails, the store stops without a message. After the change, the store writes a warning to the log for each failure. It never writes the keys.
-- The local store that the dashboard reads does not change.
-- The score write-back to the chatbot producer (`push_scores`) does not change.
-
-**Acceptance criteria**
-- [ ] No call to `trace()` or `score()` of SDK v2 remains in the backend.
-- [ ] The existing chatbot tests pass.
-- [ ] A judged chatbot window makes one trace in Langfuse, and each judge score is attached to that trace.
-- [ ] If the same score is sent two times, Langfuse has one score.
-- [ ] If Langfuse is not available, the chatbot continues to work, and the log shows a warning.
-
-**How to test**
-1. Unit: replace the Langfuse client with a fake client. Make sure that the store calls `start_observation` and `create_score` with the correct values and a stable `score_id`. Make the fake client fail, and make sure that a warning is in the log.
-2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
-3. Paired with S2-03: run one judged chatbot window in the local stack. Run `scripts/check_trace.py` with the trace ID. Make sure that the trace and its scores are "found".
+The chatbot store is prototype-only code. S2-02 removes the Langfuse v2 part of it. We do not
+change it to SDK v4.
 
 ### S2-06 — Batch evaluator with the five LLM metrics
 
@@ -1188,3 +1169,24 @@ runbooks.
 
 **How to test**
 1. Reviewers check the S4-04 checklist and the S4-05 drill record.
+
+### S4-07 — Remove the prototype-only code
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | New | Backend | S4-06 | Full test suite | M |
+
+**What:** Remove the code of the three prototype use cases that the GCP path does not use.
+Follow the rule for prototype code at the start of this file. Do this after the release
+sign-off (S4-06), so that the AWS release does not change at the last moment.
+
+**Acceptance criteria**
+- [ ] A list of the removed files and a list of the kept shared files are in the pull request.
+- [ ] Each removed item has no use in the GCP path. A repository search shows this.
+- [ ] The tests of the shared code use GCP-style data, not prototype data.
+- [ ] Packages that only the removed code used are removed from `backend/requirements.txt`.
+- [ ] `CLAUDE.md`, `README.md` and the contract documents describe the GCP use cases.
+
+**How to test**
+1. Run the full backend suite and the pnpm checks.
+2. On the test host, send one GCP run. Run `scripts/check_trace.py`. Make sure that all the items are "found".
