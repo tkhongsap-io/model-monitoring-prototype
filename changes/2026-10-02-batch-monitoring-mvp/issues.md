@@ -76,7 +76,7 @@ pull request first.
 | S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05, S2-06 |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 |
 | S2-04 | OTel helper for GCP jobs | Feature | Backend + GCP job developer | S2-03 |
-| S2-05 | Monitor moves off direct Langfuse SDK v2 calls | Feature | Backend | S2-03 |
+| S2-05 | Chatbot store changes from Langfuse SDK v2 to v4 | Feature | Backend | S2-03 |
 | S2-06 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-05 |
 | S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
 | S2-08 | Dashboard and API for batch runs | Feature | Frontend + backend | S2-07 |
@@ -709,27 +709,43 @@ customer text cannot be attached.
 3. Real paired test with S2-03 on the test host: run the job in the GCP dev project.
 4. For both: run `scripts/check_trace.py <trace_id>`. Expected: the `batch_runs` row in monitor Postgres, the spans in the Collector output, and one Langfuse trace containing both the GCP spans and `monitor.ingest`, all with the same trace ID.
 
-### S2-05 — Monitor moves off direct Langfuse SDK v2 calls
+### S2-05 — Chatbot store changes from Langfuse SDK v2 to v4
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 2.6 | Backend | S2-02, S2-03 | S2-03 | L |
+| Feature | 2.6 | Backend | S2-02, S2-03 | S2-03 | M |
 
-**What:** The chatbot judge currently calls the Langfuse SDK v2 directly
-(`adapters/llm_eval/stores.py`). Replace that with OTel spans through the Collector, and
-write scores with the Langfuse score API on the same trace ID. The SQLite and Postgres
-stores the dashboard reads stay as they are.
+**Decision (2026-10-03):** The chatbot is a prototype, so we change it to SDK v4 in
+Sprint 2. This change and the S2-02 version change go in the same pull request.
+
+**What:** The chatbot store (`backend/app/adapters/llm_eval/stores.py`, class
+`LangfuseCloudStore`) uses the SDK v2 functions `trace()` and `score()`. SDK v4 does not
+have these functions. Change the store to the SDK v4 functions:
+
+| Now (SDK v2) | After (SDK v4) |
+|---|---|
+| `self._lf.trace(name, input, output, metadata)` | `start_observation(name=..., input=..., output=..., metadata=...)` |
+| `trace.score(name, value)` | `create_score(name=..., value=..., trace_id=..., score_id=...)` |
+| `flush()` | `flush()` (no change) |
+
+Other changes:
+- The store sends to the self-hosted Langfuse (S2-03). The address comes from `LANGFUSE_HOST`, as it does now.
+- Use a stable `score_id`, for example made from the chatbot trace ID and the metric name. If the score is sent again, Langfuse does not make a duplicate.
+- Now, if Langfuse fails, the store stops without a message. After the change, the store writes a warning to the log for each failure. It never writes the keys.
+- The local store that the dashboard reads does not change.
+- The score write-back to the chatbot producer (`push_scores`) does not change.
 
 **Acceptance criteria**
-- [ ] No direct Langfuse trace calls remain; scores use the score API with the span's trace ID.
-- [ ] Existing chatbot judge tests pass unchanged.
-- [ ] Langfuse unavailable: judging and grading continue; the score write is recorded for retry.
-- [ ] Sending the same score twice does not create a duplicate (stable score ID).
+- [ ] No call to `trace()` or `score()` of SDK v2 remains in the backend.
+- [ ] The existing chatbot tests pass.
+- [ ] A judged chatbot window makes one trace in Langfuse, and each judge score is attached to that trace.
+- [ ] If the same score is sent two times, Langfuse has one score.
+- [ ] If Langfuse is not available, the chatbot continues to work, and the log shows a warning.
 
 **How to test**
-1. Unit: in-memory exporter for spans; a fake score API for score calls, including a failing one.
+1. Unit: replace the Langfuse client with a fake client. Make sure that the store calls `start_observation` and `create_score` with the correct values and a stable `score_id`. Make the fake client fail, and make sure that a warning is in the log.
 2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
-3. Paired with S2-03: run one judged chatbot window in the local stack; `scripts/check_trace.py` shows the trace and its score in Langfuse.
+3. Paired with S2-03: run one judged chatbot window in the local stack. Run `scripts/check_trace.py` with the trace ID. Make sure that the trace and its scores are "found".
 
 ### S2-06 — Batch evaluator with the five LLM metrics
 
