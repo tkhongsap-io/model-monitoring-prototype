@@ -102,8 +102,8 @@ remaining prototype-only code.
 | S3-04 | Failure and recovery drills | Verification | Backend + platform | S3-02 + S3-03 |
 | S3-05 | Security and retention review with leak scan | Verification | Security + platform | S3-03 |
 | S3-06 | Kubernetes deployment files: Langfuse Helm chart and our manifests | Infrastructure | Platform | S4-01 |
-| S4-01 | Deploy the stack to the target AWS cluster | Infrastructure | Platform | S4-02 |
-| S4-02 | Switch every GCP job to the AWS endpoints | Feature | Job owners + platform | S4-01 |
+| S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 |
+| S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 |
 | S4-03 | Finish all 10 use cases | Feature | Job owners + backend | S4-04 |
 | S4-04 | 10-row evidence checklist | Verification | Backend + frontend + RAI | S1-08 |
 | S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S4-01 |
@@ -1203,95 +1203,151 @@ values file selects plan A or plan B.
 
 ## Sprint 4 — Oct 26–30: AWS release and handoff
 
+> Review status (2026-10-04): Sprint 4 review complete. All Sprint 4 issues are written in
+> ASD-STE100.
+
 **Paired tests this sprint**
 
 | Feature | Tested with | The test proves | Environment |
 |---|---|---|---|
-| S4-02 jobs switched to AWS | S4-01 AWS stack | Real runs and spans from GCP arrive in the AWS monitor and Langfuse | AWS cluster |
-| S4-03 all 10 use cases | S4-04 evidence checklist | Every use case has a real run with matching trace and score | AWS cluster |
+| S4-02 jobs switched to AWS | S4-01 AWS stack | Real runs and spans from GCP arrive in the AWS monitor and in Langfuse | Production AWS cluster |
+| S4-03 all 10 use cases | S4-04 evidence checklist | Each use case has a real run with its five metrics graded, and the same trace ID in the monitor and in Langfuse | Production AWS cluster |
 
-### S4-01 — Deploy the stack to the target AWS cluster
-
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | 4.1 | Platform | S3-06, cluster access | S4-02 | L |
-
-**What:** Deploy the monitor, Collector, Langfuse and backing services to the target cluster.
-
-**Acceptance criteria**
-- [ ] Only the monitor API and the authenticated Collector endpoint are reachable from GCP; databases are private.
-- [ ] Data survives a pod restart.
-- [ ] Cluster name and deployed version recorded.
-
-**How to test**
-1. Send one example run and spans from a GCP dev machine; `scripts/check_trace.py` shows all hops.
-2. Delete the monitor and Langfuse pods; after restart, the same trace and run are still there.
-
-### S4-02 — Switch every GCP job to the AWS endpoints
+### S4-01 — Deploy the stack to the production AWS cluster
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 4.2 | Job owners + platform | S4-01 | S4-01 | M |
+| Infrastructure | 4.1 | Platform | S3-06, long-lead requests (Sprint 1) | S4-02 | L |
 
-**What:** Point each job's run summary URL and OTLP endpoint at AWS; rotate tokens for
-production.
+**What:** Install the stack on the production AWS Kubernetes cluster. Use the S3-06 files.
+The installation on the test AWS cluster in Sprint 3 is the model for this installation.
+
+1. Select plan A (RDS and S3) or plan B (in the cluster), from the S3-06 decision.
+2. Replace the test-host front door with the AWS load balancer and ingress. Keep the same paths: `/api/*` and `/otlp/*` for GCP, and the dashboard and Langfuse for the staff.
+3. Use the DNS name and the certificate from the long-lead requests. If they are not available, use the IP address and a private CA certificate.
+4. Allow the egress IPs of all 10 GCP projects (S1-10) in the AWS security rules.
+5. Allow outbound access from the cluster to the Anthropic API, or a network path to the on-premises judge server.
+6. Do not configure the prototype use cases.
+
+**Open decisions (decide at the start of Sprint 4)**
+- Is a production cluster available? If not, report the result as a pilot on the test AWS cluster. Do not report a production release.
+- Does AWS start clean, or do we move the data from the test host?
 
 **Acceptance criteria**
-- [ ] Each job's next run arrives in AWS with its trace in Langfuse.
-- [ ] Test host tokens revoked.
+- [ ] Only the front door is reachable from the internet. The databases, ClickHouse, Redis and the storage are private.
+- [ ] The data stays after a pod restart.
+- [ ] The cluster name, the deployed versions and any missing prerequisite are recorded.
 
 **How to test**
-1. After each job's next run, `scripts/check_trace.py <trace_id>` against AWS shows all hops.
+1. From a GCP dev machine, send one example run and spans. Run `scripts/check_trace.py`. Make sure that all the items are "found".
+2. Delete the monitor pod and the Langfuse pods. After the restart, make sure that the same run and trace are still there.
+
+### S4-02 — Change every GCP job to send to AWS
+
+| Type | Plan task | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|---|
+| Feature | 4.2 | Job developers + platform | S4-01 | S4-01 | M |
+
+**What:** Change one job at a time. For each job, change three things:
+1. The API URL.
+2. The OTLP endpoint.
+3. The API key. Make a new production key with `scripts/batch_keys.py`, and put it into the GCP Secret Manager of that project.
+
+If AWS uses a private CA, the job trusts the new CA file.
+
+**Fallback:** Keep the test host running for one week after the change. If AWS has a
+problem, a job can go back to the test host with its old settings.
+
+**Acceptance criteria**
+- [ ] The next run of each job arrives in AWS, with its trace in Langfuse.
+- [ ] After the first production run of a job arrives, its test-host key is removed.
+- [ ] One week after the last job changes, the test host is stopped. Its data is kept until the end of its retention period.
+
+**How to test**
+1. After the next run of each job, run `scripts/check_trace.py <trace_id>` on AWS. Make sure that all the items are "found".
+2. Send a request with a removed test-host key to AWS. Make sure that it is refused.
 
 ### S4-03 — Finish all 10 use cases
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 4.3 | Job owners + backend | S4-02 | S4-04 | L |
+| Feature | 4.3 | Job developers + backend + platform | S4-02 | S4-04 | L |
 
-**What:** Onboard the last use cases and get a real run for each, on schedule or as an agreed
-controlled rerun.
+**What:** Onboard the last use cases with the S2-07 steps. Get a real run for each use case,
+on its schedule or as an agreed controlled rerun. Use the S1-10 run dates. If a job does not
+run before 30 October, book a controlled rerun now.
+
+**When a use case passes (decided 2026-10-04)**
+
+A use case passes only when its quality grade works. All of these must be true:
+- A real run arrived, and the owner confirms it.
+- The run contains records (`mode: records`). Security approved the records (S1-09).
+- The task description is approved.
+- The four judge metrics have values. `p95_latency_s` can be "Unknown" only with the reason `latency_not_reported` (Batch API jobs).
+
+A use case in identity-only mode does **not** pass. Thus the security approval of the
+records is a release blocker.
 
 **Acceptance criteria**
-- [ ] 10 owner-confirmed real runs in AWS.
-- [ ] Every use case has an approved task description and follows the [standard](llm-metrics-standard.md).
-- [ ] No test data or configuration-only entries counted.
+- [ ] Each of the 10 use cases passes, or is listed as blocked with the reason, an owner and the next step.
+- [ ] No test data, configuration-only entry or identity-only run counts as a pass.
 
 **How to test**
-1. Covered by the S4-04 checklist.
+1. The S4-04 checklist examines each use case.
 
 ### S4-04 — 10-row evidence checklist
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Verification | 4.4 | Backend + frontend + RAI | S4-03 | S1-08 | M |
+| Verification | 4.4 | Backend + RAI | S4-03 | S1-08 (trace check tool) | M |
 
-**What:** One table with a row per use case: run ID, completion time, freshness, records
-judged, the five metric values (or Unknown with reason), overall grade, task description
-version, trace ID, and the result of `scripts/check_trace.py`.
+**What:** Make one table with one row for each use case. Each row contains:
+- the use case,
+- the run ID,
+- the completion time and the freshness,
+- the number of judged records,
+- the five metric values, or "Unknown" with the reason,
+- the overall grade,
+- the task description version,
+- the trace ID,
+- the result of `scripts/check_trace.py`,
+- the confirmation of the owner,
+- the result: pass, or blocked with the reason (S4-03).
 
 **Acceptance criteria**
-- [ ] 10 rows filled in; trace and score IDs match between the monitor and Langfuse.
-- [ ] RAI accepts what the dashboard shows, including any Unknown.
+- [ ] The table has 10 rows. All the columns are filled in.
+- [ ] The trace ID and the score IDs are the same in the monitor and in Langfuse.
+- [ ] RAI accepts what the dashboard shows, including each "Unknown".
 
 **How to test**
-1. Run `scripts/check_trace.py` for all 10 trace IDs; attach the output.
+1. Run `scripts/check_trace.py` for all 10 trace IDs. Attach the output.
 
 ### S4-05 — Operations drills and runbooks on AWS
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Verification | 4.5 | Platform + operations | S4-01 | — | M |
+| Verification | 4.5 | Platform + operations | S4-01 | S1-08 (trace check tool) | M |
 
-**What:** Repeat the S3-04 drills on the cluster, plus backup and restore and rollback; write
-runbooks.
+**What:** Do the S3-04 drills again on AWS. Also test the backup, the restore and the
+rollback. Write the runbooks.
+
+| Item | How |
+|---|---|
+| Backup and restore | Plan A: restore an RDS snapshot. Plan B: restore from our backup. Make sure that no run is lost or duplicated. |
+| Rollback | Install the previous version with the Helm rollback command. Make sure that the system works. |
+| Runbooks | A missed run, a failed job, a GCP network problem, a Langfuse outage, a judge outage, a key rotation, a full disk |
+
+**Open decision:** Who is on call, and who owns the alerts? Decide this during Sprint 4. The
+alert webhook goes to this person or team.
 
 **Acceptance criteria**
-- [ ] Restore and rollback tested with no duplicates or data loss.
-- [ ] Runbooks name service owners, source owners, token rotation and escalation.
+- [ ] Each drill has a result: pass, fail or not done, with the date.
+- [ ] Restore and rollback work with no lost or duplicated runs.
+- [ ] Each runbook names an owner. The on-call owner is named before the sign-off (S4-06).
 
 **How to test**
-1. Run each drill; check affected trace IDs with `scripts/check_trace.py`; record results.
+1. Do each drill. After each drill, run `scripts/check_trace.py` for the affected trace IDs.
+2. Record the results in this issue.
 
 ### S4-06 — Release sign-off
 
@@ -1299,14 +1355,16 @@ runbooks.
 |---|---|---|---|---|---|
 | Decision | 4.6 | RAI + platform owners | S4-04, S4-05 | — | S |
 
-**What:** Approve the release only on evidence.
+**What:** Approve the release only on evidence. List each use case as "pass" or "blocked,
+with the reason" (S4-03).
 
 **Acceptance criteria**
-- [ ] 10 of 10 real use cases and the AWS drills passed; otherwise publish the pilot result and its open blockers.
-- [ ] Any unmet item recorded with owner and next action.
+- [ ] The release is approved only if all 10 use cases pass and the AWS drills pass.
+- [ ] If not, publish the result as a pilot, with each open blocker, its owner and its next step.
+- [ ] The result says clearly if it is a production release or a pilot on the test AWS cluster.
 
 **How to test**
-1. Reviewers check the S4-04 checklist and the S4-05 drill record.
+1. The reviewers examine the S4-04 checklist and the S4-05 drill record.
 
 ### S4-07 — Remove the prototype-only code
 
@@ -1316,7 +1374,8 @@ runbooks.
 
 **What:** Remove the code of the three prototype use cases that the GCP path does not use.
 Follow the rule for prototype code at the start of this file. Do this after the release
-sign-off (S4-06), so that the AWS release does not change at the last moment.
+sign-off (S4-06), so that the AWS release does not change at the last moment. If Sprint 4
+has no time left, do this issue in the first week of November.
 
 **Acceptance criteria**
 - [ ] A list of the removed files and a list of the kept shared files are in the pull request.
