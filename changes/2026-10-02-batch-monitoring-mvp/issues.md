@@ -2,36 +2,38 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-03 |
-| **Status** | Drafts, not yet posted to GitHub |
+| **Date** | 2026-10-04 |
+| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Not yet posted to GitHub. |
+| **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
-Each issue below is ready to paste into GitHub. Every feature issue names the issue it is
-**tested with**: a sender is proven by the receiver that sees its data arrive, and a
-receiver is proven by a real sender. One shared tool (S1-08) follows a single trace ID
-through every hop, so each paired test ends with the same question: did this run's data
-reach the monitor database and Langfuse with the same trace ID?
+You can copy each issue into GitHub. Each feature issue names the issue that it is
+**tested with**. A sender is proven by the receiver that sees its data arrive. A receiver
+is proven by a real sender. One shared tool, the trace check tool (S1-07), follows one
+trace ID through all the locations. Thus each paired test ends with the same question:
+did the data of this run arrive in the monitor database and in Langfuse with the same
+trace ID?
 
 ## How to read an issue
 
 | Field | Meaning |
 |---|---|
 | Type | Feature, Infrastructure, Decision, Discovery or Verification |
-| Plan task | The matching row in [plan.md](plan.md) |
-| Depends on | Issues that must be merged or decided first |
-| Tested with | The partner issue used to prove this one works end to end |
-| Size | Rough estimate: S (under 1 day), M (1–3 days), L (3–5 days) |
-| Acceptance criteria | Checkboxes a reviewer ticks before closing |
-| How to test | Exact steps, from unit tests to the paired end-to-end test |
+| Depends on | The issues that must be complete or decided first |
+| Tested with | The partner issue that proves that this issue works from start to end |
+| Size | Approximate work: S (less than 1 day), M (1 to 3 days), L (3 to 5 days) |
+| Acceptance criteria | The checkboxes that a reviewer marks before the issue closes |
+| How to test | The test steps, from the unit tests to the paired test |
 
 ## Test environments
 
 | Name | What runs there | Used for |
 |---|---|---|
-| **Unit** | `pytest` in `backend/`; OTel in-memory span exporter | Logic, validation, span content |
-| **Local stack** | Docker Compose: monitor, Postgres, OTel Collector, self-hosted Langfuse | Integration and paired tests on a laptop |
-| **Test host** | The same Compose stack, reachable over HTTPS from the GCP dev project | Tests with real GCP job code |
-| **AWS cluster** | Target Kubernetes deployment | Release (Sprint 4) |
+| **Unit** | `pytest` in `backend/`, and the OTel in-memory span exporter | Logic, validation, span content |
+| **Local stack** | Docker Compose: monitor, PostgreSQL, OTel Collector, self-hosted Langfuse | Integration tests and paired tests on a laptop |
+| **Test host** | The same Compose stack on one server that the GCP dev project can reach | Tests with the real GCP job code (Sprints 1 to 3) |
+| **Test AWS cluster** | The Kubernetes installation (S3-06) | Installation test in Sprint 3 |
+| **Production AWS cluster** | The Kubernetes installation | Release (Sprint 4) |
 
 ## Fixed versions (checked 2026-10-03)
 
@@ -67,87 +69,83 @@ remaining prototype-only code.
 
 ## Done for every issue
 
-- Pull request with tests; CI green; `CHANGELOG.md` and `DEVLOG.md` updated when behaviour changes.
-- The PR description lists passed, failed, skipped and unavailable checks. An unavailable check is never reported as passed.
-- No secrets or tokens anywhere. No text in OTel spans or logs. Fixtures and screenshots use synthetic or placeholder-redacted text only.
+- The pull request has tests, and CI passes. `CHANGELOG.md` and `DEVLOG.md` are updated when the behavior changes.
+- The pull request lists the checks that passed, failed, were skipped or were not available. A check that was not available is never reported as passed.
+- No secrets or tokens in the code, the logs, the spans, the test files or the screenshots.
+- GCP spans contain no text. Test files and screenshots contain only synthetic text or text with placeholders.
 
 ## All issues
 
-| ID | Title | Type | Owner | Tested with |
-|---|---|---|---|---|
-| S1-01 | Map one GCP job and write JSON body v1 | Feature | GCP job developer (backend reviews) | S1-04 (a real body validates) |
-| S1-02 | *Merged into S1-01* | — | — | — |
-| S1-03 | Receiving API `POST /api/batch/runs` with API key | Feature | Backend | S1-04 |
-| S1-04 | GCP job sends the run summary after publishing | Feature | GCP job developer | S1-03 |
-| S1-05 | Deploy the monitor backend to a test host reachable from GCP | Infrastructure | Platform | S1-04 |
-| S1-06 | OTel in the GCP job and the monitor: one trace per run | Feature | GCP job developer + backend | S1-07 |
-| S1-07 | Minimal OTel Collector and front door (local stack and test host) | Infrastructure | Platform | S1-06 |
-| S1-08 | Trace check tool | Feature | Backend | S1-06 + S1-07 |
-| S1-09 | Security approval for the Sprint 1 data flow | Decision | Security | — |
-| S1-10 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — |
-| S1-11 | First real run end to end | Verification | Backend + GCP job developer | S1-08 (trace check tool) |
-| S1-12 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-03, S1-08 |
-| S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-07 |
-| S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-06 |
-| S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-06 |
-| S2-04 | OTel helper file for the GCP jobs | Feature | GCP job developer (backend reviews) | S2-03 |
-| S2-05 | *Removed: prototype-only code (see S2-02)* | — | — | — |
-| S2-06 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-03 |
-| S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
-| S2-08 | Dashboard shows the GCP use cases with the current UI | Feature | Backend | S2-07 |
-| S2-09 | One run as a single trace, GCP job to score | Verification | Backend + platform | S2-03 + S2-04 + S2-06 |
-| S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-08 |
-| S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 |
-| S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 |
-| S3-04 | Failure and recovery drills | Verification | Backend + platform | S3-02 + S3-03 |
-| S3-05 | Security and retention review with leak scan | Verification | Security + platform | S3-03 |
-| S3-06 | Kubernetes deployment files: Langfuse Helm chart and our manifests | Infrastructure | Platform | S4-01 |
-| S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 |
-| S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 |
-| S4-03 | Finish all 10 use cases | Feature | Job owners + backend | S4-04 |
-| S4-04 | 10-row evidence checklist | Verification | Backend + frontend + RAI | S1-08 |
-| S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S4-01 |
-| S4-06 | Release sign-off | Decision | RAI + platform owners | S4-04 + S4-05 |
-| S4-07 | Remove the prototype-only code | Feature | Backend | Full test suite |
+| ID | Title | Type | Owner | Tested with | Size |
+|---|---|---|---|---|---|
+| S1-01 | Map one GCP job and write the JSON body v1 | Feature | GCP job developer. Backend reviews and approves. | S1-03 (a real body agrees with the schema) | M |
+| S1-02 | Receiving API `POST /api/batch/runs` with API key | Feature | Backend | S1-03 | L |
+| S1-03 | GCP job sends the run summary after it publishes | Feature | GCP job developer | S1-02 | M |
+| S1-04 | Deploy the monitor backend to a test host that GCP can reach | Infrastructure | Platform | S1-03 | M |
+| S1-05 | OTel in the GCP job and the backend: one trace for each run | Feature | Part A: GCP job developer. Part B: backend. | S1-06 | M + M |
+| S1-06 | Minimal OTel Collector and front door (local stack and test host) | Infrastructure | Platform | S1-05 | M |
+| S1-07 | Trace check tool | Feature | Backend | S1-05 + S1-06 | S |
+| S1-08 | Security approval for the Sprint 1 data flow | Decision | Security + platform | — | S |
+| S1-09 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — | M |
+| S1-10 | First real run end to end | Verification | Backend + GCP job developer | S1-07 (trace check tool) | S |
+| S1-11 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-02, S1-07 | S |
+| S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-06 | M |
+| S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05 | M |
+| S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 | L |
+| S2-04 | OTel helper file for the GCP jobs | Feature | GCP job developer; backend reviews | S2-03 | M |
+| S2-05 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-03 | L |
+| S2-06 | Onboard 4 use cases | Feature | Job developers + backend + platform | S2-01, S1-07 | L |
+| S2-07 | Dashboard shows the GCP use cases with the current UI | Feature | Backend | S2-06 | M |
+| S2-08 | One run as a single trace, GCP job to score | Verification | Backend + platform | S1-07 | S |
+| S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-07 | L |
+| S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 | M |
+| S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 | M |
+| S3-04 | Failure and recovery drills | Verification | Backend + platform | S1-07 | M |
+| S3-05 | Security and retention review with leak scan | Verification | Security + platform + source owners | S3-03 | M |
+| S3-06 | Kubernetes deployment files: Langfuse Helm chart and our manifests | Infrastructure | Platform | S4-01 | L |
+| S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 | L |
+| S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 | M |
+| S4-03 | Finish all 10 use cases | Feature | Job developers + backend + platform | S4-04 | L |
+| S4-04 | 10-row evidence checklist | Verification | Backend + RAI | S1-07 (trace check tool) | M |
+| S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S1-07 (trace check tool) | M |
+| S4-06 | Release sign-off | Decision | RAI + platform owners | — | S |
+| S4-07 | Remove the prototype-only code | Feature | Backend | Full test suite | M |
 
 ---
 
 ## Sprint 1 — Oct 5–9: get data out of GCP
 
-> Review status (2026-10-03): Sprint 1 review complete. S1-07 to S1-12 are written in
-> ASD-STE100; S1-01 to S1-06 change to STE in the final pass. Issue IDs stay stable during the review; S1-02 is merged into S1-01, and the
-> IDs will be renumbered after all sprints are reviewed.
-
 **Two channels, one trace ID**
 
 | Channel | Carries | Path | If it fails |
 |---|---|---|---|
-| Receiving API (S1-03, S1-04) | The run summary: the official data | GCP job → HTTPS `POST` → monitor → Postgres | Job retries; the run must arrive |
-| OpenTelemetry (S1-06, S1-07) | Timing of each step and the trace ID | GCP job and monitor → OTLP/HTTP → Collector | Data still arrives; the trace has a gap |
+| Receiving API (S1-02, S1-03) | The run summary. This is the official data. | GCP job → HTTPS `POST` → backend → PostgreSQL | The job tries again. The run must arrive. |
+| OpenTelemetry (S1-05, S1-06) | The time of each step, and the trace ID | GCP job and backend → OTLP/HTTP → Collector | The data still arrives. The trace has a gap. |
 
-The GCP job's OTel SDK adds a W3C `traceparent` header to its API call automatically. The
-monitor reads that header, so its spans join the job's trace and the trace ID is saved
-with the stored run.
+The OTel SDK in the GCP job adds a W3C `traceparent` header to its API call. The backend
+reads this header. Thus the backend spans join the trace of the job, and the backend
+stores the trace ID with the run.
 
 **Who does what**
 
 | Track | Issues | Owner |
 |---|---|---|
-| GCP side | S1-01, S1-04, S1-06 part A | GCP job developer |
-| Monitor side | S1-03, S1-06 part B, S1-08 | Backend |
-| Infrastructure | S1-05, S1-07, S1-12 | Platform (firewall and certificates: your team) |
+| GCP side | S1-01, S1-03, S1-05 part A | GCP job developer |
+| Monitor side | S1-02, S1-05 part B, S1-07 | Backend |
+| Infrastructure | S1-04, S1-06, S1-11 | Platform. The firewall and the certificates: your team. |
+| Decisions | S1-08, S1-09 | Security, PM |
 
-Both tracks start Monday using the draft schema from S1-01 and meet on the test host.
+The two tracks start on Monday with the draft schema from S1-01. They meet on the test host.
 
 **Long-lead requests (send in Sprint 1)**
 
-These requests need approval from other teams, and approval can take a long time. Send them
-in Sprint 1, so that the answers arrive before the sprint that needs them.
+These requests need approval from other teams, and the approval can take a long time. Send
+them in Sprint 1, so that the answers arrive before the sprint that needs them.
 
 | Request | Owner | Needed by | If it is not approved in time |
 |---|---|---|---|
 | DNS name and certificate for the AWS production stack | Your team + network team | S4-01 (26 October) | Use the IP address and a private CA certificate, as on the test host |
-| Production AWS Kubernetes cluster, its owner and access | Platform | S4-01 (26 October) | Report the result as a pilot on the test environment. Do not report an AWS production release. |
+| Production AWS Kubernetes cluster, its owner and access | Platform | S4-01 (26 October) | Report the result as a pilot on the test AWS cluster. Do not report a production release. |
 | Amazon RDS for PostgreSQL 17 and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
 | Test AWS Kubernetes cluster (not production) and access | Your team | S3-06 (19 October) | Test the S3-06 files on a disposable local cluster (kind) only |
 
@@ -155,212 +153,215 @@ in Sprint 1, so that the answers arrive before the sprint that needs them.
 
 | Feature | Tested with | The test proves | Environment |
 |---|---|---|---|
-| S1-04 GCP sender | S1-03 receiving API | A real run summary from GCP lands as one row in monitor Postgres | Test host |
-| S1-06 part A, GCP OTel | S1-07 Collector | The job's spans reach the Collector | Test host |
-| S1-06 part B, monitor OTel | S1-06 part A + S1-07 | The monitor's span has the same trace ID as the job's root span | Test host |
-| S1-08 trace check tool | S1-06 + S1-07 | One command shows the same trace ID in the database and in the Collector output | Local stack, then test host |
+| S1-03 GCP sender | S1-02 receiving API | A real run summary from GCP is stored as one row in PostgreSQL | Test host |
+| S1-05 part A, GCP OTel | S1-06 Collector | The spans of the job arrive in the Collector | Test host |
+| S1-05 part B, backend OTel | S1-05 part A + S1-06 | The backend span has the same trace ID as the root span of the job | Test host |
+| S1-07 trace check tool | S1-05 + S1-06 | One command finds the same trace ID in the database and in the Collector output | Local stack, then test host |
 
-### S1-01 — Map one GCP job and write JSON body v1
+### S1-01 — Map one GCP job and write the JSON body v1
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 1.1 + 1.2 | GCP job developer; backend reviews and approves | — | S1-04 (a real body validates) | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | GCP job developer. Backend reviews and approves. | — | S1-03 (a real body agrees with the schema) | M |
 
 **What:** The GCP job developer maps one job to the record fields of the
-[standard](llm-metrics-standard.md) and writes the JSON Schema for the run summary, with
-example bodies. The schema lives in this repository because the monitor validates every
-request against it, so backend reviews and approves it. There is no separate mapping
-table: each field's description in the schema says where its value comes from in the job.
+[standard](llm-metrics-standard.md). Then the developer writes the JSON Schema of the run
+summary, with example bodies. The schema is kept in this repository, because the backend
+examines each request with it. Thus backend reviews and approves the schema. There is no
+separate mapping table. The description of each field in the schema tells where its value
+comes from in the job.
 
-Questions the developer answers in the schema or the pull request:
-- Where is the "results published" point (file and function)? The send step goes after it.
-- Which part of the prompt is the instruction (`question`) and which is source material (`retrieval_context`)?
-- How does a refusal or safety block show up (`refused`)?
-- Does the job use the Gemini Batch API (`latency_s` is `null`) or online calls?
-- Where can PII appear? The redaction in S1-04 covers those places.
-- When the job fails, what does it log today, and can it still send a run summary with status `failed`?
+The developer answers these questions in the schema or in the pull request:
+- Where does the job publish the results (file and function)? The send step comes after this point.
+- Which part of the prompt is the instruction (`question`)? Which part is the source material (`retrieval_context`)?
+- How does the job show a refusal or a safety block (`refused`)?
+- Does the job use the Gemini Batch API (then `latency_s` is `null`) or online calls?
+- Where can PII occur? The redaction in S1-03 must cover these locations.
+- When the job fails, what does it log now? Can it still send a run summary with `status: failed`?
 
 **Acceptance criteria**
-- [ ] Schema file and 4 examples committed: normal run, partial failure, Batch API run with `latency_s` null, and an identity-only run (S1-04). Synthetic text only.
-- [ ] The schema accepts `records: []` with the reason `records_not_approved`. This is the identity-only mode.
-- [ ] Every field has a description that includes its source in the job; required and optional fields are explicit; unknown fields are rejected.
-- [ ] Free text only in `question`, `answer`, `retrieval_context` and `tool_calls`; no customer ID field.
-- [ ] No trace field in the body: the trace ID travels in the `traceparent` HTTP header (S1-06).
-- [ ] Logging agreed with the GCP developer: the job writes a log entry when the job fails and when sending to the monitor fails, and the monitor team can read those logs (access or export) during the pilot.
-- [ ] Reviewed by backend, RAI and security (S1-09).
+- [ ] The schema file and 4 examples are in the repository: a normal run, a partial failure, a Batch API run with `latency_s` set to `null`, and an identity-only run (S1-03). The examples use synthetic text only.
+- [ ] The schema accepts `records: []` with `records_reason: records_not_approved`. This is the identity-only mode.
+- [ ] Each field has a description that tells its source in the job. The required fields and the optional fields are clear. The schema rejects unknown fields.
+- [ ] Free text is allowed only in `question`, `answer`, `retrieval_context` and `tool_calls`. The schema has no customer ID field.
+- [ ] The body has no trace field. The trace ID goes in the `traceparent` HTTP header (S1-05).
+- [ ] The logs are agreed with the GCP developer: the job writes a log entry when the job fails and when a send to the monitor fails. The monitor team can read these logs during the pilot.
+- [ ] Backend, RAI and security (S1-08) reviewed the schema.
 
 **How to test**
-1. Unit: `pytest` validates every example against the schema; a broken example (missing `run_id`, wrong type, unknown field) fails.
-2. Paired with S1-04: a body built from a real run validates against the schema.
+1. Unit: `pytest` examines each example with the schema. Make sure that a wrong example (no `run_id`, a wrong type, an unknown field) fails.
+2. Paired with S1-03: build a body from a real run. Make sure that it agrees with the schema.
 
-### S1-02 — Merged into S1-01
+### S1-02 — Receiving API `POST /api/batch/runs` with API key
 
-The JSON body work is now part of S1-01, owned by the GCP job developer.
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | S1-01 (the draft schema is sufficient to start) | S1-03 | L |
 
-### S1-03 — Receiving API `POST /api/batch/runs` with API key
+**What:** Add an endpoint that examines the API key, examines the run summary with the
+S1-01 schema, and stores the run one time in a new table `batch_runs`. Add the table with an
+additive migration in `backend/app/db.py`. A stored row never changes. The trace ID comes
+from the `traceparent` header through the OTel context (S1-05 part B). The backend stores it
+with the row.
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 1.3 | Backend | S1-01 (draft schema is enough to start) | S1-04 | L |
+**Authentication: a static API key now**
 
-**What:** Add an endpoint that checks an API key, validates the run summary against the
-S1-01 schema, and stores it once in a new `batch_runs` table (additive migration in
-`backend/app/db.py`). A stored row is never edited. The trace ID comes from the
-`traceparent` header through the OTel context (S1-06 part B) and is saved with the row.
-
-**Authentication: static API key now, Google identity token later**
-
-There is no VPN between GCP and AWS yet, so the request crosses the internet. Three layers
-protect it:
+There is no VPN between GCP and AWS yet. Thus the request goes across the internet. Three
+layers protect it:
 
 | Layer | How | Owner |
 |---|---|---|
-| API key | `Authorization: Bearer <key>`. A random key of at least 32 bytes for this use case. The GCP job reads it from Secret Manager. The monitor stores only its SHA-256 hash and compares in constant time. | Backend + GCP developer |
-| Encryption | HTTPS only, so the key is never visible on the network (S1-05) | Platform |
-| Network | Firewall allows only the GCP job's egress IP, for example a Cloud NAT static IP (S1-05) | Your team |
+| API key | `Authorization: Bearer <key>`. A random key of at least 32 bytes for this use case. The GCP job reads it from Secret Manager. The backend stores only its SHA-256 hash and compares in constant time. | Backend + GCP developer |
+| Encryption | HTTPS only, so that the key is never visible on the network (S1-04) | Platform |
+| Network | The firewall allows only the egress IP of the GCP job, for example a Cloud NAT static IP (S1-04) | Your team |
 
-Options considered:
+Other options:
 
-| Option | Shared secret | Effort | Decision |
+| Option | Shared secret | Work | Decision |
 |---|---|---|---|
-| Static API key + HTTPS + IP allowlist | Yes | Low; same pattern as the monitor's existing tokens | **Sprint 1** |
-| Google service-account ID token (OIDC): the job gets a Google-signed token; the monitor checks the signature and the service-account email | No | Medium; needs the `google-auth` package (plan entry) | Not in October. Only if security requires it (S1-09). |
-| Mutual TLS | No | High; a client certificate for every job | Not planned |
-| VPN or private link | — | Depends on network team | Not available yet |
+| Static API key + HTTPS + IP allowlist | Yes | Low. The same method as the existing tokens of the monitor. | **Selected** |
+| Google service-account identity token: the job gets a token that Google signs. The backend examines the signature and the service-account email. | No | Medium. It needs the `google-auth` package. | Not in October. Only if security requires it (S1-08). |
+| Mutual TLS | No | High. Each job needs a client certificate. | Not planned |
+| VPN or private link | — | Depends on the network team | Not available yet |
 
 **Acceptance criteria**
-- [ ] Valid body with a valid key: `201`, one row stored.
-- [ ] Same body sent again: `200`, still one row.
-- [ ] Same `(use_case_id, run_id)` with different content: `409`, original row unchanged.
-- [ ] Invalid body: `400` with field errors; nothing stored. This includes unknown fields, a missing record field, `latency_s` of `0`, and more records than the sample size allows.
-- [ ] Missing or wrong key: `401`; nothing stored; the key and the body are never logged.
-- [ ] Records stored inside the run exactly as received; `record_id` kept for the evaluator.
-- [ ] An identity-only body (`records: []`, reason `records_not_approved`) is stored. Later, all five metrics for this run show "Unknown" with this reason, because they all come from the records.
-- [ ] Existing v1.1 live tests still pass; demo-mode routes unaffected.
+- [ ] A correct body with a correct key: `201`. One row is stored.
+- [ ] The same body again: `200`. There is still one row.
+- [ ] The same `(use_case_id, run_id)` with different content: `409`. The first row does not change.
+- [ ] A wrong body: `400` with the field errors. Nothing is stored. This includes an unknown field, a missing record field, `latency_s` set to `0`, and more records than the sample size allows.
+- [ ] No key or a wrong key: `401`. Nothing is stored. The key and the body are never written to a log.
+- [ ] The records are stored in the run as they arrived. The backend keeps `record_id` for the evaluator.
+- [ ] An identity-only body (`records: []`, reason `records_not_approved`) is stored. Later, all five metrics of this run show "Unknown" with this reason, because they all come from the records.
 
 **How to test**
-1. Unit and integration: `pytest` covers each criterion above using the S1-01 examples.
+1. Unit and integration: `pytest` for each acceptance criterion, with the S1-01 examples.
 2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
-3. Paired with S1-04: a real GCP job sends to the test host; check one row exists for that `run_id`.
+3. Paired with S1-03: a real GCP job sends to the test host. Make sure that one row exists for its `run_id`.
 
-### S1-04 — GCP job sends the run summary after publishing
+### S1-03 — GCP job sends the run summary after it publishes
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 1.4 | GCP job developer | Build: S1-01. End-to-end test: S1-03 and S1-05 | S1-03 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | GCP job developer | To build: S1-01. To test from start to end: S1-02 and S1-04. | S1-02 | M |
 
-**What:** This is a feature in the GCP job's code, not a test step. Add a step after publish
-that picks a uniform random sample of records (default 50), replaces phone numbers, emails
-and national IDs with `[PHONE]`, `[EMAIL]` and `[NATIONAL_ID]`, builds the run summary and
-sends it with the API key from Secret Manager. Retry with backoff on network errors and
-`5xx`. A send failure must not fail the business job.
+**What:** This is a feature in the code of the GCP job. It is not a test step. Add a step
+after the publish step. The step does these actions:
+1. It selects a uniform random sample of records (default 50).
+2. It replaces phone numbers, email addresses and national ID numbers with `[PHONE]`, `[EMAIL]` and `[NATIONAL_ID]`.
+3. It builds the run summary.
+4. It sends the run summary with the API key from Secret Manager.
+5. It tries again with a delay after a network error or a `5xx` response.
 
-**Identity-only mode (decided 2026-10-03).** A setting `SEND_RECORDS` controls the
-records. Until security approves (S1-09), the setting is off. Then the job sends only the
-run identity, with `records: []` and the reason `records_not_approved`. No text leaves GCP.
-With this mode, the team can test the send step, the API key, the retries and OTel from
-6 October. When security approves, set `SEND_RECORDS` to on. No code change is necessary.
+A failed send must not stop the business job.
 
-The developer can build and unit test it from Monday with the S1-01 schema and a fake
-server. Only the end-to-end test waits for the real API (S1-03) on the test host (S1-05).
+**Identity-only mode.** The setting `SEND_RECORDS` controls the records. Until security
+approves (S1-08), the setting is off. Then the job sends only the run identity, with
+`records: []` and the reason `records_not_approved`. No text leaves GCP. With this mode, the
+team can test the send step, the API key, the retries and OTel from 6 October. When security
+approves, set `SEND_RECORDS` to on. No code change is necessary.
+
+The developer can build and unit test the step from Monday with the S1-01 schema and a fake
+server. Only the test from start to end waits for the API (S1-02) on the test host (S1-04).
 
 **Acceptance criteria**
-- [ ] The step runs only after publish succeeds.
-- [ ] Retries on timeouts and `5xx`; no retry on `400`, `401` or `409`.
-- [ ] The job finishes successfully even when the monitor is unreachable.
-- [ ] Every failed send writes a log entry with `run_id`, HTTP status or error type, and attempt number; never the key or the body.
-- [ ] A failed job writes a log entry, and sends a `failed` run summary if S1-01 agreed it can.
-- [ ] Sample size follows the setting; a run smaller than the sample sends every request.
-- [ ] No raw phone number, email or national ID in the body.
-- [ ] With `SEND_RECORDS` off, the body has `records: []` and the reason `records_not_approved`. The default is off.
-- [ ] HTTPS certificate is verified. With a private or self-signed certificate (S1-05), the job trusts that CA file; it never turns verification off.
+- [ ] The step runs only after the publish step is successful.
+- [ ] The step tries again after a timeout or a `5xx`. It does not try again after `400`, `401` or `409`.
+- [ ] The job ends successfully also when the monitor is not available.
+- [ ] Each failed send writes a log entry with `run_id`, the HTTP status or the error type, and the attempt number. The log entry never contains the key or the body.
+- [ ] A failed job writes a log entry. It sends a run summary with `status: failed` if S1-01 agreed that it can.
+- [ ] The sample size follows the setting. A run that is smaller than the sample sends all its requests.
+- [ ] The body contains no raw phone number, email address or national ID number.
+- [ ] When `SEND_RECORDS` is off, the body has `records: []` and the reason `records_not_approved`. The default is off.
+- [ ] The job verifies the HTTPS certificate. With a private CA (S1-04), the job trusts that CA file. It never turns the verification off.
 
 **How to test**
-1. Unit (GCP repo): the body validates against the S1-01 schema; synthetic PII becomes placeholders; sample size is respected; the sender retries on a fake `503`, stops on `400`, and logs each failure.
-2. Paired with S1-03 on the test host: run the job in the GCP dev project. Expected: the job log shows `201`, and the monitor database has one `batch_runs` row with the same `run_id`. Run it again: `200`, still one row.
-3. Failure check: point the job at a wrong URL; the job still succeeds, and Cloud Logging shows the failed-send entries.
-4. Identity-only check: with `SEND_RECORDS` off, run the job. Make sure that the stored run has no records and has the reason `records_not_approved`.
+1. Unit (GCP repository): make sure that the body agrees with the S1-01 schema, that synthetic PII becomes placeholders, and that the sample size is correct. Make sure that the sender tries again after a fake `503`, stops after `400`, and logs each failure.
+2. Paired with S1-02 on the test host: run the job in the GCP dev project. Make sure that the job log shows `201`, and that `batch_runs` has one row with the same `run_id`. Run the job again. Make sure that the log shows `200` and that there is still one row.
+3. Failure test: give the job a wrong URL. Make sure that the job ends successfully and that Cloud Logging shows the failed sends.
+4. Identity-only test: set `SEND_RECORDS` to off and run the job. Make sure that the stored run has no records and has the reason `records_not_approved`.
 
-### S1-05 — Deploy the monitor backend to a test host reachable from GCP
+### S1-04 — Deploy the monitor backend to a test host that GCP can reach
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | Deadline Tue Oct 6 | Platform | Prerequisites below | S1-04 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform | The prerequisites below. Due Tuesday 6 October. | S1-03 | M |
 
-**What:** Deploy the monitor backend, its database and the Collector (S1-07) on a test host
-the GCP dev project can reach.
+**What:** Install the monitor backend, its database and the Collector (S1-06) on a test host
+that the GCP dev project can reach.
 
 **Prerequisites (ask the network team first)**
 
-| Question | Why it matters | Owner |
+| Question | Why it is important | Owner |
 |---|---|---|
-| Where does the test host run (AWS account, VM or other)? | Decides firewall and certificate options | Your team |
-| How is traffic between GCP and that host allowed today? | No VPN yet; requests cross the internet | Network team |
-| Can port `443` open for one front door (S1-07)? The front door serves both the API and the Collector | GCP spans and API calls both need a path; one port, one certificate, one allowlist | Network team |
-| What is the GCP job's egress IP (for example Cloud NAT static IP)? | Firewall allowlist (S1-03 network layer) | GCP developer |
-| Public DNS name for the host? | Needed for a public certificate | Your team |
-| Certificate: public CA or private / self-signed? | See below | Your team |
+| Where does the test host run (AWS account, server or other)? | It decides the firewall and the certificate options | Your team |
+| How does the network allow traffic between GCP and the host now? | There is no VPN yet. The requests go across the internet. | Network team |
+| Can port `443` open for one front door (S1-06)? | The API and the Collector both use it. One port, one certificate, one allowlist. | Network team |
+| What is the egress IP of the GCP job, for example a Cloud NAT static IP? | The firewall allowlist (S1-02) | GCP developer |
+| Is there a public DNS name for the host? | A public certificate needs it | Your team |
+| Do we use a public CA certificate, or a private or self-signed certificate? | See the table below | Your team |
 
-**Certificate options — both are real HTTPS**
+**Certificate options. Both give real HTTPS.**
 
-| Option | Needs | GCP job side |
+| Option | Needs | On the GCP job |
 |---|---|---|
-| Public CA (for example Let's Encrypt or AWS Certificate Manager) | A public DNS name and a way to prove ownership (DNS or HTTP challenge) | Nothing; trusted by default |
-| Private CA or self-signed | Nothing public; we create and rotate the certificate | Job trusts our CA file (S1-04); verification stays on |
+| Public CA (for example Let's Encrypt or AWS Certificate Manager) | A public DNS name, and a method to prove that you own it | Nothing. The job trusts it by default. |
+| Private CA or self-signed | Nothing public. We make the certificate and replace it before it expires. | The job trusts our CA file (S1-03). The verification stays on. |
 
-Plain HTTP is not allowed: the API key would travel unencrypted.
+Plain HTTP is not allowed, because the API key would go across the network without encryption.
 
 **Acceptance criteria**
-- [ ] Prerequisites answered and recorded in this issue.
-- [ ] Monitor backend, Postgres and Collector running on the test host.
-- [ ] HTTPS on the API (public or private CA); plain HTTP refused.
-- [ ] Only the GCP egress IP can reach the API and the OTLP endpoint; the database port is closed to the internet.
-- [ ] API key and other secrets stored as host secrets, not in the repository.
+- [ ] The answers to the prerequisites are in this issue.
+- [ ] The monitor backend, PostgreSQL and the Collector run on the test host.
+- [ ] The API uses HTTPS (public or private CA). Plain HTTP is refused.
+- [ ] Only the GCP egress IP can reach the API and the OTLP endpoint. The database port is closed to the internet.
+- [ ] The API key and the other secrets are host secrets. They are not in the repository.
 
 **How to test**
-1. From the GCP dev project: `curl https://<test-host>/api/health` returns `200` (with `--cacert` for a private CA).
-2. From an IP that is not allowlisted: the connection is refused.
+1. From the GCP dev project: `curl https://<test-host>/api/health` returns `200`. Use `--cacert` for a private CA.
+2. From an IP that is not on the allowlist: the connection is refused.
 3. `POST /api/batch/runs` without a key returns `401`.
-4. Port scan from outside shows only the agreed ports.
-5. Fallback if late: the GCP developer saves a real body to a file and we replay it into the local stack; record that real delivery was not tested.
+4. A port scan from the internet shows only the agreed ports.
+5. If the host is late: the GCP developer saves a real body to a file. We send it to the local stack and record that the real delivery was not tested.
 
-### S1-06 — OTel in the GCP job and the monitor: one trace per run
+### S1-05 — OTel in the GCP job and the backend: one trace for each run
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 1.8 | Part A: GCP job developer. Part B: backend | S1-04 (A), S1-03 (B), package entries in the Sprint 1 spec | S1-07 | M + M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Part A: GCP job developer. Part B: backend. | Part A: S1-03. Part B: S1-02. The OTel packages are approved in the Sprint 1 spec. | S1-06 | M + M |
 
-**What:** Add the OpenTelemetry SDK on both sides so one batch run is one trace.
+**What:** Add the OpenTelemetry SDK on the two sides, so that one batch run is one trace.
 
 | Step | Where | What happens |
 |---|---|---|
 | 1 | GCP job (part A) | Start a root span `batch.run` with `use_case_id` and `run_id` |
-| 2 | GCP job (part A) | Child spans `batch.submit`, `batch.harvest`, `batch.publish`, `batch.send` |
-| 3 | GCP job (part A) | The API call uses an OTel-instrumented HTTP client, which adds the `traceparent` header automatically |
-| 4 | Monitor (part B) | FastAPI instrumentation reads the header; the `monitor.ingest` span becomes a child of the job's `batch.send` span |
-| 5 | Monitor (part B) | The trace ID is saved in the `batch_runs` row |
-| 6 | Both | Spans are exported over OTLP/HTTP to the Collector (S1-07) |
+| 2 | GCP job (part A) | Make the child spans `batch.submit`, `batch.harvest`, `batch.publish` and `batch.send` |
+| 3 | GCP job (part A) | Call the API with an HTTP client that has OTel instrumentation. The client adds the `traceparent` header. |
+| 4 | Backend (part B) | The FastAPI instrumentation reads the header. The `monitor.ingest` span becomes a child of the `batch.send` span of the job. |
+| 5 | Backend (part B) | The backend stores the trace ID in the `batch_runs` row |
+| 6 | Both | The spans go over OTLP/HTTP to the Collector (S1-06) |
 
-Gemini call spans, token counts and the attribute allowlist come in Sprint 2 (S2-04).
+Text in spans: GCP spans contain no text. Backend spans can contain the redacted record
+text that the API accepted (the `monitor.evaluate` span in S2-05). The `monitor.ingest` span
+contains no body content. The token spans and the attribute allowlist come in S2-04.
 
 **Acceptance criteria**
-- [ ] Part A: one trace per run; `batch.send` is the parent of the HTTP client span; the request carries `traceparent`.
-- [ ] Part B: `monitor.ingest` has the same trace ID as the job's root span; the `batch_runs` row stores that trace ID.
-- [ ] A request without `traceparent` starts a new trace on the monitor, and its ID is stored.
-- [ ] Spans carry IDs and status only (`use_case_id`, `run_id`, result); no text from the body.
-- [ ] If the Collector is unreachable, the job and the API still work; the job logs the export failure.
+- [ ] Part A: one trace for each run. `batch.send` is the parent of the HTTP client span. The request has a `traceparent` header.
+- [ ] Part B: `monitor.ingest` has the same trace ID as the root span of the job. The `batch_runs` row stores this trace ID.
+- [ ] A request without `traceparent` starts a new trace in the backend. The backend stores its ID.
+- [ ] The spans contain only IDs and the status (`use_case_id`, `run_id`, result). They contain no text from the body.
+- [ ] If the Collector is not available, the job and the API continue to work. The job logs the failed export.
 
 **How to test**
-1. Unit, part A (GCP repo): in-memory span exporter; check span names, parent links, and that the outgoing request has a `traceparent` header.
-2. Unit, part B (monitor): send a request with a known `traceparent`; check the span's trace ID and parent, and the stored trace ID.
-3. Paired with S1-07 on the test host: run the job; find the job's spans and the monitor's span with the same trace ID in the Collector output; run `scripts/check_trace.py <trace_id>`.
-4. Fallback if GCP cannot reach the Collector yet: the job exports spans to Cloud Logging; the trace still links because the header reaches the monitor.
+1. Unit, part A (GCP repository): use an in-memory span exporter. Make sure that the span names and the parent links are correct, and that the request has a `traceparent` header.
+2. Unit, part B (backend): send a request with a known `traceparent`. Make sure that the trace ID and the parent of the span are correct, and that the stored trace ID is correct.
+3. Paired with S1-06 on the test host: run the job. Make sure that the spans of the job and the backend span have the same trace ID in the Collector output. Run `scripts/check_trace.py <trace_id>`.
+4. If GCP cannot reach the Collector yet: the job sends its spans to Cloud Logging. The trace is still connected, because the header arrives at the backend.
 
-### S1-07 — Minimal OTel Collector and front door (local stack and test host)
+### S1-06 — Minimal OTel Collector and front door (local stack and test host)
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | 1.9 | Platform | Local: none. Test host: S1-05 | S1-06 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform | Local: none. Test host: S1-04 | S1-05 | M |
 
 **What:** Add the OTel Collector to Docker Compose. Use the contrib image with a fixed
 version. The Collector receives spans on OTLP/HTTP. It writes the spans to the `debug`
@@ -375,7 +376,10 @@ Collector:
 | `https://<host>/otlp/*` | Collector | GCP job | OTLP token, IP allowlist |
 | Private network inside the host | Collector | Backend | Not open to the internet |
 
-The firewall opens only port 443. The front door has one certificate (S1-05).
+The firewall opens only port 443. The front door has one certificate (S1-04).
+From Sprint 2, the same front door also serves the staff: the dashboard on port 8443 and
+Langfuse on port 3443, with a separate allowlist for the office or VPN IPs (Sprint 2
+prerequisites).
 
 **Acceptance criteria**
 - [ ] `docker compose up` starts the Collector with a health check.
@@ -392,13 +396,13 @@ The firewall opens only port 443. The front door has one certificate (S1-05).
 2. Test host, from the GCP dev project: send test spans to `https://<host>/otlp/v1/traces` with the token. Make sure that the file output contains them.
 3. Send spans without the token. Make sure that they are rejected.
 4. Send a request from an IP that is not on the allowlist. Make sure that the connection is refused.
-5. Paired with S1-06: see the test steps in S1-06.
+5. Paired with S1-05: see the test steps in S1-05.
 
-### S1-08 — Trace check tool
+### S1-07 — Trace check tool
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 1.10 | Backend | S1-03, S1-06 part B, S1-07, S1-12 | S1-06 + S1-07 | S |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | S1-02, S1-05 part B, S1-06, S1-11 | S1-05 + S1-06 | S |
 
 **What:** Write the script `scripts/check_trace.py <trace_id>`. The script shows the result
 for each item:
@@ -412,7 +416,7 @@ for each item:
 | Langfuse trace and score | Langfuse API | Added in S2-03 |
 
 Run the script on the host where the stack runs. The script uses the read-only database
-account from S1-12. It is a tool for developers and operators. It is not part of the
+account from S1-11. It is a tool for developers and operators. It is not part of the
 product.
 
 **Acceptance criteria**
@@ -422,15 +426,15 @@ product.
 - [ ] The script only reads. It does not change the database or the files.
 
 **How to test**
-1. Paired with S1-06 and S1-07: send one example request with a known `traceparent`. Run the script with this trace ID. Make sure that the run row and the monitor span are "found".
+1. Paired with S1-05 and S1-06: send one example request with a known `traceparent`. Run the script with this trace ID. Make sure that the run row and the monitor span are "found".
 2. On the test host, run the GCP job. Run the script with the trace ID of the run. Make sure that all four items are "found".
 3. Run the script with a random trace ID. Make sure that all items are "missing" and the exit code is not zero.
 
-### S1-09 — Security approval for the Sprint 1 data flow
+### S1-08 — Security approval for the Sprint 1 data flow
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Decision | 1.5 | Security + platform | S1-01 | — | S |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Decision | Security + platform | S1-01 | — | S |
 
 **What:** Get written approval for all the data that Sprint 1 sends between the clouds.
 
@@ -446,15 +450,15 @@ Security must approve these items:
 
 | Item | Issue |
 |---|---|
-| Redacted records leave GCP. They go to the monitor, the Claude judge (Anthropic API) and Langfuse. | S1-01, S1-04 |
-| The list of PII types that the job replaces with placeholders | S1-04 |
-| The retention period for stored records | S1-03 |
-| An API key on the internet without a VPN, with an IP allowlist | S1-03, S1-05 |
-| The certificate type (public CA or private CA) | S1-05 |
-| The OTLP endpoint that GCP can reach through the front door | S1-07 |
-| Real redacted data on the test host | S1-05 |
+| Redacted records leave GCP. They go to the monitor, the Claude judge (Anthropic API) and Langfuse. | S1-01, S1-03 |
+| The list of PII types that the job replaces with placeholders | S1-03 |
+| The retention period for stored records | S1-02 |
+| An API key on the internet without a VPN, with an IP allowlist | S1-02, S1-04 |
+| The certificate type (public CA or private CA) | S1-04 |
+| The OTLP endpoint that GCP can reach through the front door | S1-06 |
+| Real redacted data on the test host | S1-04 |
 | Read access to GCP Cloud Logging for the monitor team | S1-01 |
-| Database accounts, and who can read real data | S1-12 |
+| Database accounts, and who can read real data | S1-11 |
 
 **Acceptance criteria**
 - [ ] Each item in the table is approved in writing, or blocked with an owner and a date.
@@ -464,14 +468,14 @@ Security must approve these items:
 **How to test**
 1. Link the approval in this issue.
 2. Compare the S1-01 schema with the approved fields, one field at a time.
-3. Compare the S1-04 placeholder list with the approved PII types.
+3. Compare the S1-03 placeholder list with the approved PII types.
 4. If the approval is not complete by 8 October, the job does not send records. All five metrics show "Unknown".
 
-### S1-10 — Inventory of the 10 use cases and October run dates
+### S1-09 — Inventory of the 10 use cases and October run dates
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Discovery | 1.7 | PM + source owners | — | — | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Discovery | PM + source owners | — | — | M |
 
 **What:** Make one table with one row for each of the 10 GCP use cases. Sprints 2, 3 and 4
 use this table to select the order of the use cases. The due date is Friday 9 October.
@@ -482,12 +486,12 @@ use this table to select the order of the use cases. The due date is Friday 9 Oc
 | Owner | The person who confirms that a run is real |
 | GCP job and repository | The location of the code that sends the data |
 | Developer of the job | The person who adds the send step and OTel. This person can be different for each job. |
-| GCP project and egress IP | The firewall allows only known IP addresses (S1-05). Each project can have a different IP. |
+| GCP project and egress IP | The firewall allows only known IP addresses (S1-04). Each project can have a different IP. |
 | October run dates | The dates when a real run can arrive. If a job does not run in October, book a controlled rerun. |
 | Batch API or online calls | With the Batch API, `latency_s` is `null` |
 | Approximate number of requests in each run | This number sets the sample size and the judge cost |
 | Language: Thai, English or mixed | RAI must know the language that the judge examines |
-| Data sensitivity | Security uses this for the approval (S1-09) |
+| Data sensitivity | Security uses this for the approval (S1-08) |
 | Owner of the task description | The person who writes the task description for the judge, with RAI |
 
 **Acceptance criteria**
@@ -498,20 +502,20 @@ use this table to select the order of the use cases. The due date is Friday 9 Oc
 
 **How to test**
 1. Each owner confirms their row in the issue comments.
-2. Platform adds all the egress IPs to the allowlist plan (S1-05).
+2. Platform adds all the egress IPs to the allowlist plan (S1-04).
 
 **Risk:** The team examined only 6 pipelines in 4 repositories. If the table has fewer
 than 10 real jobs on 9 October, change the October goal and tell the project owner.
 
-### S1-11 — First real run end to end
+### S1-10 — First real run end to end
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Verification | 1.6 | Backend + GCP job developer | S1-01, S1-03, S1-04, S1-05, S1-06, S1-07, S1-08, S1-12 | S1-08 (trace check tool) | S |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | Backend + GCP job developer | S1-01, S1-02, S1-03, S1-04, S1-05, S1-06, S1-07, S1-11 | S1-07 (trace check tool) | S |
 
 **What:** This is the Sprint 1 demo. One real GCP job does one real run. Show that the data
-and the trace arrived. Use the S1-08 tool to show the result. Sprint 1 has no read API.
-The read API for the dashboard comes in S2-08.
+and the trace arrived. Use the S1-07 tool to show the result. Sprint 1 has no read API.
+The read API for the dashboard comes in S2-07.
 
 **Acceptance criteria**
 - [ ] The source owner confirms that the run was a real published run.
@@ -527,11 +531,11 @@ The read API for the dashboard comes in S2-08.
 3. Run `scripts/check_trace.py <trace_id>` on the test host. Make sure that all four items are "found".
 4. Attach the output of the tool to this issue. Do not attach secrets or record text.
 
-### S1-12 — Database accounts for the backend and the developers
+### S1-11 — Database accounts for the backend and the developers
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | New (1.11) | Platform + backend | S1-05 | S1-03, S1-08 | S |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform + backend | S1-04 | S1-02, S1-07 | S |
 
 **What:** Make database accounts on the test host. Do not use one shared administrator
 account.
@@ -539,7 +543,7 @@ account.
 | Account | Type | Used by | Permissions |
 |---|---|---|---|
 | `monitor_app` | Bot | The backend service | Owns the monitor schema. Reads and writes the monitor tables. Runs the migrations when the backend starts, as the backend does now. |
-| `monitor_readonly` | Bot | The S1-08 tool and other checks | Reads the monitor tables only |
+| `monitor_readonly` | Bot | The S1-07 tool and other checks | Reads the monitor tables only |
 | `dev_<name>` | Person, one for each developer | Developers | Read-only on the test host, because the test host has real redacted data. Full access only on the local stack. |
 | Postgres administrator | Person | Platform only | For emergencies only. The backend and the tools do not use it. |
 
@@ -565,16 +569,13 @@ Rules:
 
 ## Sprint 2 — Oct 12–16: same path for many jobs, plus evaluation and tracing
 
-> Review status (2026-10-03): Sprint 2 review complete. S2-05 is removed. All Sprint 2
-> issues are written in ASD-STE100.
-
-**Sprint 2 prerequisites (answers from 2026-10-03; confirm after S1-05 is complete)**
+**Sprint 2 prerequisites (answers from 2026-10-03; confirm after S1-04 is complete)**
 
 | Question | Answer | Effect |
 |---|---|---|
 | Is the test host large enough for Langfuse? | The test server does not exist yet. Request this size. | See the server size below. |
 | How do the engineers and the RAI team open the dashboard and Langfuse? | Through the IP address and a port. A DNS name comes later. | See the ports below. Use a private CA certificate that contains the IP address. When the DNS name exists, change the certificate and the Langfuse URL setting. |
-| Can the test host send traffic out to the Anthropic API? | Probably yes. If not, the judge uses a local model on an on-premises server. | S2-06 must support a second judge provider. RAI must examine the local judge before use. |
+| Can the test host send traffic out to the Anthropic API? | Probably yes. If not, the judge uses a local model on an on-premises server. | S2-05 must support a second judge provider. RAI must examine the local judge before use. |
 
 Server size for the test host:
 
@@ -593,7 +594,7 @@ Ports on the test host (until a DNS name exists):
 | 443 | Front door: `/api/*` and `/otlp/*` | GCP jobs | GCP egress IPs |
 | 8443 | Monitor dashboard | RAI team, engineers | Office or VPN IPs |
 | 3443 | Langfuse UI | Engineers only | Office or VPN IPs of the engineers |
-| None | PostgreSQL, ClickHouse, Redis, MinIO | — | Closed to the network. Developers use SSH (S1-12). |
+| None | PostgreSQL, ClickHouse, Redis, MinIO | — | Closed to the network. Developers use SSH (S1-11). |
 
 Langfuse uses its own port because it does not work easily under a URL path.
 
@@ -602,14 +603,14 @@ Langfuse uses its own port because it does not work easily under a URL path.
 | Feature | Tested with | The test proves | Environment |
 |---|---|---|---|
 | S2-04 GCP OTel helper | S2-03 Collector → Langfuse | The job's spans flow through the Collector into Langfuse, and the run summary lands in monitor Postgres, all with one trace ID | Local stack, then test host |
-| S2-06 batch evaluator | S2-03 Collector → Langfuse | The run scores and the record scores appear on the run's trace in Langfuse | Local stack |
-| S2-01 registry | S2-07 onboarding | Each real job can write only its own use case | Test host |
+| S2-05 batch evaluator | S2-03 Collector → Langfuse | The run scores and the record scores appear on the run's trace in Langfuse | Local stack |
+| S2-01 registry | S2-06 onboarding | Each real job can write only its own use case | Test host |
 
 ### S2-01 — Source registry: YAML settings and API key hashes
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 2.1 | Backend + platform | S1-03, S1-12 | S2-07 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend + platform | S1-02, S1-11 | S2-06 | M |
 
 **What:** Make a registry of the batch use cases in two parts. This follows the YAML
 registry in section 15 of the [monitoring contract](../../docs/MONITORING-CONTRACT.md).
@@ -648,7 +649,7 @@ How a request is accepted:
 **Key rotation:** The monitor accepts two active keys for one use case. Make the new key,
 put it in Secret Manager, wait for one successful run, then remove the old key.
 
-**OTLP token:** All GCP jobs use one OTLP token (S1-07). The Collector cannot connect a
+**OTLP token:** All GCP jobs use one OTLP token (S1-06). The Collector cannot connect a
 token to a use case. Spans are not used for grades, so this risk is low.
 
 **Acceptance criteria**
@@ -664,13 +665,13 @@ token to a use case. Spans are not used for grades, so this risk is low.
 **How to test**
 1. Unit and integration: `pytest` for each acceptance criterion.
 2. Load a YAML file with an error. Make sure that the monitor does not start.
-3. Paired with S2-07: each onboarded job sends with its own key and the request is accepted. Change the key of one job to the key of another use case. Make sure that the request is rejected.
+3. Paired with S2-06: each onboarded job sends with its own key and the request is accepted. Change the key of one job to the key of another use case. Make sure that the request is rejected.
 
 ### S2-02 — Langfuse SDK v4 in the backend, and package approval
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Decision + Feature | Deadline Mon Oct 12 | Backend + project owner | S1-06 | S2-06 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Decision + Feature | Backend + project owner | S1-05 | S2-05 | M |
 
 **Decision (2026-10-03):** Use the Langfuse Python SDK v4 (`langfuse` 4.x) in the backend.
 The backend uses it for these items:
@@ -678,14 +679,14 @@ The backend uses it for these items:
 - The scores, with `create_score`.
 
 The GCP jobs do not use the Langfuse SDK. They use the OTel SDK and send their spans to the
-Collector (S1-06, S1-07). Thus the Langfuse keys stay in AWS.
+Collector (S1-05, S1-06). Thus the Langfuse keys stay in AWS.
 
 **Facts that affect this issue**
 
 | Fact | Effect |
 |---|---|
 | SDK v4 does not have the v2 functions `trace()` and `score()`. The chatbot store (`backend/app/adapters/llm_eval/stores.py`) uses these functions. | The class `LangfuseCloudStore` is prototype-only code. Remove it in the same pull request, and make the chatbot use only its local store. Do not change it to v4. |
-| SDK v4 needs `opentelemetry-api`, `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`, version 1.45 or later. | S1-06 part B must use the same OTel versions. |
+| SDK v4 needs `opentelemetry-api`, `opentelemetry-sdk` and `opentelemetry-exporter-otlp-proto-http`, version 1.45 or later. | S1-05 part B must use the same OTel versions. |
 | Langfuse released three major SDK versions in three years. v2 is deprecated. | Pin `langfuse>=4.16,<5`. Read the release notes before an upgrade. |
 
 **Acceptance criteria**
@@ -701,16 +702,16 @@ Collector (S1-06, S1-07). Thus the Langfuse keys stay in AWS.
 
 ### S2-03 — Collector exports to self-hosted Langfuse
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | 2.4 | Platform | S1-07, S1-12, Sprint 2 prerequisites | S2-04, S2-06 | L |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform | S1-06, S1-11, Sprint 2 prerequisites | S2-04, S2-05 | L |
 
 **What:** Add self-hosted Langfuse to Docker Compose: Langfuse web, Langfuse worker,
 PostgreSQL, ClickHouse, Redis and S3 storage (MinIO). Use the versions in the
 fixed-versions table. Add an `otlphttp` exporter to the Collector. This exporter sends the
 GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse project keys.
 
-**Prerequisites (answer after S1-05 is complete)**
+**Prerequisites (answer after S1-04 is complete)**
 
 | Question | Owner |
 |---|---|
@@ -718,14 +719,14 @@ GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse p
 | How do the engineers open the Langfuse UI? The front door allows only the GCP IP now. Options: add the office or VPN IP, or use an SSH tunnel. | Network team |
 
 **Rules**
-- Langfuse uses its own PostgreSQL container and account. It does not share the monitor database (S1-12).
+- Langfuse uses its own PostgreSQL container and account. It does not share the monitor database (S1-11).
 - Turn off public sign-up in Langfuse. Make one account for each engineer. Langfuse is for engineers. The RAI team uses the dashboard.
 - The Collector exporter sends the header `x-langfuse-ingestion-version: 4`. Without this header, new data can appear in Langfuse up to 10 minutes late.
-- Set the retention period in Langfuse from S1-09.
+- Set the retention period in Langfuse from S1-08.
 - Keep the Langfuse keys as host secrets. Do not put them in files in git.
-- When this issue works, delete the Sprint 1 file output on the test host (S1-07).
+- When this issue works, delete the Sprint 1 file output on the test host (S1-06).
 
-**Change to S1-08:** The trace check tool reads Langfuse through the Observations API v2.
+**Change to S1-07:** The trace check tool reads Langfuse through the Observations API v2.
 Most other Langfuse read APIs can be up to 10 minutes behind, so the tool would show
 "missing" for a correct trace.
 
@@ -741,22 +742,22 @@ Most other Langfuse read APIs can be up to 10 minutes behind, so the tool would 
 1. Send test spans with `telemetrygen`. Make sure that they appear in Langfuse within one minute.
 2. Run `docker compose restart`. Make sure that the same trace is still in Langfuse.
 3. Open the Langfuse sign-up page without an account. Make sure that sign-up is refused.
-4. Paired with S2-04 and S2-06: see the test steps in those issues.
+4. Paired with S2-04 and S2-05: see the test steps in those issues.
 
 ### S2-04 — OTel helper file for the GCP jobs
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 2.7 | GCP job developer; backend reviews | S1-06 | S2-03 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | GCP job developer; backend reviews | S1-05 | S2-03 | M |
 
-**What:** Move the OTel code from S1-06 part A into one reusable Python file,
+**What:** Move the OTel code from S1-05 part A into one reusable Python file,
 `otel_helper.py`. Add the token data and the attribute allowlist. Use the file in the first
-job. The other jobs get the file in S2-07, S3-01 and S4-03. Each job repository copies the
+job. The other jobs get the file in S2-06, S3-01 and S4-03. Each job repository copies the
 file, because we have no package registry.
 
 | Function | Detail |
 |---|---|
-| Run trace | The root span `batch.run` and the step spans, as in S1-06 |
+| Run trace | The root span `batch.run` and the step spans, as in S1-05 |
 | Token totals, Batch API jobs | Attributes on the `batch.harvest` span: model, input tokens, output tokens |
 | Token data, online jobs | One span for each sampled request only, with model, tokens and the real call time. The totals go on `batch.run`. Select the sample before the calls start, so the same requests get spans and become records. |
 | Attribute names | The OTel GenAI names: `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens` |
@@ -764,7 +765,7 @@ file, because we have no package registry.
 | Export | OTLP/HTTP to the front door (`/otlp/*`) with the OTLP token. If the export fails, the job continues. |
 
 **Acceptance criteria**
-- [ ] One trace for each run, with the step spans from S1-06.
+- [ ] One trace for each run, with the step spans from S1-05.
 - [ ] Batch API jobs: the token totals are on `batch.harvest`.
 - [ ] Online jobs: spans exist only for the sampled requests; the totals are on `batch.run`.
 - [ ] An attribute that is not on the allowlist (for example `prompt`) is dropped. The log shows only its key name.
@@ -778,16 +779,11 @@ file, because we have no package registry.
 3. Paired with S2-03, test host: run the first job in the GCP dev project.
 4. For tests 2 and 3: run `scripts/check_trace.py`. Make sure that Langfuse shows the GCP spans with the token attributes in the same trace as `monitor.ingest`.
 
-### S2-05 — Removed
+### S2-05 — Batch evaluator with the five LLM metrics
 
-The chatbot store is prototype-only code. S2-02 removes the Langfuse v2 part of it. We do not
-change it to SDK v4.
-
-### S2-06 — Batch evaluator with the five LLM metrics
-
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 2.3 | Backend + RAI | S2-01, S2-02, S2-03, task description (Wed 14 October) | S2-03 | L |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend + RAI | S2-01, S2-02, S2-03, task description (Wed 14 October) | S2-03 | L |
 
 **What:** Grade each stored run with the LLM lane of the prototype. Map the records to the
 v1.1 `Trace` shape. Use the Claude judge and the aggregation in
@@ -811,7 +807,7 @@ not wait for the judge. It returns immediately.
 |---|---|---|
 | The five run metrics and the grade | Table `batch_evaluations` | Scores on the trace of the run |
 | The four judge results of each record | Table `batch_record_judgments` | Scores on the observation of that record |
-| The redacted text of each judged record | Already in the stored run (S1-03) | Input and output of the record observation, under `monitor.evaluate` |
+| The redacted text of each judged record | Already in the stored run (S1-02) | Input and output of the record observation, under `monitor.evaluate` |
 
 - The stored run never changes. The evaluation is a separate row.
 - If the task description changes, add a new evaluation row with the new version. Keep the old row.
@@ -875,15 +871,15 @@ problem, and a delivery problem is never shown as an evaluation problem.
 **Risk:** The task description is due Wednesday 14 October. Then only two days remain in
 Sprint 2 for the first graded run.
 
-### S2-07 — Onboard 4 use cases
+### S2-06 — Onboard 4 use cases
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 2.2 | Job developers + backend + platform | S1-10, S2-01, S2-04 | S2-01, S1-08 | L |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Job developers + backend + platform | S1-09, S2-01, S2-04 | S2-01, S1-07 | L |
 
-**What:** Add the send step (S1-04) and the OTel helper file (S2-04) to 4 different jobs.
+**What:** Add the send step (S1-03) and the OTel helper file (S2-04) to 4 different jobs.
 Include one job with a different output shape. Use the order and the developers in the
-S1-10 table.
+S1-09 table.
 
 For each job, do these steps:
 1. Add the use case to the YAML registry (S2-01) in a pull request. Set `mode: identity_only`.
@@ -892,7 +888,7 @@ For each job, do these steps:
 4. The job developer maps the job to the record fields of the [standard](llm-metrics-standard.md), as in S1-01.
 5. The job developer adds the send step and the helper file. The job uses the shared OTLP token. It needs no Langfuse key.
 6. Run the job. If the job does not run between 12 and 16 October, use a controlled rerun.
-7. After S1-09 approves the records, change `mode` to `records` and set `SEND_RECORDS` to on.
+7. After S1-08 approves the records, change `mode` to `records` and set `SEND_RECORDS` to on.
 
 **Acceptance criteria**
 - [ ] 4 real runs arrive. The owner of each use case confirms that the run is real.
@@ -905,11 +901,11 @@ For each job, do these steps:
 2. For each job: examine one stored run. Make sure that the records agree with the schema and contain placeholders, not raw PII.
 3. Record the 4 trace IDs and their five metric values in this issue.
 
-### S2-08 — Dashboard shows the GCP use cases with the current UI
+### S2-07 — Dashboard shows the GCP use cases with the current UI
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 2.5 | Backend | S2-01, S2-06 | S2-07 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | S2-01, S2-05 | S2-06 | M |
 
 **Decision (2026-10-03):** The dashboard shows only the GCP batch use cases. The UI does not
 change. The dashboard shows no record text.
@@ -922,11 +918,11 @@ of the chatbot uses now. The frontend code does not change.
 | UI field | Source for a GCP use case |
 |---|---|
 | Name and owner | YAML registry (S2-01) |
-| Five LLM signals, lanes and grade | `batch_evaluations` (S2-06) |
+| Five LLM signals, lanes and grade | `batch_evaluations` (S2-05) |
 | Freshness | `completed_at` of the latest run |
 | `judge` | The judge identity |
 | `judge_sample` | Always empty. No record text goes to the browser. |
-| Errors and "Unknown" reasons | The reasons from S2-06 |
+| Errors and "Unknown" reasons | The reasons from S2-05 |
 
 - On the test host and on AWS, the three prototype use cases are not configured. `LIVE_CHURN_URL`, `LIVE_CHATBOT_URL` and `LIVE_NBA_URL` are not set. Thus they do not appear on the dashboard.
 - The dashboard is for the RAI team. It has no Langfuse link, because Langfuse is for engineers. The API returns `trace_id`, so an engineer can find the trace in Langfuse.
@@ -944,13 +940,13 @@ of the chatbot uses now. The frontend code does not change.
 1. API tests for each state: scored, each "Unknown" reason, stale, identity-only.
 2. Search all API responses for the text in the S1-01 examples. Make sure that the text is not found.
 3. Run the pnpm checks. `build:live` and `check:strict-live` run in CI on Linux.
-4. Paired with S2-07: open the dashboard on port 8443. Make sure that the onboarded use cases show the correct freshness and grades.
+4. Paired with S2-06: open the dashboard on port 8443. Make sure that the onboarded use cases show the correct freshness and grades.
 
-### S2-09 — One run as a single trace, GCP job to score
+### S2-08 — One run as a single trace, GCP job to score
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Verification | Sprint 2 exit | Backend + platform | S2-03, S2-04, S2-06, S2-08 | S1-08 | S |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | Backend + platform | S2-03, S2-04, S2-05, S2-07 | S1-07 | S |
 
 **What:** This is the Sprint 2 demo. Show one real run as one trace in Langfuse, from the
 GCP job to the scores. Show the same run with its grade on the dashboard.
@@ -969,9 +965,6 @@ GCP job to the scores. Show the same run with its grade on the dashboard.
 
 ## Sprint 3 — Oct 19–23: scale to 8 and harden
 
-> Review status (2026-10-04): Sprint 3 review complete. All Sprint 3 issues are written in
-> ASD-STE100.
-
 **Paired tests this sprint**
 
 | Feature | Tested with | The test proves | Environment |
@@ -982,12 +975,12 @@ GCP job to the scores. Show the same run with its grade on the dashboard.
 
 ### S3-01 — Onboard 8 use cases, including split submit and harvest
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 3.1 | Job developers + backend + platform | S2-04, S2-07 | S1-08 | L |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Job developers + backend + platform | S2-04, S2-06 | S1-07 | L |
 
-**What:** Onboard 4 more use cases, to a total of 8. Use the seven steps in S2-07 for each
-job. Include the difficult jobs from the S1-10 table.
+**What:** Onboard 4 more use cases, to a total of 8. Use the seven steps in S2-06 for each
+job. Include the difficult jobs from the S1-09 table.
 
 **Jobs with separate submit and harvest.** In some jobs, one run of the code submits the
 Gemini batch job, and a later run of the code harvests the results. To make one trace for
@@ -1014,9 +1007,9 @@ are published.
 
 ### S3-02 — Delivery lane: missed-run and failed-job alerts
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 3.2 | Backend | S2-01, S1-03 | S3-04 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | S2-01, S1-02 | S3-04 | M |
 
 **What:** Add a "delivery" lane for each GCP use case. Use the existing alert code: the
 transition engine (`backend/app/engines/alerts.py`), the table `live_alerts`, the webhook
@@ -1075,11 +1068,11 @@ of the overall quality grade, so a missed run never changes the quality grade.
 
 ### S3-03 — Collector hardening: attribute filter, memory limit, disk queue
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | 3.4 | Platform | S1-07, S2-03 | S3-04, S3-05 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform | S1-06, S2-03 | S3-04, S3-05 | M |
 
-**What:** Make the Collector safe and reliable before AWS. S1-07 already added the token,
+**What:** Make the Collector safe and reliable before AWS. S1-06 already added the token,
 HTTPS through the front door and the IP allowlist. This issue does not repeat them.
 
 | Addition | Why |
@@ -1089,7 +1082,7 @@ HTTPS through the front door and the IP allowlist. This issue does not repeat th
 | Disk queue for the Langfuse exporter | If Langfuse is down, or the Collector restarts, the spans wait on disk and are not lost |
 
 The API keeps the API key in October. We do not change to a Google identity token, unless
-security requires it in S1-09.
+security requires it in S1-08.
 
 **Acceptance criteria**
 - [ ] A span with an attribute that is not on the allowlist arrives in Langfuse without that attribute.
@@ -1104,9 +1097,9 @@ security requires it in S1-09.
 
 ### S3-04 — Failure and recovery drills
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Verification | 3.3 | Backend + platform | S2-06, S3-02, S3-03 | S1-08 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | Backend + platform | S2-05, S3-02, S3-03 | S1-07 | M |
 
 **What:** Stop each part of the system on purpose. Make sure that no data is lost and
 nothing is duplicated. Do the drills on the test host.
@@ -1116,7 +1109,7 @@ nothing is duplicated. Do the drills on the test host.
 | The monitor is down while a job sends | The job tries again and logs each failure. After recovery, the run is stored one time. |
 | The Collector is down | The run summary is still stored. The spans arrive later from the disk queue (S3-03). |
 | Langfuse is down | The spans wait in the Collector. The backend tries the scores again. After recovery, each score is in Langfuse one time. |
-| The judge is down (Anthropic or the local model) | The worker tries again in the next cycles, up to 3 times (S2-06). If the judge comes back, the run gets normal scores. If not, the metrics are "Unknown" with `judge_failed`. |
+| The judge is down (Anthropic or the local model) | The worker tries again in the next cycles, up to 3 times (S2-05). If the judge comes back, the run gets normal scores. If not, the metrics are "Unknown" with `judge_failed`. |
 | The monitor restarts during an ingest | No half-written run. The job sends again, and the run is stored one time. |
 | A job does not send | The delivery alert opens (S3-02). It resolves when the next run arrives. |
 | The monitor database restarts | No stored run is lost |
@@ -1131,9 +1124,9 @@ nothing is duplicated. Do the drills on the test host.
 
 ### S3-05 — Security and retention review with leak scan
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Verification | 3.4 | Security + platform + source owners | S3-01, S3-03 | S3-03 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | Security + platform + source owners | S3-01, S3-03 | S3-03 | M |
 
 **What:** A script searches the stored data for items that must not be there. Security also
 examines the access.
@@ -1147,11 +1140,11 @@ examines the access.
 | Logs | IDs and errors | Keys, tokens, record text |
 
 Security also examines these items:
-- The database accounts (S1-12).
+- The database accounts (S1-11).
 - The Langfuse accounts. They are for engineers only.
 - One key rotation (S2-01).
 - A request without a key or a token is refused, on the API and on the Collector.
-- The retention periods in the monitor database and in Langfuse (S1-09).
+- The retention periods in the monitor database and in Langfuse (S1-08).
 
 **Acceptance criteria**
 - [ ] The leak scan finds nothing in the "Not allowed" column.
@@ -1164,9 +1157,9 @@ Security also examines these items:
 
 ### S3-06 — Kubernetes deployment files: Langfuse Helm chart and our manifests
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | 3.5 | Platform | S3-03 | S4-01 | L |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform | S3-03 | S4-01 | L |
 
 **What:** Prepare the files that install the stack on Kubernetes. Install them on the
 **test AWS Kubernetes cluster** in Sprint 3, so that Sprint 4 repeats a known installation
@@ -1203,9 +1196,6 @@ values file selects plan A or plan B.
 
 ## Sprint 4 — Oct 26–30: AWS release and handoff
 
-> Review status (2026-10-04): Sprint 4 review complete. All Sprint 4 issues are written in
-> ASD-STE100.
-
 **Paired tests this sprint**
 
 | Feature | Tested with | The test proves | Environment |
@@ -1215,9 +1205,9 @@ values file selects plan A or plan B.
 
 ### S4-01 — Deploy the stack to the production AWS cluster
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Infrastructure | 4.1 | Platform | S3-06, long-lead requests (Sprint 1) | S4-02 | L |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform | S3-06, long-lead requests (Sprint 1) | S4-02 | L |
 
 **What:** Install the stack on the production AWS Kubernetes cluster. Use the S3-06 files.
 The installation on the test AWS cluster in Sprint 3 is the model for this installation.
@@ -1225,7 +1215,7 @@ The installation on the test AWS cluster in Sprint 3 is the model for this insta
 1. Select plan A (RDS and S3) or plan B (in the cluster), from the S3-06 decision.
 2. Replace the test-host front door with the AWS load balancer and ingress. Keep the same paths: `/api/*` and `/otlp/*` for GCP, and the dashboard and Langfuse for the staff.
 3. Use the DNS name and the certificate from the long-lead requests. If they are not available, use the IP address and a private CA certificate.
-4. Allow the egress IPs of all 10 GCP projects (S1-10) in the AWS security rules.
+4. Allow the egress IPs of all 10 GCP projects (S1-09) in the AWS security rules.
 5. Allow outbound access from the cluster to the Anthropic API, or a network path to the on-premises judge server.
 6. Do not configure the prototype use cases.
 
@@ -1244,9 +1234,9 @@ The installation on the test AWS cluster in Sprint 3 is the model for this insta
 
 ### S4-02 — Change every GCP job to send to AWS
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 4.2 | Job developers + platform | S4-01 | S4-01 | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Job developers + platform | S4-01 | S4-01 | M |
 
 **What:** Change one job at a time. For each job, change three things:
 1. The API URL.
@@ -1269,19 +1259,19 @@ problem, a job can go back to the test host with its old settings.
 
 ### S4-03 — Finish all 10 use cases
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | 4.3 | Job developers + backend + platform | S4-02 | S4-04 | L |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Job developers + backend + platform | S4-02 | S4-04 | L |
 
-**What:** Onboard the last use cases with the S2-07 steps. Get a real run for each use case,
-on its schedule or as an agreed controlled rerun. Use the S1-10 run dates. If a job does not
+**What:** Onboard the last use cases with the S2-06 steps. Get a real run for each use case,
+on its schedule or as an agreed controlled rerun. Use the S1-09 run dates. If a job does not
 run before 30 October, book a controlled rerun now.
 
 **When a use case passes (decided 2026-10-04)**
 
 A use case passes only when its quality grade works. All of these must be true:
 - A real run arrived, and the owner confirms it.
-- The run contains records (`mode: records`). Security approved the records (S1-09).
+- The run contains records (`mode: records`). Security approved the records (S1-08).
 - The task description is approved.
 - The four judge metrics have values. `p95_latency_s` can be "Unknown" only with the reason `latency_not_reported` (Batch API jobs).
 
@@ -1297,9 +1287,9 @@ records is a release blocker.
 
 ### S4-04 — 10-row evidence checklist
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Verification | 4.4 | Backend + RAI | S4-03 | S1-08 (trace check tool) | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | Backend + RAI | S4-03 | S1-07 (trace check tool) | M |
 
 **What:** Make one table with one row for each use case. Each row contains:
 - the use case,
@@ -1324,9 +1314,9 @@ records is a release blocker.
 
 ### S4-05 — Operations drills and runbooks on AWS
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Verification | 4.5 | Platform + operations | S4-01 | S1-08 (trace check tool) | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | Platform + operations | S4-01 | S1-07 (trace check tool) | M |
 
 **What:** Do the S3-04 drills again on AWS. Also test the backup, the restore and the
 rollback. Write the runbooks.
@@ -1351,9 +1341,9 @@ alert webhook goes to this person or team.
 
 ### S4-06 — Release sign-off
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Decision | 4.6 | RAI + platform owners | S4-04, S4-05 | — | S |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Decision | RAI + platform owners | S4-04, S4-05 | — | S |
 
 **What:** Approve the release only on evidence. List each use case as "pass" or "blocked,
 with the reason" (S4-03).
@@ -1368,9 +1358,9 @@ with the reason" (S4-03).
 
 ### S4-07 — Remove the prototype-only code
 
-| Type | Plan task | Owner | Depends on | Tested with | Size |
-|---|---|---|---|---|---|
-| Feature | New | Backend | S4-06 | Full test suite | M |
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | S4-06 | Full test suite | M |
 
 **What:** Remove the code of the three prototype use cases that the GCP path does not use.
 Follow the rule for prototype code at the start of this file. Do this after the release
