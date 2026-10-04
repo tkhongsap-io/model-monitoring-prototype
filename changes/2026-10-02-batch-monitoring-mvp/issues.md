@@ -149,6 +149,7 @@ in Sprint 1, so that the answers arrive before the sprint that needs them.
 | DNS name and certificate for the AWS production stack | Your team + network team | S4-01 (26 October) | Use the IP address and a private CA certificate, as on the test host |
 | Production AWS Kubernetes cluster, its owner and access | Platform | S4-01 (26 October) | Report the result as a pilot on the test environment. Do not report an AWS production release. |
 | Amazon RDS for PostgreSQL 17 and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
+| Test AWS Kubernetes cluster (not production) and access | Your team | S3-06 (19 October) | Test the S3-06 files on a disposable local cluster (kind) only |
 
 **Paired tests this sprint**
 
@@ -234,7 +235,7 @@ Options considered:
 - [ ] Invalid body: `400` with field errors; nothing stored. This includes unknown fields, a missing record field, `latency_s` of `0`, and more records than the sample size allows.
 - [ ] Missing or wrong key: `401`; nothing stored; the key and the body are never logged.
 - [ ] Records stored inside the run exactly as received; `record_id` kept for the evaluator.
-- [ ] An identity-only body (`records: []`, reason `records_not_approved`) is stored. Later, the four judged metrics for this run show "Unknown" with this reason.
+- [ ] An identity-only body (`records: []`, reason `records_not_approved`) is stored. Later, all five metrics for this run show "Unknown" with this reason, because they all come from the records.
 - [ ] Existing v1.1 live tests still pass; demo-mode routes unaffected.
 
 **How to test**
@@ -464,7 +465,7 @@ Security must approve these items:
 1. Link the approval in this issue.
 2. Compare the S1-01 schema with the approved fields, one field at a time.
 3. Compare the S1-04 placeholder list with the approved PII types.
-4. If the approval is not complete by 8 October, the job does not send records. The four judged metrics show "Unknown".
+4. If the approval is not complete by 8 October, the job does not send records. All five metrics show "Unknown".
 
 ### S1-10 — Inventory of the 10 use cases and October run dates
 
@@ -1167,8 +1168,9 @@ Security also examines these items:
 |---|---|---|---|---|---|
 | Infrastructure | 3.5 | Platform | S3-03 | S4-01 | L |
 
-**What:** Prepare the files that install the stack on the AWS Kubernetes cluster in
-Sprint 4. Use the versions in the fixed-versions table.
+**What:** Prepare the files that install the stack on Kubernetes. Install them on the
+**test AWS Kubernetes cluster** in Sprint 3, so that Sprint 4 repeats a known installation
+on the production cluster. Use the versions in the fixed-versions table.
 
 **Decisions (2026-10-04)**
 
@@ -1190,10 +1192,12 @@ values file selects plan A or plan B.
 - [ ] Secrets come from the Kubernetes secret store. No secret is in the files.
 - [ ] Each service has health checks, resource limits and a rollback step.
 - [ ] Backup, restore and rollback steps are written. For plan A, they use the RDS backups.
+- [ ] The stack runs on the test AWS Kubernetes cluster, and the smoke test passes.
 
 **How to test**
 1. Validate all the files.
-2. If a disposable local cluster (for example kind) is available, install the stack in it with plan B. Send one example run and spans. Run `scripts/check_trace.py`, and make sure that all the items are "found". If no cluster is available, record that this test was not done.
+2. Install the stack on the test AWS Kubernetes cluster. Send one example run and spans from a GCP dev machine. Run `scripts/check_trace.py`, and make sure that all the items are "found".
+3. If the test cluster is not available by 19 October, install the stack on a disposable local cluster (for example kind) with plan B, and record that the AWS test was not done.
 
 ---
 
