@@ -139,6 +139,17 @@ with the stored run.
 
 Both tracks start Monday using the draft schema from S1-01 and meet on the test host.
 
+**Long-lead requests (send in Sprint 1)**
+
+These requests need approval from other teams, and approval can take a long time. Send them
+in Sprint 1, so that the answers arrive before the sprint that needs them.
+
+| Request | Owner | Needed by | If it is not approved in time |
+|---|---|---|---|
+| DNS name and certificate for the AWS production stack | Your team + network team | S4-01 (26 October) | Use the IP address and a private CA certificate, as on the test host |
+| Production AWS Kubernetes cluster, its owner and access | Platform | S4-01 (26 October) | Report the result as a pilot on the test environment. Do not report an AWS production release. |
+| Amazon RDS for PostgreSQL 17 and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
+
 **Paired tests this sprint**
 
 | Feature | Tested with | The test proves | Environment |
@@ -1168,12 +1179,12 @@ Sprint 4. Use the versions in the fixed-versions table.
 | Langfuse, ClickHouse, Redis | Official Langfuse Helm chart | Official Langfuse Helm chart |
 | Monitor backend, Collector, front door | Our own manifests | Our own manifests |
 
-Request RDS and S3 from the AWS team at the start of Sprint 3. If the request is not
+Send the RDS and S3 request in Sprint 1 (long-lead requests). If the request is not
 approved by **Wednesday 21 October**, use plan B. Write the deployment files so that a
 values file selects plan A or plan B.
 
 **Acceptance criteria**
-- [ ] The RDS and S3 request is sent at the start of Sprint 3. The answer, or plan B, is recorded by 21 October.
+- [ ] The answer to the RDS and S3 request (sent in Sprint 1), or plan B, is recorded by 21 October.
 - [ ] The Langfuse Helm chart uses version 2.1.3 and the Langfuse image tag 4.50.0.
 - [ ] Our manifests for the monitor backend, the Collector and the front door pass validation (`kubeconform`, or `kubectl apply --dry-run=server`).
 - [ ] Secrets come from the Kubernetes secret store. No secret is in the files.
