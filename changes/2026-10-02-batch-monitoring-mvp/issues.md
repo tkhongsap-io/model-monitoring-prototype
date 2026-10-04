@@ -49,6 +49,7 @@ pull request first.
 | Redis | `redis` | 7.4.11 | Newest patch of the 7 line that the Langfuse Compose file uses. Version 8 exists, but Langfuse does not use it. |
 | S3 storage (MinIO) | `cgr.dev/chainguard/minio` | Fix by image digest | The image that the Langfuse Compose file uses. The free Chainguard image has only the `latest` tag, so record its digest. |
 | Langfuse Python SDK | `langfuse` | `>=4.16,<5` | S2-02 |
+| Langfuse Helm chart | `langfuse/langfuse` (langfuse-k8s) | 2.1.3 | Released 2026-09-28. Set the image tags to Langfuse 4.50.0 in the values file (S3-06). |
 
 ## Rule for prototype code (decided 2026-10-03)
 
@@ -97,10 +98,10 @@ remaining prototype-only code.
 | S2-09 | One run as a single trace, GCP job to score | Verification | Backend + platform | S2-03 + S2-04 + S2-06 |
 | S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-08 |
 | S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 |
-| S3-03 | Collector hardening: auth, TLS, redaction, durable queue | Infrastructure | Platform | S3-04, S3-05 |
+| S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 |
 | S3-04 | Failure and recovery drills | Verification | Backend + platform | S3-02 + S3-03 |
 | S3-05 | Security and retention review with leak scan | Verification | Security + platform | S3-03 |
-| S3-06 | Kubernetes manifests | Infrastructure | Platform | S4-01 |
+| S3-06 | Kubernetes deployment files: Langfuse Helm chart and our manifests | Infrastructure | Platform | S4-01 |
 | S4-01 | Deploy the stack to the target AWS cluster | Infrastructure | Platform | S4-02 |
 | S4-02 | Switch every GCP job to the AWS endpoints | Feature | Job owners + platform | S4-01 |
 | S4-03 | Finish all 10 use cases | Feature | Job owners + backend | S4-04 |
@@ -211,7 +212,7 @@ Options considered:
 | Option | Shared secret | Effort | Decision |
 |---|---|---|---|
 | Static API key + HTTPS + IP allowlist | Yes | Low; same pattern as the monitor's existing tokens | **Sprint 1** |
-| Google service-account ID token (OIDC): the job gets a Google-signed token; the monitor checks the signature and the service-account email | No | Medium; needs the `google-auth` package (plan entry) | Upgrade candidate in Sprint 3 (S3-03) |
+| Google service-account ID token (OIDC): the job gets a Google-signed token; the monitor checks the signature and the service-account email | No | Medium; needs the `google-auth` package (plan entry) | Not in October. Only if security requires it (S1-09). |
 | Mutual TLS | No | High; a client certificate for every job | Not planned |
 | VPN or private link | — | Depends on network team | Not available yet |
 
@@ -833,7 +834,7 @@ strict live mode.
 |---|---|
 | Identity-only run (`records: []`) | `records_not_approved` |
 | Fewer than 8 records | `insufficient_sample` |
-| The judge fails | `judge_failed` |
+| The judge fails 3 times. After each failure, the worker tries again in the next cycle. | `judge_failed` |
 | No task description is approved | `task_description_missing` |
 | All `latency_s` values are `null` | `latency_not_reported` (only `p95_latency_s`; excluded from the rollup) |
 
@@ -846,6 +847,7 @@ problem, and a delivery problem is never shown as an evaluation problem.
 - [ ] `batch_evaluations` stores the metrics with the task description version, the judge identity, the sample size and the run ID.
 - [ ] `batch_record_judgments` stores the four results of each judged record.
 - [ ] Each condition in the "Unknown" table gives "Unknown" with its reason.
+- [ ] If the judge fails, the worker tries again in the next cycles, up to 3 times. A later success gives normal scores.
 - [ ] Langfuse shows the run scores on the trace and the record scores on each record observation.
 - [ ] A score that is sent two times makes one score in Langfuse.
 - [ ] If Langfuse is not available, the grade is stored, and the score write is tried again later.
@@ -854,8 +856,9 @@ problem, and a delivery problem is never shown as an evaluation problem.
 **How to test**
 1. Unit: use a fake judge. Make sure that each "Unknown" condition gives its reason. Make sure that the band limits are correct, for example a hallucination rate of exactly 0.02 is Red. Make sure that a placeholder counts as PII only in `answer`.
 2. Unit: use a fake Langfuse client. Make sure that the `score_id` values are stable, and that a failed write is tried again.
-3. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
-4. Paired with S2-03: store one run in the local stack and let the worker evaluate it. Run `scripts/check_trace.py`. Make sure that `monitor.evaluate`, the run scores and the record scores are "found" on the same trace.
+3. Unit: make the fake judge fail two times and then succeed. Make sure that the run gets normal scores. Make it fail three times, and make sure that the metrics are "Unknown" with `judge_failed`.
+4. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
+5. Paired with S2-03: store one run in the local stack and let the worker evaluate it. Run `scripts/check_trace.py`. Make sure that `monitor.evaluate`, the run scores and the record scores are "found" on the same trace.
 
 **Risk:** The task description is due Wednesday 14 October. Then only two days remain in
 Sprint 2 for the first graded run.
@@ -953,6 +956,9 @@ GCP job to the scores. Show the same run with its grade on the dashboard.
 ---
 
 ## Sprint 3 — Oct 19–23: scale to 8 and harden
+
+> Review status (2026-10-04): Sprint 3 review complete. All Sprint 3 issues are written in
+> ASD-STE100.
 
 **Paired tests this sprint**
 
@@ -1055,83 +1061,128 @@ of the overall quality grade, so a missed run never changes the quality grade.
 2. Integration test with SQLite, a fixed clock and a fake webhook: store a run, move the clock 27 hours, run one cycle, and make sure that one alert opens. Run another cycle, and make sure that no second alert opens. Store a new run, run a cycle, and make sure that the alert resolves and the quality grade did not change.
 3. Paired with S3-04: on the test host, stop the send step of one job. After the grace period, make sure that the alert shows in the UI and in the webhook. Start the send step again, and make sure that the alert resolves.
 
-### S3-03 — Collector hardening: auth, TLS, redaction, durable queue
+### S3-03 — Collector hardening: attribute filter, memory limit, disk queue
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Infrastructure | 3.4 | Platform | S2-03, approved attribute list | S3-04, S3-05 | L |
+| Infrastructure | 3.4 | Platform | S1-07, S2-03 | S3-04, S3-05 | M |
 
-**What:** Require a token on the OTLP receiver, use TLS, drop attributes outside the approved
-list, limit memory, and keep a disk-backed retry queue so spans survive a Langfuse outage.
+**What:** Make the Collector safe and reliable before AWS. S1-07 already added the token,
+HTTPS through the front door and the IP allowlist. This issue does not repeat them.
+
+| Addition | Why |
+|---|---|
+| Attribute filter in the Collector | The helper file removes attributes in the GCP job (S2-04). The Collector filter is a second protection, for example for a job that uses an old helper file. Use the same allowlist. |
+| Memory limit | A large burst of spans cannot stop the Collector |
+| Disk queue for the Langfuse exporter | If Langfuse is down, or the Collector restarts, the spans wait on disk and are not lost |
+
+The API keeps the API key in October. We do not change to a Google identity token, unless
+security requires it in S1-09.
 
 **Acceptance criteria**
-- [ ] OTLP without a valid token is rejected.
-- [ ] Attributes outside the allowlist never reach Langfuse.
-- [ ] Langfuse down for 10 minutes: spans arrive after recovery, without duplicates.
-- [ ] Collector restart does not lose queued spans.
+- [ ] A span with an attribute that is not on the allowlist arrives in Langfuse without that attribute.
+- [ ] A burst of spans above the memory limit does not stop the Collector. The Collector refuses the extra spans, and the senders try again.
+- [ ] Spans that arrive while Langfuse is down are in Langfuse after recovery, one time only.
+- [ ] Spans in the disk queue stay after a Collector restart.
 
 **How to test**
-1. Send spans without a token; expect rejection in the Collector log.
-2. Send a span with a forbidden attribute; it is missing in Langfuse.
-3. Outage and restart steps in S3-04.
+1. Send a span with a forbidden attribute (for example `prompt`). Make sure that Langfuse does not show it.
+2. Send a large burst with `telemetrygen`. Make sure that the Collector continues to run.
+3. Stop Langfuse. Send spans. Restart the Collector. Start Langfuse. Make sure that all the spans arrive one time.
 
 ### S3-04 — Failure and recovery drills
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Verification | 3.3 | Backend + platform | S3-02, S3-03 | — | M |
+| Verification | 3.3 | Backend + platform | S2-06, S3-02, S3-03 | S1-08 | M |
 
-**What:** Break each part on purpose and check nothing is lost or duplicated.
-
-**Acceptance criteria**
+**What:** Stop each part of the system on purpose. Make sure that no data is lost and
+nothing is duplicated. Do the drills on the test host.
 
 | Drill | Expected result |
 |---|---|
-| Monitor down while a job sends | Job retries; run stored once after recovery |
-| Collector down | Run summary still stored; spans arrive after recovery or the gap is recorded |
-| Langfuse down | Spans queued; score write retried; one score per run after recovery |
-| Monitor restart mid-ingest | No half-written run; resend succeeds once |
-| Job never sends | Missed-run alert (S3-02) |
+| The monitor is down while a job sends | The job tries again and logs each failure. After recovery, the run is stored one time. |
+| The Collector is down | The run summary is still stored. The spans arrive later from the disk queue (S3-03). |
+| Langfuse is down | The spans wait in the Collector. The backend tries the scores again. After recovery, each score is in Langfuse one time. |
+| The judge is down (Anthropic or the local model) | The worker tries again in the next cycles, up to 3 times (S2-06). If the judge comes back, the run gets normal scores. If not, the metrics are "Unknown" with `judge_failed`. |
+| The monitor restarts during an ingest | No half-written run. The job sends again, and the run is stored one time. |
+| A job does not send | The delivery alert opens (S3-02). It resolves when the next run arrives. |
+| The monitor database restarts | No stored run is lost |
+
+**Acceptance criteria**
+- [ ] Each drill in the table has a result: pass, fail or not done, with the date.
+- [ ] Each failed drill has an issue for the fix, with an owner.
 
 **How to test**
-1. Run each drill in the local stack, then `scripts/check_trace.py` for the affected trace IDs.
-2. Record results (pass, fail, not run) in this issue.
+1. Do each drill. After each drill, run `scripts/check_trace.py` for the affected trace IDs.
+2. Record the results in this issue.
 
 ### S3-05 — Security and retention review with leak scan
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Verification | 3.4 | Security + platform + source owners | S3-03, S3-01 | S3-03 | M |
+| Verification | 3.4 | Security + platform + source owners | S3-01, S3-03 | S3-03 | M |
 
-**What:** Review identity, transport, secrets and retention for all onboarded use cases, and
-scan stored data for leaks.
+**What:** A script searches the stored data for items that must not be there. Security also
+examines the access.
+
+| Location | Allowed | Not allowed |
+|---|---|---|
+| `batch_runs` and `batch_record_judgments` | Redacted text with placeholders | Raw phone numbers, emails, national IDs |
+| GCP spans in Langfuse | Names, times, counts, IDs | Any text |
+| `monitor.evaluate` in Langfuse | Redacted record text | Raw PII |
+| Dashboard and API responses | Metrics and reasons | Any record text |
+| Logs | IDs and errors | Keys, tokens, record text |
+
+Security also examines these items:
+- The database accounts (S1-12).
+- The Langfuse accounts. They are for engineers only.
+- One key rotation (S2-01).
+- A request without a key or a token is refused, on the API and on the Collector.
+- The retention periods in the monitor database and in Langfuse (S1-09).
 
 **Acceptance criteria**
-- [ ] No raw phone numbers, emails, national IDs or credentials in `batch_runs`, Langfuse, logs or API responses; OTel spans and logs contain no text at all.
-- [ ] Retention period set for monitor Postgres and Langfuse.
-- [ ] Exceptions listed with owner and date.
+- [ ] The leak scan finds nothing in the "Not allowed" column.
+- [ ] Each access item in the list passes.
+- [ ] Each exception is written down, with an owner and a date.
 
 **How to test**
-1. A leak scan script searches a sample of stored runs, Langfuse traces and logs for forbidden patterns (token formats, email, phone, ID numbers); expect zero matches.
-2. Unauthorized requests to the API and Collector are rejected.
+1. Run the leak scan script on a sample of each location. The script searches for phone numbers, email addresses, national ID numbers, token formats and record text in the wrong locations.
+2. Send a request without a key to the API, and spans without a token to the Collector. Make sure that both are refused.
 
-### S3-06 — Kubernetes manifests
+### S3-06 — Kubernetes deployment files: Langfuse Helm chart and our manifests
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
 | Infrastructure | 3.5 | Platform | S3-03 | S4-01 | L |
 
-**What:** Manifests for the monitor, Collector, Langfuse and their storage, with secrets, TLS
-ingress, health checks, resource limits and a rollback path.
+**What:** Prepare the files that install the stack on the AWS Kubernetes cluster in
+Sprint 4. Use the versions in the fixed-versions table.
+
+**Decisions (2026-10-04)**
+
+| Part | Plan A (selected) | Plan B (fallback) |
+|---|---|---|
+| PostgreSQL 17 (monitor and Langfuse) | Amazon RDS for PostgreSQL 17 | Container in the cluster, with our backups |
+| S3 storage for Langfuse | Amazon S3 | MinIO container in the cluster |
+| Langfuse, ClickHouse, Redis | Official Langfuse Helm chart | Official Langfuse Helm chart |
+| Monitor backend, Collector, front door | Our own manifests | Our own manifests |
+
+Request RDS and S3 from the AWS team at the start of Sprint 3. If the request is not
+approved by **Wednesday 21 October**, use plan B. Write the deployment files so that a
+values file selects plan A or plan B.
 
 **Acceptance criteria**
-- [ ] Manifests pass schema validation.
-- [ ] Smoke test on a disposable cluster (for example kind) if available; otherwise recorded as not run.
-- [ ] Backup, restore and rollback steps written.
+- [ ] The RDS and S3 request is sent at the start of Sprint 3. The answer, or plan B, is recorded by 21 October.
+- [ ] The Langfuse Helm chart uses version 2.1.3 and the Langfuse image tag 4.50.0.
+- [ ] Our manifests for the monitor backend, the Collector and the front door pass validation (`kubeconform`, or `kubectl apply --dry-run=server`).
+- [ ] Secrets come from the Kubernetes secret store. No secret is in the files.
+- [ ] Each service has health checks, resource limits and a rollback step.
+- [ ] Backup, restore and rollback steps are written. For plan A, they use the RDS backups.
 
 **How to test**
-1. `kubectl apply --dry-run=server` or `kubeconform` passes.
-2. On a disposable cluster: send one example run and spans; `scripts/check_trace.py` shows all hops.
+1. Validate all the files.
+2. If a disposable local cluster (for example kind) is available, install the stack in it with plan B. Send one example run and spans. Run `scripts/check_trace.py`, and make sure that all the items are "found". If no cluster is available, record that this test was not done.
 
 ---
 
