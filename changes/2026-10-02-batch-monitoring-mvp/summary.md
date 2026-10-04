@@ -1,43 +1,45 @@
-# October Batch Monitoring MVP — One-Page Summary
+# October Batch Monitoring MVP — Summary
 
 | | |
 |---|---|
-| **Date** | 2026-10-03 |
-| **Period** | Mon 2026-10-05 to Fri 2026-10-30 |
-| **Detail** | [Plan](plan.md) · [LLM metrics and data standard](llm-metrics-standard.md) · [Issue drafts](issues.md) · [Older flow diagram](flow.html) |
+| **Date** | 2026-10-04 |
+| **Period** | Monday 2026-10-05 to Friday 2026-10-30 |
+| **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
+| **Details** | [Plan](plan.md) · [LLM metrics and data standard](llm-metrics-standard.md) · [Issues](issues.md) |
 
-## What we are building
+## What we build
 
-By Friday 2026-10-30, the RAI team can see every completed run of the **10 GCP batch use
-cases** on one dashboard: status, freshness, quality score (or "Unknown" with a reason),
-and a link to a full trace of that run in Langfuse. Everything runs on the target AWS
-Kubernetes cluster.
+By Friday 30 October, the RAI team sees each completed run of the **10 GCP batch use
+cases** on one dashboard: the status, the freshness and the grade of the five LLM metrics,
+or "Unknown" with a reason. Engineers see one trace for each run in Langfuse. The stack runs
+on the production AWS Kubernetes cluster.
 
-Two changes from how the monitor works today:
-
-1. **GCP jobs push their results** to the monitor after publishing. Today the monitor
-   pulls everything itself.
-2. **OpenTelemetry (OTel) becomes the tracing standard** for the whole stack. Today
-   there is no OTel anywhere; "telemetry" means our own JSON contract (v1.1).
+Three changes from the monitor today:
+1. **The GCP jobs send their results** to the backend after they publish. Today, the monitor pulls the data itself.
+2. **OpenTelemetry (OTel) is the tracing standard.** Today, the stack has no OTel. "Telemetry" means our own JSON contract (v1.1).
+3. **The GCP use cases replace the prototype use cases** on the dashboard. The prototype is a scaffold. The shared code stays. The prototype-only code is removed after the release.
 
 ## What we measure
 
-All 10 use cases use the **same five LLM metrics as the current prototype**, with the same
-bands and the same Claude judge. GCP sends only the data these need. Details:
-[LLM metrics and data standard](llm-metrics-standard.md).
+All 10 use cases use the **same five LLM metrics as the prototype**, with the same bands and
+the same judge. The GCP job sends only the data that these metrics need. The backend
+calculates all the metrics.
 
-| Metric | Green | Red | Needs from GCP |
+| Metric | Green | Red | Data from GCP |
 |---|---|---|---|
 | `hallucination_rate` | < 0.02 | ≥ 0.02 | answer, source material, refused flag |
 | `groundedness` | ≥ 0.85 | < 0.70 | answer, source material, refused flag |
 | `relevance` | ≥ 0.85 | < 0.70 | instruction, answer |
-| `pii_exposure_rate` | 0.0 | ≥ 0.01 | answer (PII replaced by placeholders) |
-| `p95_latency_s` | ≤ 4.0 s | ≥ 8.0 s | per-request latency (Unknown for the Gemini Batch API) |
+| `pii_exposure_rate` | 0.0 | ≥ 0.01 | answer, with PII replaced by placeholders |
+| `p95_latency_s` | ≤ 4.0 s | ≥ 8.0 s | the time of each request ("Unknown" for the Gemini Batch API) |
 
-## Current flow (today)
+Until security approves the records, the jobs work in **identity-only mode**: they send the
+run without records, and all five metrics are "Unknown". Such a use case does not pass the
+release.
 
-What runs now, on Replit, for the three live use cases (churn `AICT-L01`, chatbot
-`AICT-L02`, NBA `AICT-L03`):
+## The monitor today
+
+The three prototype use cases (churn `AICT-L01`, chatbot `AICT-L02`, NBA `AICT-L03`) on Replit:
 
 ```mermaid
 flowchart LR
@@ -45,10 +47,10 @@ flowchart LR
     T["Telemetry endpoints<br/>meta, inferences, labels,<br/>reference, traces, rewards"]
   end
   subgraph M["Monitor (Replit Autoscale)"]
-    PO["Poller<br/>(one worker at a time)"] --> R["Runner per use case"]
+    PO["Poller<br/>(one worker at a time)"] --> R["Runner for each use case"]
     R --> ML["ML checks<br/>drift, estimated and real AUC"]
     R --> J["LLM judge<br/>Claude Haiku"]
-    ML --> H["Health grading<br/>Green / Amber / Red"]
+    ML --> H["Grades<br/>Green / Amber / Red"]
     J --> H
     H --> DB[("PostgreSQL")]
     DB --> API["Monitor API"]
@@ -61,93 +63,100 @@ flowchart LR
 
 | Part | How it works today |
 |---|---|
-| Getting data | The monitor pulls closed time windows of raw records from each producer over HTTPS. Custom JSON format, contract v1.1. |
-| Safety of data | Each window has a checksum and is stored once and never edited. The read position (cursor) moves only after a safe write. |
-| Quality checks | ML: drift (Evidently), estimated accuracy (NannyML), real accuracy once labels arrive. LLM: a Claude judge scores each chatbot answer. |
-| Result | Green / Amber / Red per use case, alerts on changes, shown on a read-only dashboard. |
-| Tracing | No OpenTelemetry. The judge sends traces and scores to Langfuse Cloud directly with the Langfuse SDK v2, best-effort. The monitor itself writes JSON logs only. |
-| Batch jobs in GCP | Not monitored at all. |
+| Data | The monitor pulls closed time windows of raw records from the producer, in our own JSON format (contract v1.1) |
+| Safety of the data | Each window has a checksum. It is stored one time and never changes. |
+| Quality | ML: drift (Evidently), estimated accuracy (NannyML), real accuracy when labels arrive. LLM: a Claude judge scores each chatbot answer. |
+| Result | Green, Amber or Red for each use case, alerts, and a read-only dashboard |
+| Traces | No OpenTelemetry. The judge sends to Langfuse Cloud with the Langfuse SDK v2, which is deprecated. |
+| GCP batch jobs | Not monitored |
 
-## Target flow (end of October)
+## The monitor at the end of October
 
 ```mermaid
 flowchart LR
   subgraph GCP["GCP"]
-    JOB["10 batch jobs<br/>submit, harvest, publish"] -- "model calls" --> GEM["Gemini"]
+    JOB["10 batch jobs<br/>submit, harvest, publish<br/>(OTel SDK)"] -- "model calls" --> GEM["Gemini"]
   end
   subgraph AWS["AWS Kubernetes"]
-    IN["Receiving API<br/>POST /api/batch/runs"] --> DB[("Monitor PostgreSQL")]
-    DB --> EV["Evaluator<br/>5 LLM metrics + Claude judge"]
-    EV --> DB
-    LIVE["3 existing live use cases<br/>contract v1.1 pull, unchanged"] --> DB
-    COL["OTel Collector<br/>auth, redact, retry"] --> LF["Langfuse<br/>(self-hosted)"]
-    DB --> MAPI["Monitor API"] --> UI["RAI dashboard"]
+    FD["Front door<br/>HTTPS"]
+    IN["Receiving API<br/>POST /api/batch/runs"]
+    COL["OTel Collector<br/>token, filter, disk queue"]
+    DB[("PostgreSQL<br/>runs, evaluations")]
+    WK["Background worker<br/>judge, 5 metrics, delivery alerts"]
+    LF["Langfuse<br/>(self-hosted)"]
+    MAPI["Monitor API"]
+    FD --> IN --> DB
+    FD --> COL --> LF
+    DB --> WK --> DB
+    WK -- "spans and scores<br/>(Langfuse SDK v4)" --> LF
+    DB --> MAPI
   end
-  JOB -- "1. run summary JSON<br/>+ trace ID (HTTPS, token)" --> IN
-  JOB -- "2. OTel spans<br/>(OTLP over HTTPS, auth)" --> COL
-  IN -. "OTel spans" .-> COL
-  EV -. "OTel spans" .-> COL
-  EV -- "3. scores on the<br/>same trace (Langfuse API)" --> LF
-  UI -. "trace link" .-> LF
+  JUDGE["Judge<br/>Claude Haiku or<br/>on-premises model"]
+  JOB -- "1. run summary + API key<br/>traceparent header" --> FD
+  JOB -- "2. spans + OTLP token<br/>(no text)" --> FD
+  WK --> JUDGE
+  MAPI --> UI["RAI dashboard<br/>(no record text)"]
+  ENG["Engineers"] --> LF
 ```
 
-Each GCP job sends two things after it publishes:
+After it publishes, each GCP job sends two things:
 
-| What | Goes to | Purpose | If it is lost |
+| What | To | Purpose | If it is lost |
 |---|---|---|---|
-| **Run summary** (JSON: run identity, trace ID, and a sample of about 50 redacted records for the five metrics) | Monitor receiving API | The official record that a run finished. Drives the dashboard and grading. | Job retries; sending twice is safe; a missed run raises an alert |
-| **OTel spans** (timing of each step and each Gemini call) | OTel Collector, then Langfuse | Lets engineers see where time and tokens went in a run | Run still counts; the trace is incomplete |
+| **Run summary**: run identity and about 50 redacted records | Backend API | The official record of the run. The backend calculates the metrics from it. | The job tries again. A send again is safe. A missing run opens a delivery alert. |
+| **OTel spans**: the steps, the times and the token totals, with no text | Collector, then Langfuse | Engineers see where the time and the tokens went | The run still counts. The trace has a gap. |
 
-**One trace per batch run.** The job starts a trace and passes its ID in the run summary
-(W3C `traceparent`). The monitor continues the same trace, so Langfuse shows the whole
-story in one place:
+**One trace for each run.** The OTel SDK puts the trace ID in the `traceparent` header of
+the API call. The backend continues the same trace. Thus Langfuse shows the full run in one
+place:
 
-| Span | Where | Records |
+```
+Trace of the run          Scores: the five run metrics
+  ├─ batch.run (GCP)
+  │   ├─ batch.submit
+  │   ├─ batch.harvest     token totals
+  │   ├─ batch.publish
+  │   └─ batch.send
+  ├─ monitor.ingest
+  └─ monitor.evaluate
+      ├─ record 1          Scores: groundedness, relevance, hallucination, pii
+      └─ … one observation for each judged record
+```
+
+## What OTel replaces, and what it does not replace
+
+| Area | Old method | New method |
 |---|---|---|
-| `batch.run` (root) | GCP job | use case, run ID, status |
-| `batch.submit`, `batch.harvest`, `batch.publish` | GCP job | duration, row counts |
-| Gemini call spans | GCP job | model, input and output tokens, real call latency (OTel GenAI conventions); no prompt or customer text |
-| `monitor.ingest` | AWS monitor | validation result, stored once or duplicate |
-| `monitor.evaluate` | AWS monitor | task description version, sample size, result or Unknown reason |
-| Score | Langfuse | attached to the same trace by ID |
+| Backend to Langfuse | Langfuse SDK v2 to Langfuse Cloud | Langfuse SDK v4 (built on OTel) to self-hosted Langfuse |
+| Chatbot store (prototype only) | Langfuse SDK v2 | Its Langfuse part is removed (S2-02). It is not changed to v4. |
+| GCP batch jobs | Nothing | OTel SDK in each job. Spans go to the Collector. |
+| Dashboard data | Monitor database | **No change.** The dashboard reads the monitor API, never Langfuse. |
+| Run summary from GCP | — | **A JSON send to the API**, not OTel |
 
-## What OTel replaces, and what it does not
+Why the run summary is not sent with OTel:
+- OTel delivery is "best effort". Spans can be dropped under load. The grades need each run one time, with all its records.
+- The API tells the job "stored", "duplicate" or "wrong". OTel tells the job nothing.
+- The API examines each body with the schema. The Collector does not know our schema.
+- The Collector sends to Langfuse. It does not write to our monitor tables.
 
-| Area | Old way | New way |
-|---|---|---|
-| Monitor → Langfuse | Langfuse SDK v2 calls straight to Langfuse Cloud | OTel SDK spans → Collector → self-hosted Langfuse; scores written with the Langfuse score API on the same trace ID |
-| Monitor's own visibility | JSON logs only | OTel spans for the API, outgoing HTTP and database calls; logs carry the trace ID |
-| GCP batch jobs | Nothing | OTel SDK in each job: one trace per run |
-| Dashboard data | Monitor database | **Unchanged.** The dashboard reads the monitor API, never Langfuse. |
-| Run summary from GCP | — | **Stays a JSON push**, not OTel (see below) |
-| Contract v1.1 data windows (features, labels, reference, chatbot traces) | Custom JSON pull | **Unchanged in October.** Moving chatbot traces to OTel is a later step. |
+## The month
 
-Why the run summary and ML data windows stay outside OTel:
-
-- OTel delivery is best-effort. Spans can be sampled, batched or dropped under load.
-  The monitor's grading needs every run exactly once, with a checksum.
-- Labels arrive days later and must be matched to the original records. OTel has no
-  idea of a closed window or of late data.
-- ML drift needs complete feature datasets, which are not traces.
-- Langfuse accepts OTel **traces** only, not metrics or logs, and OTel cannot write
-  evaluation scores. Scores always need a separate Langfuse call.
-
-## Month at a glance
-
-| Sprint | Dates | Data | OpenTelemetry | Use cases | Demo on Friday |
+| Sprint | Dates | Data | OpenTelemetry and Langfuse | Use cases | Demo on Friday |
 |---|---|---|---|---|---|
-| **1** | Oct 5–9 | Agree the run summary JSON with the GCP developer; build the receiving API | Add the OTel SDK to the monitor; the receiving API continues the job's trace | 1 | One real run arrives; its ingest span carries the job's trace ID |
-| **2** | Oct 12–16 | Registry, evaluation with the five LLM metrics | Local Collector + Langfuse; move the monitor off Langfuse SDK v2; OTel in 4 GCP jobs | 4 | One run shows as a single trace in Langfuse, from GCP job to score |
-| **3** | Oct 19–23 | Harder jobs, missed-run alerts | Collector auth, TLS, redaction and retry; outage drills; OTel in 8 jobs | 8 | Collector outage drill loses no run records |
-| **4** | Oct 26–30 | All 10 runs on AWS | Collector and Langfuse on the AWS cluster; jobs point at AWS | 10 | 10-row evidence checklist with trace IDs, signed off |
+| **1** | 5 to 9 October | JSON body v1, receiving API, GCP send step, identity-only mode | OTel in the first job and in the backend. Collector with file output. | 1 | One real run arrives, with one trace |
+| **2** | 12 to 16 October | YAML registry, five-metric evaluator, dashboard with the GCP use cases | Self-hosted Langfuse, SDK v4 in the backend, OTel helper file | 4 | One trace from the GCP job to the scores. The grade is on the dashboard. |
+| **3** | 19 to 23 October | 8 use cases, delivery alerts, security review | Collector hardening, drills, Kubernetes files on the test AWS cluster | 8 | The drills pass. The stack runs on the test AWS cluster. |
+| **4** | 26 to 30 October | All 10 use cases send to AWS | Production cluster | 10 | The 10-row evidence checklist is signed |
 
-## Decisions still needed
+## Open items
 
-| Decision | Owner | Needed by |
+| Item | Owner | Needed by |
 |---|---|---|
-| Is GCP → AWS OTel traffic (OTLP) allowed, and how is it authenticated? | Security + platform | Fri Oct 16 |
-| Langfuse Python SDK: stay on v2 or move to v3 (which is built on OTel)? | Backend | Mon Oct 12 |
-| Redacted records may leave GCP (monitor, Claude judge, Langfuse); PII placeholders | Security + RAI | Thu Oct 8 |
-| Which span attributes may leave GCP (no text in spans) | Security + RAI | Fri Oct 16 |
-| New pip packages (`opentelemetry-*`, possibly `langfuse` v3) approved in the Sprint 2 spec | Project owner | Mon Oct 12 |
-| When to move the chatbot's v1.1 trace window to OTel (after October) | Project owner + producer owner | November |
+| Security approval of the records, the PII list and the data flow | Security | 8 October |
+| Inventory of the 10 use cases and their run dates | PM + owners | 9 October |
+| Test AWS cluster, RDS and S3, DNS name, production cluster (long-lead requests) | Your team, platform | 19 to 26 October |
+| Can the backend reach the Anthropic API? If not, the on-premises judge. | Network team | Sprint 2 |
+| On-call owner and alert owner | Project owner | Before the sign-off |
+
+`flow.html` in this folder is the first version of the flow diagram. The diagrams above
+replace it.

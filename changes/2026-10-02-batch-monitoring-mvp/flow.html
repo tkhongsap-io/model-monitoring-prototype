@@ -9,6 +9,7 @@
 </head>
 <body><div class="container">
 <h1>Where the metrics come from: GCP → AWS monitor → RAI dashboard</h1>
+<p class="subtitle" style="color:#fbbf24">Superseded on 2026-10-04: this is the first version of the flow. It shows a pull model and optional GCP spans. The current flow is in <a href="summary.md">summary.md</a>.</p>
 <p class="subtitle">October MVP flow for the four-sprint plan. GCP publishes completed results; the AWS monitor owns evaluation policy. Required AWS stack: monitor + OpenTelemetry Collector + self-hosted Langfuse. Dashed orange = additional producer-side spans where available.</p>
 <div class="diagram"><svg viewBox="0 0 1200 935" role="img" aria-label="GCP batch jobs push a completed-run summary to the AWS monitor API. The importer and evaluator emit required OpenTelemetry spans to an AWS Collector and Langfuse, while scores use a linked Langfuse score write. The monitor store and API feed the RAI dashboard. GCP producer instrumentation is an additional optional source of spans.">
 <defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8Z" fill="#94a3b8"/></marker><marker id="arrow-orange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8Z" fill="#fb923c"/></marker><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1e293b" stroke-width=".5"/></pattern></defs>

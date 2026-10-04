@@ -47,6 +47,39 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-04 — batch MVP plan reviewed sprint by sprint; final pass
+
+- Changed: the project owner reviewed `changes/2026-10-02-batch-monitoring-mvp/issues.md`
+  sprint by sprint on 2026-10-03 and 2026-10-04. All four files of the change folder are
+  now in ASD-STE100. Main decisions:
+  - OpenTelemetry in the GCP jobs, through a front door and the Collector.
+  - Langfuse SDK v4 in the backend only.
+  - The trace ID in the `traceparent` header.
+  - Identity-only mode until security approves the records.
+  - A static API key with an IP allowlist.
+  - A YAML registry with API key hashes in the database.
+  - A dashboard with only the GCP use cases, the current UI and no record text. Langfuse for engineers only.
+  - A delivery lane on the existing alert engine.
+  - A judge retry, with a local-model fallback.
+  - Fixed versions: Python 3.12.15, PostgreSQL 17.11, Langfuse 4.50.0.
+  - RDS and S3 as plan A, with an in-cluster plan B.
+  - An installation on a test AWS cluster in Sprint 3.
+  - A use case passes only when its quality grade works.
+  - Prototype-only code is not maintained and is removed in S4-07.
+
+  The issues are renumbered: 32 issues (11, 8, 6 and 7). `plan.md`, `summary.md` and
+  `llm-metrics-standard.md` are rewritten to match. `flow.html` is marked as superseded.
+  No application code changed.
+- Evidence: `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`). Both Mermaid diagrams
+  in `summary.md` rendered in a browser with Mermaid 11, with no errors. The versions were
+  read from endoflife.date, Docker Hub, PyPI and GitHub releases on 2026-10-03 and
+  2026-10-04. SDK v4 has no `trace()` or `score()`; this was confirmed by installing
+  `langfuse==4.16.0`.
+- Remaining:
+  - The issues are not posted to GitHub.
+  - The ADR for push ingestion and `intent.md` with a new risk tier are not written yet.
+  - Open approvals: security (S1-08), the long-lead requests, and the on-call owner (S4-05).
+
 ### 2026-10-03 — batch MVP: one LLM metric and data standard from the prototype
 
 - Changed: added `changes/2026-10-02-batch-monitoring-mvp/llm-metrics-standard.md`. All
