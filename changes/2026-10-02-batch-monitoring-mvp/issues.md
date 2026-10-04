@@ -95,8 +95,8 @@ remaining prototype-only code.
 | S2-07 | Onboard 4 use cases | Feature | Job owners + backend | S2-01, S1-08 |
 | S2-08 | Dashboard shows the GCP use cases with the current UI | Feature | Backend | S2-07 |
 | S2-09 | One run as a single trace, GCP job to score | Verification | Backend + platform | S2-03 + S2-04 + S2-06 |
-| S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job owners + backend | S1-08 |
-| S3-02 | Missed-run detection and alert | Feature | Backend | S3-04 |
+| S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-08 |
+| S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 |
 | S3-03 | Collector hardening: auth, TLS, redaction, durable queue | Infrastructure | Platform | S3-04, S3-05 |
 | S3-04 | Failure and recovery drills | Verification | Backend + platform | S3-02 + S3-03 |
 | S3-05 | Security and retention review with leak scan | Verification | Security + platform | S3-03 |
@@ -966,37 +966,94 @@ GCP job to the scores. Show the same run with its grade on the dashboard.
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 3.1 | Job owners + backend | S2-07 | S1-08 | L |
+| Feature | 3.1 | Job developers + backend + platform | S2-04, S2-07 | S1-08 | L |
 
-**What:** Reach 8 use cases. For jobs where submit and harvest run in different executions,
-store the submit `traceparent` with the batch job ID so harvest continues the same trace.
+**What:** Onboard 4 more use cases, to a total of 8. Use the seven steps in S2-07 for each
+job. Include the difficult jobs from the S1-10 table.
+
+**Jobs with separate submit and harvest.** In some jobs, one run of the code submits the
+Gemini batch job, and a later run of the code harvests the results. To make one trace for
+the two runs:
+1. Add a function to the helper file (S2-04) that continues a trace from a stored `traceparent`. Increase the version number of the file.
+2. The submit run stores its `traceparent` in the same location as the Gemini batch job ID.
+3. The harvest run reads the `traceparent` and continues the same trace.
+
+**Partial publication.** If only part of the results are published, the job sends
+`status: partial` with the counts. The job does not send `completed` before all the results
+are published.
 
 **Acceptance criteria**
-- [ ] 8 real runs confirmed by owners, each with an approved task description and its five metrics graded or Unknown with a reason.
-- [ ] A submitted-only job sends nothing.
-- [ ] Split submit and harvest still show as one trace.
+- [ ] 8 real runs in total. The owner of each use case confirms that the run is real.
+- [ ] A job that only submitted sends nothing.
+- [ ] For a job with separate submit and harvest, Langfuse shows the submit spans and the harvest spans under the same root span.
+- [ ] A partial publication arrives with `status: partial`.
+- [ ] Each use case has an approved task description and its five metrics graded, or "Unknown" with a reason.
 
 **How to test**
-1. Per job: `scripts/check_trace.py <trace_id>` shows all hops; record trace IDs here.
-2. Split job: the Langfuse trace shows submit and harvest spans under the same root.
+1. For each new job: run `scripts/check_trace.py <trace_id>`. Make sure that all the items are "found". Record the trace IDs in this issue.
+2. For a job with separate submit and harvest: run the submit, then the harvest. Make sure that one trace contains both.
+3. Unit (GCP repository): store a `traceparent`, continue the trace in a new process, and make sure that the trace ID is the same.
 
-### S3-02 — Missed-run detection and alert
+### S3-02 — Delivery lane: missed-run and failed-job alerts
 
 | Type | Plan task | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|---|
-| Feature | 3.2 | Backend | S1-10 | S3-04 | M |
+| Feature | 3.2 | Backend | S2-01, S1-03 | S3-04 | M |
 
-**What:** Use each use case's schedule to detect a run that did not arrive in time, and alert
-through the existing alert path.
+**What:** Add a "delivery" lane for each GCP use case. Use the existing alert code: the
+transition engine (`backend/app/engines/alerts.py`), the table `live_alerts`, the webhook
+(`backend/app/alert_delivery.py`) and the endpoint `/api/live/alerts`. The current UI
+already shows alerts, so the UI does not change.
+
+| Delivery health | Condition | Reason |
+|---|---|---|
+| Green | The last run arrived on time | — |
+| Amber | The last run has `status: partial` | `partial_publication` |
+| Red | No run arrived before the end of the grace period | `run_missing` |
+| Red | The last run has `status: failed` | `job_failed` |
+| Unknown | No run has arrived yet, or the use case has no schedule | `no_run_yet` or `no_schedule` |
+
+The existing engine opens an alert on Red and on Green to Amber, resolves it on Green, and
+keeps one open alert only. Unknown never opens an alert. The delivery lane is **not** part
+of the overall quality grade, so a missed run never changes the quality grade.
+
+**Steps**
+1. Add the schedule to each use case in the YAML registry (S2-01): `schedule.expected_every` (for example `24h`) and `schedule.grace` (for example `2h`). Use an interval, not a cron expression, so that no new package is necessary. For a monthly job, use `31d`.
+2. Write the pure function `delivery_health(last_run, every, grace, now)` in the new file `backend/app/engines/delivery.py`. It returns the health and the reason. It does no I/O. The caller gives the time `now`.
+3. Add `evaluate_delivery(uc, now)` to `backend/app/alerting.py`. It reads the latest run from `batch_runs`, calls `delivery_health`, and calls the existing `transitions()` with the key `"delivery"` only.
+4. In `backend/app/live_poller.py`, call `evaluate_delivery` for each GCP use case in each cycle, inside the lease. The existing `alert_delivery.deliver_pending()` sends the webhook.
+
+| File | Change |
+|---|---|
+| YAML registry | Add `schedule.expected_every` and `schedule.grace` |
+| `backend/app/engines/delivery.py` | New pure function |
+| `backend/app/alerting.py` | New function `evaluate_delivery` |
+| `backend/app/live_poller.py` | Call `evaluate_delivery` in each cycle |
+| Frontend | No change |
 
 **Acceptance criteria**
-- [ ] Late run: use case shown as stale, alert opened as a delivery problem.
-- [ ] Run arrives: alert resolves.
-- [ ] Never turns a model-quality grade Green or Red.
+- [ ] Each condition in the table gives the correct health and reason.
+- [ ] A missing run opens one alert only, also after many cycles.
+- [ ] A new run that arrives on time resolves the alert.
+- [ ] The overall quality grade does not change because of the delivery lane.
+- [ ] The webhook receives the open and the resolve messages.
+- [ ] The current UI shows the delivery alert. If it does not show the lane name "delivery", map the alert to a name that the UI shows.
+- [ ] No new package and no new table.
 
 **How to test**
-1. Unit: fixed clock; expected run missing past the grace period opens an alert; arrival resolves it.
-2. Paired with S3-04: stop one job's send in the drill and watch the alert open and resolve.
+1. Unit tests for `delivery_health` with a fixed clock (every 24h, grace 2h):
+
+   | Test | Expected result |
+   |---|---|
+   | No run yet | Unknown, `no_run_yet` |
+   | Last run 20 hours ago | Green |
+   | Last run 25 hours ago (inside the grace period) | Green |
+   | Last run 27 hours ago (after the grace period) | Red, `run_missing` |
+   | Last run has `status: failed` | Red, `job_failed` |
+   | Last run has `status: partial` | Amber, `partial_publication` |
+
+2. Integration test with SQLite, a fixed clock and a fake webhook: store a run, move the clock 27 hours, run one cycle, and make sure that one alert opens. Run another cycle, and make sure that no second alert opens. Store a new run, run a cycle, and make sure that the alert resolves and the quality grade did not change.
+3. Paired with S3-04: on the test host, stop the send step of one job. After the grace period, make sure that the alert shows in the UI and in the webhook. Start the send step again, and make sure that the alert resolves.
 
 ### S3-03 — Collector hardening: auth, TLS, redaction, durable queue
 
