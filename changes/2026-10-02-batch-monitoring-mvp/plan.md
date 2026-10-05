@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Reviewed sprint by sprint, 2026-10-03 and 2026-10-04 |
+| **Status** | Reviewed sprint by sprint, 2026-10-03 and 2026-10-04. Revised 2026-10-05: SSO login and the LiteLLM judge. |
 | **Period** | Monday 2026-10-05 to Friday 2026-10-30 (4 sprints of one week) |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Pull request** | [tkhongsap-io/model-monitoring-prototype#1](https://github.com/tkhongsap-io/model-monitoring-prototype/pull/1) |
@@ -38,6 +38,9 @@ ready, we report the result as a pilot, with each blocker. We do not report a re
 | 2026-10-03 | Fixed versions: Python 3.12.15, PostgreSQL 17.11, Langfuse 4.50.0 | Stable and known versions | [Issues: fixed versions](issues.md#fixed-versions-checked-2026-10-03) |
 | 2026-10-04 | On AWS: RDS and S3 (plan A), or everything in the cluster (plan B) | Less operations work with managed services | S3-06 |
 | 2026-10-04 | Install on a test AWS cluster in Sprint 3 | Sprint 4 repeats a known installation | S3-06 |
+| 2026-10-05 | The judge is a local model through the company LiteLLM proxy. Claude is not used. The backend calls the proxy with `httpx`. The `anthropic` package is removed. | Redacted records stay inside the company network. No new package. | S1-12, S2-09, S2-10 |
+| 2026-10-05 | Staff log in with Google Workspace SSO: OAuth2 Proxy for the dashboard, the built-in SSO for Langfuse. The change to Entra ID later is a change of settings only. | Named access for each person instead of only an IP allowlist | S3-07 |
+| 2026-10-05 | On port 443, the front door sends only `/api/batch/runs` and `/api/health` to the backend | Nobody reads the dashboard API around the SSO | S1-06 |
 
 ## Sprints at a glance
 
@@ -58,8 +61,11 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 | JSON body v1 | GCP job developer + backend | Wed 7 October | The Sprint 1 demo moves |
 | Security approval of the records, the PII list and the data flow | Security | Thu 8 October | Identity-only mode. A use case cannot pass the release without records. |
 | Inventory of the 10 use cases and their October run dates | PM + owners | Fri 9 October | Sprint 2 cannot select the jobs |
+| LiteLLM proxy access: URL, virtual keys, model alias, log policy (S1-12) | LiteLLM proxy owner | Fri 9 October | S2-09 is tested only on the local stack. No scores on the test host. |
 | Langfuse SDK v4 and the OTel packages approved | Backend + project owner | Mon 12 October | The tracing work waits |
 | Task description of the first use case | RAI | Wed 14 October | The judge metrics are "Unknown" |
+| RAI accepts the local judge (S2-10) | RAI | Fri 16 October | The scores show, but no use case can pass the release |
+| DNS name for the test host, and two Google OAuth clients (long-lead) | Your team + network team + Google Workspace administrator | Mon 19 October | No SSO on the test host. IP allowlist only. |
 | Test AWS Kubernetes cluster (long-lead) | Your team | Mon 19 October | Test on a local kind cluster only |
 | RDS and S3 (long-lead) | Platform + AWS team | Wed 21 October | Plan B |
 | DNS name and certificate (long-lead) | Your team + network team | Mon 26 October | IP address and a private CA certificate |
@@ -81,9 +87,11 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 | S1-09 | Inventory of the 10 use cases | PM + owners | M |
 | S1-10 | First real run from start to end | Backend + GCP job developer | S |
 | S1-11 | Database accounts | Platform + backend | S |
+| S1-12 | Access to the company LiteLLM proxy for the judge | Backend + LiteLLM proxy owner | S |
 
 **Done when:** the JSON body v1 is agreed, the API is merged with tests, one real run
-arrived from a real GCP job with one trace, and the inventory has 10 rows with run dates.
+arrived from a real GCP job with one trace, the inventory has 10 rows with run dates, and
+the test host can call the LiteLLM proxy.
 
 ## Sprint 2 — 12 to 16 October: same path for many jobs, with grades and traces
 
@@ -97,9 +105,11 @@ arrived from a real GCP job with one trace, and the inventory has 10 rows with r
 | S2-06 | Onboard 4 use cases | Job developers + backend + platform | L |
 | S2-07 | Dashboard shows the GCP use cases | Backend | M |
 | S2-08 | Sprint 2 demo | Backend + platform | S |
+| S2-09 | Judge through the company LiteLLM proxy | Backend | M |
+| S2-10 | RAI accepts the local judge | RAI + backend | M |
 
-**Done when:** 4 real use cases are on the dashboard, and one run is one trace in Langfuse
-with its scores. The Sprint 2 prerequisites (server size, ports, judge access) are in
+**Done when:** 4 real use cases are on the dashboard, one run is one trace in Langfuse
+with its scores from the LiteLLM judge, and RAI decided on the judge. The Sprint 2 prerequisites (server size, ports, judge access) are in
 [issues.md](issues.md).
 
 ## Sprint 3 — 19 to 23 October: 8 use cases, and stronger
@@ -112,9 +122,10 @@ with its scores. The Sprint 2 prerequisites (server size, ports, judge access) a
 | S3-04 | Failure and recovery drills | Backend + platform | M |
 | S3-05 | Security review and leak scan | Security + platform | M |
 | S3-06 | Kubernetes files, installed on the test AWS cluster | Platform | L |
+| S3-07 | SSO login for the dashboard and Langfuse | Platform | M |
 
-**Done when:** 8 real use cases are visible, the drills and the security review pass, and the
-stack runs on the test AWS cluster.
+**Done when:** 8 real use cases are visible, the staff log in with SSO, the drills and the
+security review pass, and the stack runs on the test AWS cluster.
 
 ## Sprint 4 — 26 to 30 October: production and handoff
 
@@ -152,7 +163,10 @@ not, publish the result as a pilot, with each blocker.
 | Run summary | The JSON body that the GCP job sends after publish |
 | Record | One sampled request: instruction, answer, source material, refused flag, latency |
 | Identity-only mode | The job sends the run summary without records, until security approves |
-| Judge | The LLM (Claude Haiku, or a local model) that scores each record |
+| Judge | The local LLM behind the company LiteLLM proxy that scores each record |
+| LiteLLM proxy | The company gateway, owned by another team, that gives an OpenAI-compatible API to the local models |
+| SSO | Single sign-on: the staff log in with their company account (Google now, Entra ID later) |
+| OAuth2 Proxy | The service in front of the dashboard that asks for the SSO login |
 | Task description | One sentence for each use case that tells the judge what the outputs are |
 | OTel / OpenTelemetry | The open standard for traces |
 | Span | One timed step in a trace |
@@ -171,7 +185,11 @@ not, publish the result as a pilot, with each blocker.
 | Approvals for DNS, the clusters, RDS or S3 are late | No production release | Long-lead requests in Sprint 1, each with a fallback |
 | Only 6 pipelines in 4 repositories were examined | The 10-ID list can be different | The inventory (S1-09) is a Sprint 1 exit condition |
 | Each job developer must change their job | Onboarding depends on many people | Keep the send step and the helper file small. Use the S2-06 steps for each job. |
-| The backend cannot reach the Anthropic API | No judge | Local model on the on-premises server, after RAI examines it |
+| The local judge scores worse than Claude, mainly for Thai text | RAI does not accept the judge, and no use case passes | Reference set and limits in S2-10 by 16 October. Ask the proxy owner for a different model if necessary. |
+| The LiteLLM proxy is slow or limits the calls when many runs arrive | Scores arrive late, or `judge_failed` | `LLM_JUDGE_CONCURRENCY` and the rate limit from S1-12. Drill in S3-04. |
+| The proxy owner changes the model behind the alias | The scores change without notice | Each score stores the model name. S4-04 compares it with the accepted model. |
+| No DNS name for the test host by 19 October | No SSO on the test host | Long-lead request in Sprint 1. SSO must work on AWS. |
+| Platform has three issues in Sprint 3 (S3-03, S3-06, S3-07) | Sprint 3 is late | S3-07 is settings only. Backend can help with the local stack and the check script. |
 | The GCP developer has three issues in Sprint 1 | Sprint 1 is late | If necessary, move S1-05 part A to the start of Sprint 2 |
 
 ## Repository rules that this plan changes
@@ -183,10 +201,11 @@ Make these changes before the code that needs them is merged.
 | `CLAUDE.md`: the monitor is a consumer and makes no demands on the producer | The GCP jobs add a send step | Write an ADR in `docs/adr/` for the push method. Update `CLAUDE.md`. |
 | `CLAUDE.md`: only the poller and the worker-token route change data | The receiving API writes runs | The same ADR. The API uses a key and stores each run one time. |
 | `CLAUDE.md` project contract: three prototype models on Replit, risk tier R1 | 10 GCP use cases on AWS. Redacted customer data goes between the clouds. | Write `intent.md` for this change and examine the risk tier again. S4-07 updates `CLAUDE.md`. |
-| No new packages without a plan entry | `opentelemetry-*`, `langfuse>=4.16,<5` | List them with versions in the Sprint 1 spec (OTel) and in S2-02 (Langfuse) |
+| No new packages without a plan entry | `opentelemetry-*`, `langfuse>=4.16,<5`. `anthropic` is removed (S2-09). New images: OAuth2 Proxy and the mock OIDC server (S3-07). | List them with versions in the Sprint 1 spec (OTel), in S2-02 (Langfuse) and in the fixed-versions table (images) |
+| `docs/STRICT-LIVE.md`: `ANTHROPIC_API_KEY` is required | `LLM_JUDGE_BASE_URL`, `LLM_JUDGE_API_KEY` and `LLM_JUDGE_MODEL` are required | S2-09 updates `docs/STRICT-LIVE.md`, `.env.example` and the CI workflow |
 
 ## Not in October
 
-Moving the Gemini traffic through LiteLLM. Metrics other than the five LLM metrics. Replacing
+Moving the Gemini traffic of the GCP jobs through LiteLLM (only the judge uses LiteLLM). Metrics other than the five LLM metrics. Replacing
 the contract v1.1 data windows with OTel. An OTel metrics or logs backend. A Langfuse link in
 the dashboard. LIME explanations. Any number that the data does not contain.

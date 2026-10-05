@@ -47,6 +47,40 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-05 — batch MVP plan: SSO login and the LiteLLM judge
+
+- Changed: revised `changes/2026-10-02-batch-monitoring-mvp/` for two decisions of the
+  project owner:
+  - The LLM judge is a local model through the company LiteLLM proxy. Claude and the
+    Anthropic API are not used, and there is no second provider. The backend will call the
+    proxy with `httpx` (already a dependency); `anthropic` will be removed. New issues S1-12
+    (proxy access), S2-09 (judge client) and S2-10 (RAI accepts the judge against human
+    labels, the new release gate).
+  - Staff log in with Google Workspace SSO (Entra ID later, settings only): OAuth2 Proxy in
+    front of the dashboard, the built-in SSO of Langfuse with no password login. New issue
+    S3-07. Google does not accept an IP address in a redirect URI, so a DNS name for the
+    test host is a new long-lead request.
+  - S1-06: port 443 now sends only `/api/batch/runs` and `/api/health` to the backend, so
+    nobody reads the dashboard API around the SSO.
+
+  36 issues now (12, 10, 7 and 7). An "Overview by phase" table groups them in 16
+  workstreams. `plan.md`, `summary.md` and `llm-metrics-standard.md` match.
+  `model_monitoring_issues.xlsx` replaces `issues.xlsx` and is built from `issues.md` by
+  the new `build_issues_xlsx.py`, with a Tracker sheet in the team's phase template. No
+  application code changed.
+- Evidence: `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`). The workbook was
+  rebuilt and compared with the previous one: the 15 issues that were not changed are
+  identical, except four fixes of formatting errors in the old export. The Tracker sheet
+  was rendered with LibreOffice. The Google redirect-URI rule, the OAuth2 Proxy and mock
+  OIDC server versions, the OAuth2 Proxy provider names, the Langfuse SSO settings and the
+  LiteLLM `json_schema` request format were read from the official documentation on
+  2026-10-05.
+- Remaining:
+  - The issues are not posted to GitHub (issues are disabled on the repository).
+  - The S2-10 acceptance limits are a proposal; RAI must confirm them.
+  - Open requests: LiteLLM proxy access (S1-12), the test-host DNS name and the Google
+    OAuth clients.
+
 ### 2026-10-04 — batch MVP plan reviewed sprint by sprint; final pass
 
 - Changed: the project owner reviewed `changes/2026-10-02-batch-monitoring-mvp/issues.md`
