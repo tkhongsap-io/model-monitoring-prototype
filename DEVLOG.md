@@ -59,9 +59,11 @@ depend on. The spec is
   S1-02, S1-04 (new title), S1-06, S1-08, S1-09, S1-11, S1-12, Sprint 2 prerequisites,
   S2-03, S2-06, S3-03, S3-05, S3-06, S3-07, S4-01, S4-02. `plan.md`, `summary.md` and the
   workbook match.
-- Evidence: `tests/test_docs.py` (see the PR). The workbook was rebuilt from `issues.md`.
+- Evidence: `tests/test_docs.py` 5 passed. The workbook was rebuilt from `issues.md`.
+- Posted: the 15 changed GitHub issues were updated from `issues.md` (#4, #6 with its new
+  title, #8, #10, #11, #13, #14, #17, #20, #27, #29, #30, #31, #32, #33). A second compare
+  found no difference between GitHub and `issues.md`.
 - Remaining:
-  - The GitHub issues #3 to #38 still show the text from before this change.
   - S1-04 is due Tuesday 6 October. Its prerequisites (GCP project, VPC connection, job
     runtimes, private DNS name) need answers from the network team first.
 
