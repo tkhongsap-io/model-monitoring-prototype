@@ -47,6 +47,24 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-05 — batch MVP plan: the test host moves to GCP
+
+- Changed: the project owner decided that the Sprint 1 to 3 test host runs in GCP. It is
+  one Compute Engine VM (`e2-standard-8`, no external IP, IAP SSH, Cloud NAT for outbound)
+  with the same Docker Compose stack. The GCP jobs reach it on a private VPC path through a
+  private DNS name and a private CA certificate. The API key stays in S1-02, so the test
+  uses the same method as production. The Sprint 3 Kubernetes test stays on the test AWS
+  cluster, and production stays on AWS. S3-06 now also tests the internet path from a GCP
+  job through Cloud NAT to AWS, because the test host no longer tests it. Changed issues:
+  S1-02, S1-04 (new title), S1-06, S1-08, S1-09, S1-11, S1-12, Sprint 2 prerequisites,
+  S2-03, S2-06, S3-03, S3-05, S3-06, S3-07, S4-01, S4-02. `plan.md`, `summary.md` and the
+  workbook match.
+- Evidence: `tests/test_docs.py` (see the PR). The workbook was rebuilt from `issues.md`.
+- Remaining:
+  - The GitHub issues #3 to #38 still show the text from before this change.
+  - S1-04 is due Tuesday 6 October. Its prerequisites (GCP project, VPC connection, job
+    runtimes, private DNS name) need answers from the network team first.
+
 ### 2026-10-05 — batch MVP plan: SSO login and the LiteLLM judge
 
 - Changed: revised `changes/2026-10-02-batch-monitoring-mvp/` for two decisions of the

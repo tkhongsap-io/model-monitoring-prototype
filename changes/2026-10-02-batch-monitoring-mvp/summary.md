@@ -149,7 +149,7 @@ Why the run summary is not sent with OTel:
 
 | Sprint | Dates | Data | OpenTelemetry and Langfuse | Use cases | Demo on Friday |
 |---|---|---|---|---|---|
-| **1** | 5 to 9 October | JSON body v1, receiving API, GCP send step, identity-only mode | OTel in the first job and in the backend. Collector with file output. | 1 | One real run arrives, with one trace |
+| **1** | 5 to 9 October | Test host VM in GCP on a private VPC path, JSON body v1, receiving API, GCP send step, identity-only mode | OTel in the first job and in the backend. Collector with file output. | 1 | One real run arrives, with one trace |
 | **2** | 12 to 16 October | YAML registry, five-metric evaluator, LiteLLM judge and its acceptance by RAI, dashboard with the GCP use cases | Self-hosted Langfuse, SDK v4 in the backend, OTel helper file | 4 | One trace from the GCP job to the scores. The grade is on the dashboard. |
 | **3** | 19 to 23 October | 8 use cases, delivery alerts, SSO login, security review | Collector hardening, drills, Kubernetes files on the test AWS cluster | 8 | The drills pass. The stack runs on the test AWS cluster. |
 | **4** | 26 to 30 October | All 10 use cases send to AWS | Production cluster | 10 | The 10-row evidence checklist is signed |
@@ -162,7 +162,7 @@ Why the run summary is not sent with OTel:
 | Inventory of the 10 use cases and their run dates | PM + owners | 9 October |
 | LiteLLM proxy access: URL, virtual keys, model alias, log policy (S1-12) | LiteLLM proxy owner | 9 October |
 | RAI accepts the local judge (S2-10) | RAI | 16 October |
-| DNS name for the test host and two Google OAuth clients, for SSO (long-lead) | Your team, Google Workspace administrator | 19 October |
+| Private DNS name for the test host (GCP) and two Google OAuth clients, for SSO (long-lead) | Your team, Google Workspace administrator | 19 October |
 | Test AWS cluster, RDS and S3, DNS name, production cluster (long-lead requests) | Your team, platform | 19 to 26 October |
 | On-call owner and alert owner | Project owner | Before the sign-off |
 

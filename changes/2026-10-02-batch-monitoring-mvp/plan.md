@@ -41,12 +41,13 @@ ready, we report the result as a pilot, with each blocker. We do not report a re
 | 2026-10-05 | The judge is a local model through the company LiteLLM proxy. Claude is not used. The backend calls the proxy with `httpx`. The `anthropic` package is removed. | Redacted records stay inside the company network. No new package. | S1-12, S2-09, S2-10 |
 | 2026-10-05 | Staff log in with Google Workspace SSO: OAuth2 Proxy for the dashboard, the built-in SSO for Langfuse. The change to Entra ID later is a change of settings only. | Named access for each person instead of only an IP allowlist | S3-07 |
 | 2026-10-05 | On port 443, the front door sends only `/api/batch/runs` and `/api/health` to the backend | Nobody reads the dashboard API around the SSO | S1-06 |
+| 2026-10-05 | The test host for Sprints 1 to 3 is a Compute Engine VM in GCP with Docker Compose, on a private VPC path, with no public IP. The API key stays. The Sprint 3 Kubernetes test stays on the test AWS cluster. Production stays on AWS. | Real redacted data stays in GCP during the test. The same API key method as production. | S1-02, S1-04, S3-06 |
 
 ## Sprints at a glance
 
 | Sprint | Dates | Question | Use cases | Where it runs | Demo on Friday |
 |---|---|---|---|---|---|
-| **1** | 5 to 9 October | Can we get data out of GCP? | 1 | Test host (Docker Compose) | One real run arrives. The backend span has the trace ID of the job. |
+| **1** | 5 to 9 October | Can we get data out of GCP? | 1 | Test host: Compute Engine VM in GCP (Docker Compose) | One real run arrives. The backend span has the trace ID of the job. |
 | **2** | 12 to 16 October | Can the jobs use the same path, with grades and traces? | 4 | Test host | One run is one trace in Langfuse, from the GCP job to the scores. Its grade is on the dashboard. |
 | **3** | 19 to 23 October | What happens when something fails? | 8 | Test host, and the test AWS cluster | The drills pass. The stack runs on the test AWS cluster. |
 | **4** | 26 to 30 October | Does it work in production? | 10 | Production AWS cluster | The 10-row evidence checklist is signed |
@@ -57,7 +58,7 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 
 | Item | Owner | Needed by | If it is late |
 |---|---|---|---|
-| Test host | Platform | Tue 6 October | Replay a saved real body into the local stack |
+| Test host VM in GCP, with the private VPC path from the first job (S1-04) | Platform + network team | Tue 6 October | Replay a saved real body into the local stack |
 | JSON body v1 | GCP job developer + backend | Wed 7 October | The Sprint 1 demo moves |
 | Security approval of the records, the PII list and the data flow | Security | Thu 8 October | Identity-only mode. A use case cannot pass the release without records. |
 | Inventory of the 10 use cases and their October run dates | PM + owners | Fri 9 October | Sprint 2 cannot select the jobs |
@@ -65,7 +66,7 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 | Langfuse SDK v4 and the OTel packages approved | Backend + project owner | Mon 12 October | The tracing work waits |
 | Task description of the first use case | RAI | Wed 14 October | The judge metrics are "Unknown" |
 | RAI accepts the local judge (S2-10) | RAI | Fri 16 October | The scores show, but no use case can pass the release |
-| DNS name for the test host, and two Google OAuth clients (long-lead) | Your team + network team + Google Workspace administrator | Mon 19 October | No SSO on the test host. IP allowlist only. |
+| Private DNS name for the test host under a company domain, and two Google OAuth clients (long-lead) | Your team + network team + Google Workspace administrator | Mon 19 October | No SSO on the test host. Firewall rules only. |
 | Test AWS Kubernetes cluster (long-lead) | Your team | Mon 19 October | Test on a local kind cluster only |
 | RDS and S3 (long-lead) | Platform + AWS team | Wed 21 October | Plan B |
 | DNS name and certificate (long-lead) | Your team + network team | Mon 26 October | IP address and a private CA certificate |
@@ -79,7 +80,7 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 | S1-01 | Map one GCP job and write the JSON body v1 | GCP job developer | M |
 | S1-02 | Receiving API with API key | Backend | L |
 | S1-03 | GCP job sends the run summary | GCP job developer | M |
-| S1-04 | Test host that GCP can reach | Platform | M |
+| S1-04 | Test host in GCP (Compute Engine VM) | Platform | M |
 | S1-05 | OTel in the GCP job and the backend | GCP job developer + backend | M + M |
 | S1-06 | Minimal Collector and front door | Platform | M |
 | S1-07 | Trace check tool | Backend | S |
@@ -188,7 +189,9 @@ not, publish the result as a pilot, with each blocker.
 | The local judge scores worse than Claude, mainly for Thai text | RAI does not accept the judge, and no use case passes | Reference set and limits in S2-10 by 16 October. Ask the proxy owner for a different model if necessary. |
 | The LiteLLM proxy is slow or limits the calls when many runs arrive | Scores arrive late, or `judge_failed` | `LLM_JUDGE_CONCURRENCY` and the rate limit from S1-12. Drill in S3-04. |
 | The proxy owner changes the model behind the alias | The scores change without notice | Each score stores the model name. S4-04 compares it with the accepted model. |
-| No DNS name for the test host by 19 October | No SSO on the test host | Long-lead request in Sprint 1. SSO must work on AWS. |
+| No private DNS name for the test host by 19 October | No SSO on the test host | Long-lead request in Sprint 1. SSO must work on AWS. |
+| The test host is on a private path, so Sprints 1 and 2 do not test the internet path to AWS | Network problems appear only in Sprint 4 | S3-06 sends from a GCP job runtime through Cloud NAT to the test AWS cluster |
+| A job runtime cannot reach an internal IP (for example a Cloud Run job without VPC egress) | The job cannot send to the test host | S1-04 and S1-09 record the runtime of each job. Platform adds VPC egress before onboarding (S2-06). |
 | Platform has three issues in Sprint 3 (S3-03, S3-06, S3-07) | Sprint 3 is late | S3-07 is settings only. Backend can help with the local stack and the check script. |
 | The GCP developer has three issues in Sprint 1 | Sprint 1 is late | If necessary, move S1-05 part A to the start of Sprint 2 |
 
