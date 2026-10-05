@@ -59,7 +59,9 @@ depend on. The spec is
   session while S1-01 waits for the GCP developer to confirm the schema.
 - Evidence: new `tests/test_llm_eval_local_store.py` failed 4 of 4 before the change.
   After the change, the fast suite passed (163 passed, 9 deselected) with `langfuse` 4.17.0
-  and OTel 1.45.0 from PyPI on Windows. Full suite: see the PR.
+  and OTel 1.45.0 from PyPI on Windows. The full suite with the slow bakes passed (172
+  passed), so the golden bake did not change. Not run: the frontend checks (no frontend
+  change) and a real Langfuse server (not available locally).
 - Remaining:
   - S2-02 still needs the `monitor.evaluate` span and `create_score` (after S1-05 part B)
     and the one-trace check (after S2-03).
