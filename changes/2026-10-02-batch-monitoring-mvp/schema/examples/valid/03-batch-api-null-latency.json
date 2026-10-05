@@ -1,0 +1,33 @@
+{
+  "schema_version": "batch-run/1",
+  "use_case_id": "GCP-UC-07",
+  "run_id": "complaint-triage-2026-10-07",
+  "status": "completed",
+  "completed_at": "2026-10-07T09:02:44Z",
+  "request_count": 12,
+  "failed_count": 0,
+  "model": "gemini-2.5-pro",
+  "sample": {"method": "uniform_random", "size": 50},
+  "records": [
+    {
+      "record_id": "batch-key-0001",
+      "question": "Classify this complaint into billing, network or service, and give one sentence of reason.",
+      "answer": "network: the customer reports no signal at home since Monday.",
+      "retrieval_context": [
+        {"doc_id": "cmp-5521", "title": "", "text": "No signal at my house since Monday. Please call me at [PHONE]."}
+      ],
+      "refused": false,
+      "latency_s": null
+    },
+    {
+      "record_id": "batch-key-0002",
+      "question": "Classify this complaint into billing, network or service, and give one sentence of reason.",
+      "answer": "billing: the customer was charged twice for the same month.",
+      "retrieval_context": [
+        {"doc_id": "cmp-5522", "title": "", "text": "I paid September two times. My ID is [NATIONAL_ID]."}
+      ],
+      "refused": false,
+      "latency_s": null
+    }
+  ]
+}

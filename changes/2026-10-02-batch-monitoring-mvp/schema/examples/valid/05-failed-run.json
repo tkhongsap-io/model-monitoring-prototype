@@ -1,0 +1,13 @@
+{
+  "schema_version": "batch-run/1",
+  "use_case_id": "GCP-UC-03",
+  "run_id": "invoice-summary-2026-10-09",
+  "status": "failed",
+  "completed_at": "2026-10-09T01:58:17Z",
+  "request_count": 1810,
+  "failed_count": 1810,
+  "model": "gemini-2.5-flash",
+  "sample": {"method": "uniform_random", "size": 50},
+  "records": [],
+  "records_reason": "job_failed"
+}

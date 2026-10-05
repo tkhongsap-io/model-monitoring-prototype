@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:aict:monitor:batch-run:1",
+  "title": "Batch run summary v1 (batch-run/1)",
+  "description": "DRAFT for S1-01. One body for each run of a GCP batch job. The job sends it to POST /api/batch/runs after the publish step (S1-03). The trace ID is not in the body: it goes in the W3C traceparent HTTP header (S1-05). Field names of a record are the same as the contract v1.1 Trace record, so the shared judge code reads them without a change. See llm-metrics-standard.md. Rules that JSON Schema cannot express are listed in schema/README.md; the backend (S1-02) enforces them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "use_case_id",
+    "run_id",
+    "status",
+    "completed_at",
+    "request_count",
+    "failed_count",
+    "model",
+    "sample",
+    "records"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Fixed value. The backend rejects any other version.",
+      "const": "batch-run/1"
+    },
+    "use_case_id": {
+      "description": "SOURCE: a constant in the job configuration. The ID of the use case in the YAML registry (S2-01). It must be the use case of the API key.",
+      "$ref": "#/$defs/identifier"
+    },
+    "run_id": {
+      "description": "SOURCE: GCP job developer to fill in (for example the Cloud Run execution name, the Workflows execution ID, or <job>-<business date>). A stable ID of this run: a retry of the send, or a rerun of the same run, sends the same ID. A new run sends a new ID.",
+      "$ref": "#/$defs/identifier"
+    },
+    "status": {
+      "description": "SOURCE: GCP job developer to fill in. 'completed': the job published all its results. 'partial': the job published, but some requests gave no usable output. 'failed': the job did not publish.",
+      "enum": ["completed", "partial", "failed"]
+    },
+    "completed_at": {
+      "description": "SOURCE: GCP job developer to fill in. The time when the job published the results, or the time when the job failed. UTC, ISO 8601, with 'Z'.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "request_count": {
+      "description": "SOURCE: GCP job developer to fill in. The number of model requests in the run (the input rows that the job sent to Gemini).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "failed_count": {
+      "description": "SOURCE: GCP job developer to fill in. The number of requests that gave no usable output (error, timeout, empty or unparsable response). Not more than request_count. A safety block is not a failure: it is a record with refused=true.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "model": {
+      "description": "SOURCE: the Gemini model ID that the job called, for example 'gemini-2.5-flash'. If the job calls more than one model, the model of the main generation step.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sample": {
+      "description": "How the job selected the records.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "size"],
+      "properties": {
+        "method": {
+          "description": "Only uniform random sampling in v1.",
+          "const": "uniform_random"
+        },
+        "size": {
+          "description": "SOURCE: the job setting SAMPLE_SIZE (default 50). The configured sample size, not the number of records sent. The backend compares it with the registry (8 to 200).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        }
+      }
+    },
+    "records": {
+      "description": "The sampled records, with PII replaced by placeholders. Empty in identity-only mode (SEND_RECORDS off), when the job failed, or when request_count is 0.",
+      "type": "array",
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/record" }
+    },
+    "records_reason": {
+      "description": "Why records is empty. Required when records is empty and request_count is more than 0. Not allowed when records has items. 'records_not_approved': identity-only mode. 'job_failed': status is 'failed' (PROPOSED, not yet in the standard).",
+      "enum": ["records_not_approved", "job_failed"]
+    }
+  },
+  "allOf": [
+    {
+      "description": "A run with no requests has no records.",
+      "if": {
+        "required": ["request_count"],
+        "properties": { "request_count": { "const": 0 } }
+      },
+      "then": {
+        "properties": { "records": { "maxItems": 0 } }
+      }
+    },
+    {
+      "description": "Empty records with requests: a reason is required.",
+      "if": {
+        "required": ["records", "request_count"],
+        "properties": {
+          "records": { "maxItems": 0 },
+          "request_count": { "minimum": 1 }
+        }
+      },
+      "then": { "required": ["records_reason"] }
+    },
+    {
+      "description": "Records present: no reason.",
+      "if": {
+        "required": ["records"],
+        "properties": { "records": { "minItems": 1 } }
+      },
+      "then": {
+        "properties": { "records_reason": false }
+      }
+    },
+    {
+      "description": "A failed run sends no records, and its reason is job_failed. Other runs never use job_failed.",
+      "if": {
+        "required": ["status"],
+        "properties": { "status": { "const": "failed" } }
+      },
+      "then": {
+        "properties": {
+          "records": { "maxItems": 0 },
+          "records_reason": { "const": "job_failed" }
+        }
+      },
+      "else": {
+        "properties": {
+          "records_reason": { "const": "records_not_approved" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "redactedText": {
+      "description": "Free text. Phone numbers, email addresses and national ID numbers are replaced by [PHONE], [EMAIL] and [NATIONAL_ID] before the send (S1-03).",
+      "type": "string"
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_id", "question", "answer", "retrieval_context", "refused", "latency_s"],
+      "properties": {
+        "record_id": {
+          "description": "SOURCE: GCP job developer to fill in. The ID of the request inside the run, for example the row number or the Batch API request key. Unique in the run. Never a customer ID, account number or phone number.",
+          "$ref": "#/$defs/identifier"
+        },
+        "question": {
+          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The instruction that the model got, without the source material and without the system prompt. Redacted.",
+          "allOf": [{ "$ref": "#/$defs/redactedText" }],
+          "minLength": 1,
+          "maxLength": 32000
+        },
+        "answer": {
+          "description": "SOURCE: GCP job developer to fill in. The output text of the model for this request. Redacted. Can be empty only when refused is true (blocked, no output).",
+          "allOf": [{ "$ref": "#/$defs/redactedText" }],
+          "maxLength": 32000
+        },
+        "retrieval_context": {
+          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The source material that the model got, for example the document that it summarized. [] if the prompt has no source material.",
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["doc_id", "title", "text"],
+            "properties": {
+              "doc_id": {
+                "description": "An ID of the source document. Never a customer ID.",
+                "$ref": "#/$defs/identifier"
+              },
+              "title": {
+                "description": "A short title of the source document. Can be empty. Redacted.",
+                "allOf": [{ "$ref": "#/$defs/redactedText" }],
+                "maxLength": 512
+              },
+              "text": {
+                "description": "The text of the source document as the model got it. Redacted.",
+                "allOf": [{ "$ref": "#/$defs/redactedText" }],
+                "minLength": 1,
+                "maxLength": 64000
+              }
+            }
+          }
+        },
+        "tool_calls": {
+          "description": "Optional. Only if the job uses Gemini function calls. The judge treats each output as source material.",
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "output"],
+            "properties": {
+              "name": {
+                "description": "The function name.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "output": {
+                "description": "The function result that the model got. Any JSON value. Redacted."
+              }
+            }
+          }
+        },
+        "refused": {
+          "description": "SOURCE: GCP job developer to fill in. true if the model declined or was blocked: finishReason SAFETY / PROHIBITED_CONTENT / BLOCKLIST / SPII, promptFeedback.blockReason set, or a clear refusal text.",
+          "type": "boolean"
+        },
+        "latency_s": {
+          "description": "SOURCE: the time of the Gemini call in seconds, measured by the job. null for the Gemini Batch API (no time for each request). Never 0.",
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        }
+      },
+      "if": {
+        "required": ["refused"],
+        "properties": { "refused": { "const": false } }
+      },
+      "then": {
+        "properties": { "answer": { "minLength": 1 } }
+      }
+    }
+  }
+}
