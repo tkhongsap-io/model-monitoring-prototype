@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-04 |
-| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Not yet posted to GitHub. |
+| **Date** | 2026-10-05 |
+| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, and the judge through the company LiteLLM proxy. Not yet posted to GitHub. |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
@@ -13,6 +13,25 @@ is proven by a real sender. One shared tool, the trace check tool (S1-07), follo
 trace ID through all the locations. Thus each paired test ends with the same question:
 did the data of this run arrive in the monitor database and in Langfuse with the same
 trace ID?
+
+## Changes on 2026-10-05
+
+| Change | Decision | Issues |
+|---|---|---|
+| LLM judge | The judge is a local model through the company LiteLLM proxy. Claude and the Anthropic API are not used. There is no second provider. The backend calls the proxy with `httpx`, which it already uses. The `anthropic` package is removed. | New: S1-12, S2-09, S2-10. Changed: S1-08, S1-09, Sprint 2 prerequisites, S2-05, S2-07, S3-04, S3-05, S4-01, S4-03, S4-04, S4-05 |
+| SSO login | Staff log in with Google Workspace SSO. OAuth2 Proxy protects the dashboard. Langfuse uses its own SSO, with no password login. Later, the company changes to Microsoft Entra ID. This change is a change of settings only. | New: S3-07. Changed: S1-06, Sprint 2 prerequisites, S2-03, S3-04, S3-05, S3-06, S4-01, S4-05 |
+| Front door path | On port 443, the front door sends only `/api/batch/runs` and `/api/health` to the backend, not all of `/api/*`. Thus nobody can read the dashboard API around the SSO. | S1-06 |
+
+**Review focus.** These five failure modes are the most likely to cause problems. Each one
+has a test in the issue that owns it.
+
+| Failure mode | Expected behavior | Test in |
+|---|---|---|
+| A person reads the dashboard data through port 443 and avoids the SSO | Port 443 gives `404` for `/api/live/*` | S1-06, S3-07 |
+| The proxy owner changes the model behind the LiteLLM alias without notice | Each score records the model name that the proxy returns. S4-04 compares it with the model that RAI accepted. | S2-09, S2-10, S4-04 |
+| The local model returns text that is not valid JSON, or values outside 0 to 1 | The answer is a judge failure. No score is stored. The heuristic judge is never used in strict live mode. | S2-09 |
+| The LiteLLM proxy refuses calls (`429`) when many runs arrive together | The backend sends no more calls at the same time than the setting allows. It tries again after `429`. | S2-09, S3-04 |
+| Langfuse password login is turned off before an SSO account has the owner role, or the emails in Entra ID differ from the emails in Google | Nobody is locked out. Each step has an order and an email check. | S3-07 |
 
 ## How to read an issue
 
@@ -52,6 +71,9 @@ pull request first.
 | S3 storage (MinIO) | `cgr.dev/chainguard/minio` | Fix by image digest | The image that the Langfuse Compose file uses. The free Chainguard image has only the `latest` tag, so record its digest. |
 | Langfuse Python SDK | `langfuse` | `>=4.16,<5` | S2-02 |
 | Langfuse Helm chart | `langfuse/langfuse` (langfuse-k8s) | 2.1.3 | Released 2026-09-28. Set the image tags to Langfuse 4.50.0 in the values file (S3-06). |
+| OAuth2 Proxy (SSO for the dashboard) | `quay.io/oauth2-proxy/oauth2-proxy` | v7.15.5 | Released 2026-10-01. Checked 2026-10-05 (S3-07). |
+| Mock OIDC server (local stack and CI only) | `ghcr.io/navikt/mock-oauth2-server` | 6.0.4 | Released 2026-09-29. Checked 2026-10-05. Never on the test host or AWS (S3-07). |
+| LiteLLM proxy (judge) | Owned by another team | Record in S1-12 | We do not install it. Record its version and the model behind the judge alias (S1-12, S2-10). |
 
 ## Rule for prototype code (decided 2026-10-03)
 
@@ -60,7 +82,7 @@ scaffold. The real work is the GCP use cases.
 
 | Code type | Example | Rule |
 |---|---|---|
-| Shared code: the GCP path uses it | The judge and the aggregation in `live_http.py`, `engines/health.py`, the alerts, the worker lease, the portfolio endpoints, the Langfuse settings in `config.py` | Keep it. Keep its tests. If a change breaks it, fix it. |
+| Shared code: the GCP path uses it | The judge client (`litellm_judge.py`, S2-09) and the aggregation in `live_http.py`, `engines/health.py`, the alerts, the worker lease, the portfolio endpoints, the Langfuse settings in `config.py` | Keep it. Keep its tests. If a change breaks it, fix it. |
 | Prototype-only code: the GCP path does not use it | The v1.1 telemetry adapter, the ML lane (Evidently, NannyML), the explanations (LIME, SHAP), the label backfill, the demo and scenario routes, the chatbot's Langfuse v2 store | Do not maintain it. If a change breaks it, remove it in the same pull request. Do not fix it. |
 
 Before you remove code, search the repository to make sure that the GCP path does not use
@@ -89,6 +111,7 @@ remaining prototype-only code.
 | S1-09 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — | M |
 | S1-10 | First real run end to end | Verification | Backend + GCP job developer | S1-07 (trace check tool) | S |
 | S1-11 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-02, S1-07 | S |
+| S1-12 | Access to the company LiteLLM proxy for the judge | Discovery | Backend + LiteLLM proxy owner | S2-09 | S |
 | S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-06 | M |
 | S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05 | M |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 | L |
@@ -97,12 +120,15 @@ remaining prototype-only code.
 | S2-06 | Onboard 4 use cases | Feature | Job developers + backend + platform | S2-01, S1-07 | L |
 | S2-07 | Dashboard shows the GCP use cases with the current UI | Feature | Backend | S2-06 | M |
 | S2-08 | One run as a single trace, GCP job to score | Verification | Backend + platform | S1-07 | S |
+| S2-09 | Judge through the company LiteLLM proxy | Feature | Backend | S2-05 | M |
+| S2-10 | RAI accepts the local judge | Verification | RAI + backend | S2-09 | M |
 | S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-07 | L |
 | S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 | M |
 | S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 | M |
 | S3-04 | Failure and recovery drills | Verification | Backend + platform | S1-07 | M |
 | S3-05 | Security and retention review with leak scan | Verification | Security + platform + source owners | S3-03 | M |
 | S3-06 | Kubernetes deployment files: Langfuse Helm chart and our manifests | Infrastructure | Platform | S4-01 | L |
+| S3-07 | SSO login for the dashboard and Langfuse (Google now, Entra ID later) | Infrastructure | Platform; backend reviews | S3-05, S3-04 | M |
 | S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 | L |
 | S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 | M |
 | S4-03 | Finish all 10 use cases | Feature | Job developers + backend + platform | S4-04 | L |
@@ -110,6 +136,31 @@ remaining prototype-only code.
 | S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S1-07 (trace check tool) | M |
 | S4-06 | Release sign-off | Decision | RAI + platform owners | — | S |
 | S4-07 | Remove the prototype-only code | Feature | Backend | Full test suite | M |
+
+## Overview by phase
+
+For the overall view, the issues are in 16 workstreams. Each issue is in one workstream
+only. The Tracker sheet of `model_monitoring_issues.xlsx` shows this table, with the dates
+of the sprints of its issues.
+
+| Phase | Workstream | Issues | PIC |
+|---|---|---|---|
+| Define | Security approval and use-case inventory | S1-08, S1-09 | Security + PM |
+| Define | Package approval and LiteLLM proxy access | S1-12, S2-02 | Backend + project owner |
+| Prepare | Test host, front door and database accounts | S1-04, S1-06, S1-11 | Platform |
+| Prepare | Self-hosted Langfuse and Collector hardening | S2-03, S3-03 | Platform |
+| Prepare | SSO login (Google now, Entra ID later) | S3-07 | Platform |
+| Prepare | Kubernetes files and production AWS cluster | S3-06, S4-01 | Platform |
+| Build | JSON body, receiving API and GCP send step | S1-01, S1-02, S1-03 | GCP job developer + backend |
+| Build | OpenTelemetry tracing and trace check tool | S1-05, S1-07, S2-04 | GCP job developer + backend |
+| Build | Registry, evaluator and LiteLLM judge | S2-01, S2-05, S2-09 | Backend |
+| Build | Dashboard and delivery alerts | S2-07, S3-02 | Backend |
+| Build | Onboard use cases (4, 8, 10) and move jobs to AWS | S2-06, S3-01, S4-02, S4-03 | Job developers + backend + platform |
+| Validate | Sprint demos: first real run, one trace to the scores | S1-10, S2-08 | Backend + platform |
+| Validate | RAI accepts the local judge | S2-10 | RAI + backend |
+| Validate | Drills and security review | S3-04, S3-05, S4-05 | Platform + security |
+| Conclude | Evidence checklist and release sign-off | S4-04, S4-06 | RAI + platform owners |
+| Conclude | Remove the prototype-only code | S4-07 | Backend |
 
 ---
 
@@ -133,7 +184,7 @@ stores the trace ID with the run.
 | GCP side | S1-01, S1-03, S1-05 part A | GCP job developer |
 | Monitor side | S1-02, S1-05 part B, S1-07 | Backend |
 | Infrastructure | S1-04, S1-06, S1-11 | Platform. The firewall and the certificates: your team. |
-| Decisions | S1-08, S1-09 | Security, PM |
+| Decisions and discovery | S1-08, S1-09, S1-12 | Security, PM, backend |
 
 The two tracks start on Monday with the draft schema from S1-01. They meet on the test host.
 
@@ -148,6 +199,9 @@ them in Sprint 1, so that the answers arrive before the sprint that needs them.
 | Production AWS Kubernetes cluster, its owner and access | Platform | S4-01 (26 October) | Report the result as a pilot on the test AWS cluster. Do not report a production release. |
 | Amazon RDS for PostgreSQL 17 and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
 | Test AWS Kubernetes cluster (not production) and access | Your team | S3-06 (19 October) | Test the S3-06 files on a disposable local cluster (kind) only |
+| LiteLLM virtual keys for the judge (test host and AWS), the model alias, and a network path to the proxy (S1-12) | LiteLLM proxy owner + network team | S2-09 (12 October) | Do not deploy S2-09 to the test host. Test S2-05 and S2-09 on the local stack with a fake LiteLLM server. The Sprint 2 demo shows the trace without scores. |
+| DNS name for the test host. Google does not accept an IP address in an SSO redirect URI. | Your team + network team | S3-07 (19 October) | No SSO on the test host. The dashboard and Langfuse keep only the IP allowlist and the Langfuse accounts. S3-05 records the exception. |
+| Two Google OAuth clients of type "Internal" (dashboard and Langfuse), with the redirect URIs of the test host and AWS | Google Workspace administrator + platform | S3-07 (19 October) | The same as the DNS name |
 
 **Paired tests this sprint**
 
@@ -372,20 +426,22 @@ Collector:
 
 | Path | Goes to | Who calls it | Protection |
 |---|---|---|---|
-| `https://<host>/api/*` | Backend | GCP job | API key, IP allowlist |
+| `https://<host>/api/batch/runs` and `https://<host>/api/health` | Backend | GCP job | API key, IP allowlist |
 | `https://<host>/otlp/*` | Collector | GCP job | OTLP token, IP allowlist |
+| Other paths on port 443, for example `/api/live/*` | Nothing. The front door returns `404`. | — | The dashboard data is not available to GCP (S3-07) |
 | Private network inside the host | Collector | Backend | Not open to the internet |
 
 The firewall opens only port 443. The front door has one certificate (S1-04).
 From Sprint 2, the same front door also serves the staff: the dashboard on port 8443 and
 Langfuse on port 3443, with a separate allowlist for the office or VPN IPs (Sprint 2
-prerequisites).
+prerequisites). From Sprint 3, the staff also log in with SSO (S3-07).
 
 **Acceptance criteria**
 - [ ] `docker compose up` starts the Collector with a health check.
 - [ ] The Collector image has the version from the fixed-versions table. It does not use `latest`.
 - [ ] Spans that come in on OTLP/HTTP appear in the file output.
 - [ ] On the test host, the front door is the only public entry. It accepts only port 443 and only the GCP egress IP.
+- [ ] On port 443, `GET /api/live/portfolio` returns `404`. Only `/api/batch/runs`, `/api/health` and `/otlp/*` reach a service.
 - [ ] `/otlp/*` rejects a request without the correct OTLP token. The OTLP token is different from the API key.
 - [ ] The GCP job reads the OTLP token from Secret Manager and sends it with `OTEL_EXPORTER_OTLP_HEADERS`.
 - [ ] The Collector configuration is in the repository. It contains no secrets.
@@ -396,7 +452,8 @@ prerequisites).
 2. Test host, from the GCP dev project: send test spans to `https://<host>/otlp/v1/traces` with the token. Make sure that the file output contains them.
 3. Send spans without the token. Make sure that they are rejected.
 4. Send a request from an IP that is not on the allowlist. Make sure that the connection is refused.
-5. Paired with S1-05: see the test steps in S1-05.
+5. From the GCP dev project: `curl https://<host>/api/live/portfolio`. Make sure that the result is `404`.
+6. Paired with S1-05: see the test steps in S1-05.
 
 ### S1-07 — Trace check tool
 
@@ -450,7 +507,8 @@ Security must approve these items:
 
 | Item | Issue |
 |---|---|
-| Redacted records leave GCP. They go to the monitor, the Claude judge (Anthropic API) and Langfuse. | S1-01, S1-03 |
+| Redacted records leave GCP. They go to the monitor, to the local judge model through the company LiteLLM proxy, and to Langfuse. They do not go to an external LLM provider. | S1-01, S1-03, S1-12 |
+| The LiteLLM proxy logs: does the proxy store the judge prompts and answers? Where, and for how long? Does it send them to other tools? | S1-12 |
 | The list of PII types that the job replaces with placeholders | S1-03 |
 | The retention period for stored records | S1-02 |
 | An API key on the internet without a VPN, with an IP allowlist | S1-02, S1-04 |
@@ -489,8 +547,8 @@ use this table to select the order of the use cases. The due date is Friday 9 Oc
 | GCP project and egress IP | The firewall allows only known IP addresses (S1-04). Each project can have a different IP. |
 | October run dates | The dates when a real run can arrive. If a job does not run in October, book a controlled rerun. |
 | Batch API or online calls | With the Batch API, `latency_s` is `null` |
-| Approximate number of requests in each run | This number sets the sample size and the judge cost |
-| Language: Thai, English or mixed | RAI must know the language that the judge examines |
+| Approximate number of requests in each run | This number sets the sample size and the load on the LiteLLM proxy (S1-12) |
+| Language: Thai, English or mixed | RAI must know the language that the judge examines. The reference set of S2-10 uses the same mix. |
 | Data sensitivity | Security uses this for the approval (S1-08) |
 | Owner of the task description | The person who writes the task description for the judge, with RAI |
 
@@ -565,6 +623,41 @@ Rules:
 3. Connect as a `dev_<name>` account on the test host. Make sure that `INSERT` fails.
 4. Try to connect to the database port from the internet. Make sure that the connection is refused.
 
+### S1-12 — Access to the company LiteLLM proxy for the judge
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Discovery | Backend + LiteLLM proxy owner | — | S2-09 | S |
+
+**What:** The judge is a local model behind the company LiteLLM proxy (decided
+2026-10-05). Another team owns the proxy. Get the answers below from the proxy owner, and
+make sure that the test host can call the proxy. The due date is Friday 9 October, so that
+S2-09 can start on Monday 12 October.
+
+| Question | Why we need it |
+|---|---|
+| The URL of the proxy, for the test host and for AWS | The network path and the firewall rules (S1-04, S4-01) |
+| The model alias for the judge, and the model behind it: name, version, context length | The judge identity on each score. RAI accepts this model (S2-10). |
+| Does the model support `response_format` with `type: json_schema`? | S2-09 asks for the four scores as JSON with a fixed schema |
+| Does the model understand Thai well? | Many use cases are in Thai (S1-09) |
+| One virtual key for each environment (test host, AWS), with a budget and a rate limit | A leaked key affects only one environment. The keys are host secrets. |
+| The rate limit: requests and tokens for each minute | The setting `LLM_JUDGE_CONCURRENCY` (S2-09). Up to 10 use cases × 50 records arrive on the same night. |
+| Does the proxy log the prompts and the answers? Where, and for how long? Does it send them to other tools, for example a Langfuse of the proxy team? | Security approval (S1-08). The prompts contain redacted record text. |
+| Is the proxy certificate from a public CA or a private CA? | The setting `LLM_JUDGE_CA_FILE` (S2-09) |
+| Does the proxy owner tell us before the model behind the alias changes? | A new model needs a new acceptance by RAI (S2-10) |
+| Contact for an outage | The runbook for a judge outage (S4-05) |
+
+**Acceptance criteria**
+- [ ] Each question has an answer in this issue, or an owner and a date.
+- [ ] The virtual key of the test host is a host secret. It is not in this issue, in chat or in git.
+- [ ] The answer about the proxy logs goes to security for S1-08.
+- [ ] From the test host, a call with synthetic text gets an answer in the requested JSON schema.
+
+**How to test**
+1. On the test host: `curl -H "Authorization: Bearer $LLM_JUDGE_API_KEY" https://<litellm-proxy>/v1/models`. Make sure that the list contains the judge alias. Use `--cacert` for a private CA.
+2. On the test host: send one `POST /v1/chat/completions` request with synthetic text and the `json_schema` response format of S2-09. Make sure that the answer is a JSON object with the four fields.
+3. Record the model name in the `model` field of the answer. Compare it with the answer of the proxy owner.
+
 ---
 
 ## Sprint 2 — Oct 12–16: same path for many jobs, plus evaluation and tracing
@@ -574,8 +667,8 @@ Rules:
 | Question | Answer | Effect |
 |---|---|---|
 | Is the test host large enough for Langfuse? | The test server does not exist yet. Request this size. | See the server size below. |
-| How do the engineers and the RAI team open the dashboard and Langfuse? | Through the IP address and a port. A DNS name comes later. | See the ports below. Use a private CA certificate that contains the IP address. When the DNS name exists, change the certificate and the Langfuse URL setting. |
-| Can the test host send traffic out to the Anthropic API? | Probably yes. If not, the judge uses a local model on an on-premises server. | S2-05 must support a second judge provider. RAI must examine the local judge before use. |
+| How do the engineers and the RAI team open the dashboard and Langfuse? | Through the IP address and a port. A DNS name comes later. | See the ports below. Use a private CA certificate that contains the IP address. When the DNS name exists, change the certificate and the Langfuse URL setting. SSO (S3-07) needs the DNS name, because Google does not accept an IP address in a redirect URI. |
+| Can the test host call the company LiteLLM proxy? | Answer from S1-12 | The judge is a local model behind the proxy (S2-09). There is no second judge provider. RAI accepts the judge before its scores count for the release (S2-10). |
 
 Server size for the test host:
 
@@ -592,8 +685,8 @@ Ports on the test host (until a DNS name exists):
 | Port | Service | Who connects | Allowlist |
 |---|---|---|---|
 | 443 | Front door: `/api/*` and `/otlp/*` | GCP jobs | GCP egress IPs |
-| 8443 | Monitor dashboard | RAI team, engineers | Office or VPN IPs |
-| 3443 | Langfuse UI | Engineers only | Office or VPN IPs of the engineers |
+| 8443 | Monitor dashboard | RAI team, engineers | Office or VPN IPs. From S3-07, also Google SSO. |
+| 3443 | Langfuse UI | Engineers only | Office or VPN IPs of the engineers. From S3-07, also Google SSO, with no password login. |
 | None | PostgreSQL, ClickHouse, Redis, MinIO | — | Closed to the network. Developers use SSH (S1-11). |
 
 Langfuse uses its own port because it does not work easily under a URL path.
@@ -605,6 +698,8 @@ Langfuse uses its own port because it does not work easily under a URL path.
 | S2-04 GCP OTel helper | S2-03 Collector → Langfuse | The job's spans flow through the Collector into Langfuse, and the run summary lands in monitor Postgres, all with one trace ID | Local stack, then test host |
 | S2-05 batch evaluator | S2-03 Collector → Langfuse | The run scores and the record scores appear on the run's trace in Langfuse | Local stack |
 | S2-01 registry | S2-06 onboarding | Each real job can write only its own use case | Test host |
+| S2-09 LiteLLM judge | S2-05 batch evaluator | A stored run is scored through the LiteLLM proxy, and each score has the judge identity | Local stack (fake LiteLLM server), then test host |
+| S2-10 judge acceptance | S2-09 on the test host | The local judge agrees with the RAI labels within the agreed limits | Test host |
 
 ### S2-01 — Source registry: YAML settings and API key hashes
 
@@ -721,6 +816,7 @@ GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse p
 **Rules**
 - Langfuse uses its own PostgreSQL container and account. It does not share the monitor database (S1-11).
 - Turn off public sign-up in Langfuse. Make one account for each engineer. Langfuse is for engineers. The RAI team uses the dashboard.
+- Use the company Google email of each engineer for the account. Then S3-07 can link the account to SSO and keep its project role.
 - The Collector exporter sends the header `x-langfuse-ingestion-version: 4`. Without this header, new data can appear in Langfuse up to 10 minutes late.
 - Set the retention period in Langfuse from S1-08.
 - Keep the Langfuse keys as host secrets. Do not put them in files in git.
@@ -783,11 +879,12 @@ file, because we have no package registry.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Feature | Backend + RAI | S2-01, S2-02, S2-03, task description (Wed 14 October) | S2-03 | L |
+| Feature | Backend + RAI | S2-01, S2-02, S2-03, S2-09, task description (Wed 14 October) | S2-03 | L |
 
 **What:** Grade each stored run with the LLM lane of the prototype. Map the records to the
-v1.1 `Trace` shape. Use the Claude judge and the aggregation in
-`backend/app/adapters/llm_eval/live_http.py`. Grade with `backend/app/engines/health.py`.
+v1.1 `Trace` shape. Use the judge client of S2-09 (the company LiteLLM proxy) and the
+aggregation in `backend/app/adapters/llm_eval/live_http.py`. Grade with
+`backend/app/engines/health.py`.
 The five metrics, the bands and the grading rules do not change.
 
 Three changes from the [standard](llm-metrics-standard.md):
@@ -828,13 +925,13 @@ Trace of the run (same trace ID as the GCP spans)
 
 **Judge provider**
 
-| Provider | When | Rule |
-|---|---|---|
-| Claude, `claude-haiku-4-5` (now) | The test host can reach the Anthropic API | `ANTHROPIC_API_KEY` is a host secret |
-| Local model on the on-premises server | The test host cannot reach the Anthropic API | RAI compares its scores with the Claude scores on a sample before use. Thai text needs special care. |
+The only provider is the local model behind the company LiteLLM proxy (S2-09). The Anthropic
+API is not used. The settings are `LLM_JUDGE_BASE_URL`, `LLM_JUDGE_API_KEY` (a host secret)
+and `LLM_JUDGE_MODEL` (the alias on the proxy). RAI accepts the judge before its scores
+count for the release (S2-10).
 
-Each score records the judge identity. The offline heuristic judge is never used in
-strict live mode.
+Each score records the judge identity from S2-09. The offline heuristic judge is never used
+in strict live mode.
 
 **When a metric is "Unknown"**
 
@@ -842,7 +939,7 @@ strict live mode.
 |---|---|
 | Identity-only run (`records: []`) | `records_not_approved` |
 | Fewer than 8 records | `insufficient_sample` |
-| The judge fails 3 times. After each failure, the worker tries again in the next cycle. | `judge_failed` |
+| The judge fails 3 times: no answer, an error, or an answer that does not agree with the score schema (S2-09). After each failure, the worker tries again in the next cycle. | `judge_failed` |
 | No task description is approved | `task_description_missing` |
 | All `latency_s` values are `null` | `latency_not_reported` (only `p95_latency_s`; excluded from the rollup) |
 
@@ -920,7 +1017,7 @@ of the chatbot uses now. The frontend code does not change.
 | Name and owner | YAML registry (S2-01) |
 | Five LLM signals, lanes and grade | `batch_evaluations` (S2-05) |
 | Freshness | `completed_at` of the latest run |
-| `judge` | The judge identity |
+| `judge` | The judge identity from S2-09, for example `litellm/<alias> (<model>)` |
 | `judge_sample` | Always empty. No record text goes to the browser. |
 | Errors and "Unknown" reasons | The reasons from S2-05 |
 
@@ -961,6 +1058,147 @@ GCP job to the scores. Show the same run with its grade on the dashboard.
 1. Run `scripts/check_trace.py <trace_id>`. The tool reads Langfuse through the Observations API v2. Make sure that all the items are "found".
 2. Attach the output of the tool and a screenshot of the dashboard row. Do not attach record text or secrets.
 
+### S2-09 — Judge through the company LiteLLM proxy
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | To build: none (use a fake server). To test on the test host: S1-12. | S2-05 | M |
+
+**What:** Replace the Claude call in `backend/app/adapters/llm_eval/live_http.py`
+(`_judge_claude`, which uses `anthropic.Anthropic().messages.parse`) with a call to the
+OpenAI-compatible endpoint of the company LiteLLM proxy. Use `httpx`. It is already in
+`backend/requirements.txt`, so no new package is necessary. Remove the `anthropic` package.
+The five metrics, the bands and the aggregation do not change. The judge is shared code:
+the batch evaluator (S2-05) and the chatbot lane use it.
+
+**Settings**
+
+| Setting | Meaning | Rule |
+|---|---|---|
+| `LLM_JUDGE_BASE_URL` | The URL of the proxy, for example `https://<litellm-proxy>` | Required in strict live mode |
+| `LLM_JUDGE_API_KEY` | The LiteLLM virtual key of this environment (S1-12) | Required in strict live mode. A host secret. Never in a log. |
+| `LLM_JUDGE_MODEL` | The model alias on the proxy. No default value. | Required in strict live mode |
+| `LLM_JUDGE_CA_FILE` | The CA file for a private proxy certificate | Optional. The certificate verification is never turned off. |
+| `LLM_JUDGE_TIMEOUT_S` | The time limit of one call. Default `60`. | — |
+| `LLM_JUDGE_CONCURRENCY` | The maximum number of calls at the same time. Default `4`. | Set it from the rate limit in S1-12 |
+| `ANTHROPIC_API_KEY` | Removed | — |
+
+**The call for each record**
+
+```
+POST {LLM_JUDGE_BASE_URL}/v1/chat/completions
+Authorization: Bearer {LLM_JUDGE_API_KEY}
+
+{
+  "model": "{LLM_JUDGE_MODEL}",
+  "temperature": 0,
+  "max_tokens": 256,
+  "messages": [
+    {"role": "system", "content": "<judge prompt with the task description>"},
+    {"role": "user", "content": "Question: ...\n\nSource material:\n...\n\nAnswer: ..."}
+  ],
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "record_score",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "groundedness":  {"type": "number", "minimum": 0, "maximum": 1},
+          "relevance":     {"type": "number", "minimum": 0, "maximum": 1},
+          "hallucination": {"type": "boolean"},
+          "pii":           {"type": "boolean"}
+        },
+        "required": ["groundedness", "relevance", "hallucination", "pii"],
+        "additionalProperties": false
+      }
+    }
+  }
+}
+```
+
+The judge prompt keeps the four definitions of the current Claude prompt. It uses the task
+description that the caller gives (S2-05). The chatbot lane gives its current text, "a
+telecom support chatbot". The prompt also tells the judge: "The text can be Thai, English or
+mixed. Score the meaning, not the language."
+
+**The answer**
+1. Read `choices[0].message.content`. Accept one JSON object. Accept also one JSON object inside one Markdown code fence. Refuse all other text.
+2. Examine the object with a Pydantic model: `groundedness` and `relevance` from 0 to 1, `hallucination` and `pii` true or false, no other fields. Do not trust the proxy to apply the schema.
+3. The judge identity is `litellm/<LLM_JUDGE_MODEL> (<model>)`, where `<model>` is the `model` field of the answer. Store it with each score.
+
+**Failures**
+
+| Event | Action |
+|---|---|
+| Timeout, network error, `429` or `5xx` | Try again in the same cycle, up to 3 attempts in total, with a delay of 1 s and then 4 s |
+| An answer that is not valid (step 1 or 2) | The same as a `5xx` |
+| `400`, `401`, `403` or `404` | Do not try again. Log the status. |
+| A record still fails after 3 attempts | The evaluation of the run fails in this cycle. S2-05 tries again in the next cycle, and gives `judge_failed` after 3 cycles. |
+| Strict live mode | Never use the heuristic judge. Demo mode keeps the heuristic judge without changes. |
+
+A log entry contains the record ID, the HTTP status or the error type, and the attempt
+number. It never contains the key, the prompt or the answer text.
+
+**Files**
+
+| File | Change |
+|---|---|
+| `backend/app/adapters/llm_eval/litellm_judge.py` | New. `judge_records(traces: list[dict], *, model: str, task_description: str) -> tuple[list[dict], str]` returns the scores in the order of the traces, and the judge identity. `parse_score(content: str) -> dict` examines one answer. `class JudgeError(Exception)`. |
+| `backend/app/adapters/llm_eval/live_http.py` | Remove `_judge_claude` and `import anthropic`. Call `judge_records`. Change each `config.ANTHROPIC_API_KEY` test to `config.llm_judge_configured()`. |
+| `backend/app/config.py` | The new settings, `llm_judge_configured() -> bool`, and the strict live errors for each missing setting |
+| `backend/app/main.py` | `judge_ok` uses `config.llm_judge_configured()` |
+| `backend/app/scenario/live_runner.py` | The judge identity from `judge_records` |
+| `backend/requirements.txt` | Remove `anthropic>=0.40,<1` |
+| `backend/tests/test_litellm_judge.py` | New. A fake proxy with `httpx.MockTransport`. |
+| The tests that set `ANTHROPIC_API_KEY` or replace `_judge_claude`: `test_alert_routes.py`, `test_contract_strictness.py`, `test_live_judge_strict.py`, `test_operator_routes.py`, `test_poller_metrics.py`, `test_realized_view.py`, `test_strict_live_mode.py` | Use the new settings, and replace `judge_records` |
+| `.env.example`, `docs/STRICT-LIVE.md`, `.github/workflows/backend-live.yml` | The new setting names. CI uses a fake value, never a real key. |
+
+**Acceptance criteria**
+- [ ] With a fake proxy: a valid answer gives the four results. The request has the bearer key, the model alias, `temperature: 0` and the `json_schema` response format.
+- [ ] `groundedness: 1.4`, a missing field, an extra field and plain text are each refused with `JudgeError`. No score is stored.
+- [ ] `429`, `503` and a timeout are tried again, with at most 3 attempts. `401` is not tried again.
+- [ ] The fake proxy never has more calls at the same time than `LLM_JUDGE_CONCURRENCY`.
+- [ ] In strict live mode, each missing setting gives a startup error with its name. The heuristic judge is never used.
+- [ ] Each score stores the judge identity with the alias and the `model` field of the answer.
+- [ ] No log entry contains the key, the prompt or the answer text.
+- [ ] `anthropic` is not in `backend/requirements.txt`. A search for `ANTHROPIC_API_KEY` finds it only in `CHANGELOG.md` and in old `changes/` folders.
+- [ ] The chatbot (`AICT-L02`) tests pass.
+
+**How to test**
+1. Unit: `.venv/bin/python -m pytest -q tests/test_litellm_judge.py`. One test for each acceptance criterion above, with `httpx.MockTransport` and `caplog`.
+2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
+3. Paired with S2-05 on the local stack: point `LLM_JUDGE_BASE_URL` to a fake proxy that returns fixed scores. Store one run, and let the worker evaluate it. Make sure that the scores and the judge identity are in `batch_evaluations` and in Langfuse.
+4. On the test host (after S1-12): run `backend/scripts/judge_check.py --smoke`. It judges 3 synthetic records (Thai, English, a refusal) and shows the scores and the judge identity.
+
+### S2-10 — RAI accepts the local judge
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | RAI + backend | S1-12, S2-09 | S2-09 on the test host | M |
+
+**What:** There are no Claude scores to compare with. Thus RAI compares the local judge
+with labels from people. The due date is Friday 16 October. A use case passes the release
+only with a judge that RAI accepted (S4-03).
+
+1. **Reference set.** RAI makes a set of at least 60 records in the language mix of S1-09: at least 20 Thai, at least 20 English, and some mixed. The set contains correct answers, refusals, answers with hallucinations, off-topic answers, and answers with placeholders (`[PHONE]`). Synthetic records go in the repository, in `backend/tests/fixtures/judge_reference/`. Redacted real records (after S1-08) stay on the test host and never go into git.
+2. **Labels.** Two RAI reviewers label each record for the four results, separately. They agree on a final label for each difference.
+3. **Limits first.** RAI writes the acceptance limits in this issue before the first run. Proposed limits: at least 85% agreement for `hallucination` and for "groundedness ≥ 0.70" and "relevance ≥ 0.70", and no missed `pii` case.
+4. **Run.** Backend adds `backend/scripts/judge_check.py --set <folder>`. It judges the set two times, through S2-09, and reports the agreement for each result, each missed `pii` case, and the records that got different results in the two runs. The report contains record IDs only, no record text.
+5. **Decision.** RAI accepts or rejects the judge identity (alias and model) and the prompt version. If RAI rejects, the backend changes the prompt (a new prompt version) or asks the proxy owner for a different model. Then run the set again.
+
+**Acceptance criteria**
+- [ ] The limits are in this issue before the first run.
+- [ ] The reference set has at least 60 labelled records, with the language mix of S1-09.
+- [ ] The report of the two runs is attached. It contains no record text.
+- [ ] The decision is in this issue: the accepted judge identity, the prompt version, the name of the RAI reviewer and the date. Or the rejection, with the next step and an owner.
+- [ ] `llm-metrics-standard.md` records the accepted judge identity and prompt version.
+
+**How to test**
+1. Run `backend/scripts/judge_check.py --set backend/tests/fixtures/judge_reference/` on the test host two times. Make sure that the results agree with the limits.
+2. Unit: test the agreement calculation of `judge_check.py` with a fake judge and a set of 4 records with known results.
+
 ---
 
 ## Sprint 3 — Oct 19–23: scale to 8 and harden
@@ -972,6 +1210,8 @@ GCP job to the scores. Show the same run with its grade on the dashboard.
 | S3-03 Collector hardening | S3-04 drills | Spans survive a Langfuse outage and arrive after recovery, once | Local stack |
 | S3-03 Collector hardening | S3-05 leak scan | Forbidden attributes are removed before storage | Local stack, test host |
 | S3-02 missed-run alert | S3-04 drills | A run that never arrives raises a delivery alert, not a quality alert | Local stack |
+| S3-07 SSO | S3-05 security review | Only the staff on the allowlist open the dashboard. Langfuse has no password login. Nobody reads the dashboard API around the SSO. | Local stack (mock OIDC server), then test host |
+| S3-07 SSO | S3-04 drills | An SSO outage stops the logins, but not the ingest or the evaluation | Test host |
 
 ### S3-01 — Onboard 8 use cases, including split submit and harvest
 
@@ -1099,7 +1339,7 @@ security requires it in S1-08.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Verification | Backend + platform | S2-05, S3-02, S3-03 | S1-07 | M |
+| Verification | Backend + platform | S2-05, S2-09, S3-02, S3-03, S3-07 | S1-07 | M |
 
 **What:** Stop each part of the system on purpose. Make sure that no data is lost and
 nothing is duplicated. Do the drills on the test host.
@@ -1109,7 +1349,9 @@ nothing is duplicated. Do the drills on the test host.
 | The monitor is down while a job sends | The job tries again and logs each failure. After recovery, the run is stored one time. |
 | The Collector is down | The run summary is still stored. The spans arrive later from the disk queue (S3-03). |
 | Langfuse is down | The spans wait in the Collector. The backend tries the scores again. After recovery, each score is in Langfuse one time. |
-| The judge is down (Anthropic or the local model) | The worker tries again in the next cycles, up to 3 times (S2-05). If the judge comes back, the run gets normal scores. If not, the metrics are "Unknown" with `judge_failed`. |
+| The judge is down (the LiteLLM proxy or the model behind it) | The worker tries again in the next cycles, up to 3 times (S2-05). If the judge comes back, the run gets normal scores. If not, the metrics are "Unknown" with `judge_failed`. |
+| The LiteLLM proxy returns `429` for many calls (8 runs arrive together) | The backend sends no more than `LLM_JUDGE_CONCURRENCY` calls at the same time and tries again after `429` (S2-09). All the runs get scores, or "Unknown" with `judge_failed`. |
+| Google SSO is down | Nobody can log in to the dashboard or Langfuse. The ingest, the evaluation and the alerts continue. After recovery, the login works. No run is lost. |
 | The monitor restarts during an ingest | No half-written run. The job sends again, and the run is stored one time. |
 | A job does not send | The delivery alert opens (S3-02). It resolves when the next run arrives. |
 | The monitor database restarts | No stored run is lost |
@@ -1126,7 +1368,7 @@ nothing is duplicated. Do the drills on the test host.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Verification | Security + platform + source owners | S3-01, S3-03 | S3-03 | M |
+| Verification | Security + platform + source owners | S3-01, S3-03, S3-07 | S3-03, S3-07 | M |
 
 **What:** A script searches the stored data for items that must not be there. Security also
 examines the access.
@@ -1137,10 +1379,12 @@ examines the access.
 | GCP spans in Langfuse | Names, times, counts, IDs | Any text |
 | `monitor.evaluate` in Langfuse | Redacted record text | Raw PII |
 | Dashboard and API responses | Metrics and reasons | Any record text |
-| Logs | IDs and errors | Keys, tokens, record text |
+| Logs | IDs, errors, and the email of a person who logs in | Keys, tokens, OAuth client secrets, session cookies, record text |
+| LiteLLM proxy logs (the proxy owner examines them) | What security approved in S1-08 | Record text kept longer than the approved period |
 
 Security also examines these items:
 - The database accounts (S1-11).
+- The SSO (S3-07): a person who is not on the allowlist cannot open the dashboard. Langfuse has no password login. A company account that is not a project member sees no project. Port 443 gives `404` for `/api/live/*`.
 - The Langfuse accounts. They are for engineers only.
 - One key rotation (S2-01).
 - A request without a key or a token is refused, on the API and on the Collector.
@@ -1159,7 +1403,7 @@ Security also examines these items:
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Infrastructure | Platform | S3-03 | S4-01 | L |
+| Infrastructure | Platform | S3-03, S3-07 | S4-01 | L |
 
 **What:** Prepare the files that install the stack on Kubernetes. Install them on the
 **test AWS Kubernetes cluster** in Sprint 3, so that Sprint 4 repeats a known installation
@@ -1172,7 +1416,8 @@ on the production cluster. Use the versions in the fixed-versions table.
 | PostgreSQL 17 (monitor and Langfuse) | Amazon RDS for PostgreSQL 17 | Container in the cluster, with our backups |
 | S3 storage for Langfuse | Amazon S3 | MinIO container in the cluster |
 | Langfuse, ClickHouse, Redis | Official Langfuse Helm chart | Official Langfuse Helm chart |
-| Monitor backend, Collector, front door | Our own manifests | Our own manifests |
+| Monitor backend, Collector, front door, OAuth2 Proxy (S3-07) | Our own manifests | Our own manifests |
+| Langfuse SSO (S3-07) | SSO settings in the Helm values file. The client secret comes from the Kubernetes secret store. | The same |
 
 Send the RDS and S3 request in Sprint 1 (long-lead requests). If the request is not
 approved by **Wednesday 21 October**, use plan B. Write the deployment files so that a
@@ -1182,7 +1427,7 @@ values file selects plan A or plan B.
 - [ ] The answer to the RDS and S3 request (sent in Sprint 1), or plan B, is recorded by 21 October.
 - [ ] The Langfuse Helm chart uses version 2.1.3 and the Langfuse image tag 4.50.0.
 - [ ] Our manifests for the monitor backend, the Collector and the front door pass validation (`kubeconform`, or `kubectl apply --dry-run=server`).
-- [ ] Secrets come from the Kubernetes secret store. No secret is in the files.
+- [ ] Secrets come from the Kubernetes secret store. No secret is in the files. This includes `LLM_JUDGE_API_KEY`, the OAuth client secrets and the OAuth2 Proxy cookie secret.
 - [ ] Each service has health checks, resource limits and a rollback step.
 - [ ] Backup, restore and rollback steps are written. For plan A, they use the RDS backups.
 - [ ] The stack runs on the test AWS Kubernetes cluster, and the smoke test passes.
@@ -1191,6 +1436,114 @@ values file selects plan A or plan B.
 1. Validate all the files.
 2. Install the stack on the test AWS Kubernetes cluster. Send one example run and spans from a GCP dev machine. Run `scripts/check_trace.py`, and make sure that all the items are "found".
 3. If the test cluster is not available by 19 October, install the stack on a disposable local cluster (for example kind) with plan B, and record that the AWS test was not done.
+
+### S3-07 — SSO login for the dashboard and Langfuse (Google now, Entra ID later)
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Infrastructure | Platform; backend reviews | S1-06, S2-03, S2-07, long-lead requests: DNS name for the test host and Google OAuth clients | S3-05, S3-04 | M |
+
+**What:** The staff log in with their company Google Workspace account. Later, the company
+changes to Microsoft Entra ID. Thus the identity provider is a setting only, and a runbook
+describes the change. The IP allowlists stay as a second protection.
+
+| Part | How | Code change |
+|---|---|---|
+| Dashboard (port 8443) | OAuth2 Proxy (fixed versions table) in front of the dashboard and its API. Provider `google`. Only the emails in the allowlist file can enter. | None. The frontend files do not change. The backend port stays private. |
+| Langfuse (port 3443) | The built-in SSO of Langfuse, with Google. Password login is off. | None. Settings only. |
+| GCP paths on port 443 | No change: the API key and the OTLP token. Never SSO. | None |
+
+**Who can enter**
+
+| Group | Dashboard | Langfuse |
+|---|---|---|
+| RAI team | Yes, if the email is on the allowlist | No. They are not project members. |
+| Engineers | Yes, if the email is on the allowlist | Yes, as project members |
+| Other company accounts | No (`403`) | They can log in, but they see no project |
+| Accounts outside the company | No | No |
+
+The allowlist file is a host file (a ConfigMap on Kubernetes), not a file in git. Platform
+changes it. The RAI lead approves each person who is added. Record each change in this issue.
+
+**OAuth2 Proxy settings (test host)**
+
+```
+OAUTH2_PROXY_PROVIDER=google
+OAUTH2_PROXY_CLIENT_ID=<dashboard OAuth client>          # host secret
+OAUTH2_PROXY_CLIENT_SECRET=<dashboard OAuth secret>      # host secret
+OAUTH2_PROXY_COOKIE_SECRET=<32 random bytes>             # host secret
+OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE=/etc/oauth2-proxy/emails.txt
+OAUTH2_PROXY_REDIRECT_URL=https://<test-host-dns>:8443/oauth2/callback
+OAUTH2_PROXY_UPSTREAMS=http://<dashboard service>/
+OAUTH2_PROXY_COOKIE_SECURE=true
+OAUTH2_PROXY_COOKIE_SAMESITE=lax
+OAUTH2_PROXY_COOKIE_EXPIRE=8h
+OAUTH2_PROXY_COOKIE_REFRESH=1h
+OAUTH2_PROXY_REVERSE_PROXY=true
+OAUTH2_PROXY_SKIP_PROVIDER_BUTTON=true
+```
+
+Do not set `OAUTH2_PROXY_EMAIL_DOMAINS` to the company domain. Then each company account
+could enter. Do not add routes that skip the login. The health check uses `/ping` of OAuth2
+Proxy.
+
+**Langfuse settings (test host)**
+
+```
+NEXTAUTH_URL=https://<test-host-dns>:3443
+AUTH_GOOGLE_CLIENT_ID=<Langfuse OAuth client>            # host secret
+AUTH_GOOGLE_CLIENT_SECRET=<Langfuse OAuth secret>        # host secret
+AUTH_GOOGLE_ALLOWED_DOMAINS=<company domain>
+AUTH_GOOGLE_ALLOW_ACCOUNT_LINKING=true
+AUTH_DISABLE_USERNAME_PASSWORD=true
+```
+
+**Order of the steps (so that nobody is locked out)**
+1. Register the redirect URIs in the two Google OAuth clients: `https://<test-host-dns>:8443/oauth2/callback` and `https://<test-host-dns>:3443/api/auth/callback/google`.
+2. Turn on Google login in Langfuse, with password login still on. Make sure that the engineer with the owner role logs in with Google and keeps the owner role (account linking by email, S2-03).
+3. Then set `AUTH_DISABLE_USERNAME_PASSWORD=true`.
+4. Put OAuth2 Proxy in front of the dashboard. Keep the IP allowlist.
+
+**Local stack and CI.** Use the mock OIDC server (fixed versions table) as the identity
+provider: OAuth2 Proxy with `OAUTH2_PROXY_PROVIDER=oidc` and
+`OAUTH2_PROXY_OIDC_ISSUER_URL=http://mock-oidc:8080/default`, and Langfuse with the
+`AUTH_CUSTOM_*` settings. The browser and the containers must use the same host name for the
+issuer. For example, add `mock-oidc` to the hosts file of the laptop. This setup also proves
+that a change of provider is a change of settings only.
+
+**Change to Microsoft Entra ID (later)**
+
+Write the runbook `docs/runbooks/sso-entra-id.md`:
+
+| Part | Change |
+|---|---|
+| OAuth2 Proxy | `OAUTH2_PROXY_PROVIDER=entra-id`, `OAUTH2_PROXY_OIDC_ISSUER_URL=https://login.microsoftonline.com/<tenant-id>/v2.0`, a new client ID and secret from an Entra app registration with the same redirect URI |
+| Langfuse | Remove the `AUTH_GOOGLE_*` settings. Add `AUTH_AZURE_AD_CLIENT_ID`, `AUTH_AZURE_AD_CLIENT_SECRET`, `AUTH_AZURE_AD_TENANT_ID` and `AUTH_AZURE_AD_ALLOW_ACCOUNT_LINKING=true`. |
+| Emails | Before the change, make sure that the Entra email of each person is the same as the Google email. If not, the allowlist refuses the person, and Langfuse makes a new account without a project. |
+| Rollback | Put back the Google settings |
+
+**Acceptance criteria**
+- [ ] Test host: a person without a session goes to the Google login. An email on the allowlist opens the dashboard. A company email that is not on the allowlist gets `403`. A personal Google account is refused.
+- [ ] `GET /api/live/portfolio` on port 8443 without a session gives no data. On port 443, it gives `404` (S1-06).
+- [ ] The GCP paths on port 443 do not change. The S1-02 and S1-06 tests pass. `POST /api/batch/runs` with the API key gives `201` and no redirect.
+- [ ] Langfuse shows no password form. Engineers log in with Google and keep their projects and roles. A company account that is not invited sees no project.
+- [ ] The engineer with the owner role logged in with Google before password login was turned off.
+- [ ] A session ends after 8 hours, and `/oauth2/sign_out` ends it at once.
+- [ ] The client secrets and the cookie secret are host secrets. No log contains a token, a cookie or a secret.
+- [ ] The local stack uses the mock OIDC server with the same files. Only the settings are different.
+- [ ] The runbook for Entra ID is written and platform reviewed it.
+- [ ] The frontend files do not change (`artifacts/control-tower/src`).
+
+**How to test**
+1. Local stack: run `deploy/sso/check_sso.sh <host>`. Without a session, `/` and `/api/live/portfolio` on port 8443 redirect to the login and contain no data. Port 443 gives `404` for `/api/live/portfolio`. `POST /api/batch/runs` with the API key gives `201`.
+2. Local stack: in the mock OIDC login form, log in as an email on the allowlist (the dashboard opens) and as an email that is not on it (`403`).
+3. Test host: do steps 1 and 2 with real Google accounts: one RAI person, one engineer, one company account that is not on the allowlist.
+4. Test host: open Langfuse. Make sure that there is no password form, and that the engineer sees the same projects as before.
+5. Paired with S3-05: security examines the SSO items. Paired with S3-04: the SSO outage drill.
+
+**Risk:** If the DNS name for the test host does not exist by 19 October, Google SSO cannot
+work on the test host. Then use the fallback of the long-lead request. SSO must still work on
+AWS (S4-01).
 
 ---
 
@@ -1213,11 +1566,12 @@ values file selects plan A or plan B.
 The installation on the test AWS cluster in Sprint 3 is the model for this installation.
 
 1. Select plan A (RDS and S3) or plan B (in the cluster), from the S3-06 decision.
-2. Replace the test-host front door with the AWS load balancer and ingress. Keep the same paths: `/api/*` and `/otlp/*` for GCP, and the dashboard and Langfuse for the staff.
-3. Use the DNS name and the certificate from the long-lead requests. If they are not available, use the IP address and a private CA certificate.
+2. Replace the test-host front door with the AWS load balancer and ingress. Keep the same paths: `/api/batch/runs`, `/api/health` and `/otlp/*` for GCP, and the dashboard and Langfuse behind SSO for the staff (S3-07).
+3. Use the DNS name and the certificate from the long-lead requests. If they are not available, use the IP address and a private CA certificate. Without a DNS name, Google SSO does not work. Then the dashboard has only the IP allowlist, and the release result records this exception.
 4. Allow the egress IPs of all 10 GCP projects (S1-09) in the AWS security rules.
-5. Allow outbound access from the cluster to the Anthropic API, or a network path to the on-premises judge server.
-6. Do not configure the prototype use cases.
+5. Allow a network path from the cluster to the company LiteLLM proxy. Use the AWS virtual key from S1-12.
+6. Add the AWS redirect URIs to the two Google OAuth clients (S3-07).
+7. Do not configure the prototype use cases.
 
 **Open decisions (decide at the start of Sprint 4)**
 - Is a production cluster available? If not, report the result as a pilot on the test AWS cluster. Do not report a production release.
@@ -1226,6 +1580,8 @@ The installation on the test AWS cluster in Sprint 3 is the model for this insta
 **Acceptance criteria**
 - [ ] Only the front door is reachable from the internet. The databases, ClickHouse, Redis and the storage are private.
 - [ ] The data stays after a pod restart.
+- [ ] The S3-07 SSO checks pass on AWS.
+- [ ] `backend/scripts/judge_check.py --smoke` passes from the cluster, with the judge identity that RAI accepted (S2-10).
 - [ ] The cluster name, the deployed versions and any missing prerequisite are recorded.
 
 **How to test**
@@ -1274,6 +1630,7 @@ A use case passes only when its quality grade works. All of these must be true:
 - The run contains records (`mode: records`). Security approved the records (S1-08).
 - The task description is approved.
 - The four judge metrics have values. `p95_latency_s` can be "Unknown" only with the reason `latency_not_reported` (Batch API jobs).
+- The judge identity of the scores is the identity that RAI accepted (S2-10).
 
 A use case in identity-only mode does **not** pass. Thus the security approval of the
 records is a release blocker.
@@ -1299,6 +1656,7 @@ records is a release blocker.
 - the five metric values, or "Unknown" with the reason,
 - the overall grade,
 - the task description version,
+- the judge identity, and if it is the identity that RAI accepted (S2-10),
 - the trace ID,
 - the result of `scripts/check_trace.py`,
 - the confirmation of the owner,
@@ -1307,6 +1665,7 @@ records is a release blocker.
 **Acceptance criteria**
 - [ ] The table has 10 rows. All the columns are filled in.
 - [ ] The trace ID and the score IDs are the same in the monitor and in Langfuse.
+- [ ] The judge identity of each row is the identity that RAI accepted in S2-10. If the model behind the alias changed, the row is blocked until RAI accepts the new model.
 - [ ] RAI accepts what the dashboard shows, including each "Unknown".
 
 **How to test**
@@ -1325,7 +1684,7 @@ rollback. Write the runbooks.
 |---|---|
 | Backup and restore | Plan A: restore an RDS snapshot. Plan B: restore from our backup. Make sure that no run is lost or duplicated. |
 | Rollback | Install the previous version with the Helm rollback command. Make sure that the system works. |
-| Runbooks | A missed run, a failed job, a GCP network problem, a Langfuse outage, a judge outage, a key rotation, a full disk |
+| Runbooks | A missed run, a failed job, a GCP network problem, a Langfuse outage, a judge outage (with the contact of the LiteLLM proxy owner, S1-12), a key rotation (also the LiteLLM virtual key), a full disk, an SSO outage, adding or removing a dashboard user, the change to Entra ID (S3-07) |
 
 **Open decision:** Who is on call, and who owns the alerts? Decide this during Sprint 4. The
 alert webhook goes to this person or team.

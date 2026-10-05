@@ -1,0 +1,36 @@
+{
+  "schema_version": "batch-run/1",
+  "use_case_id": "GCP-UC-03",
+  "run_id": "invoice-summary-2026-10-07",
+  "status": "completed",
+  "completed_at": "2026-10-07T02:15:00Z",
+  "request_count": 1840,
+  "failed_count": 0,
+  "model": "gemini-2.5-flash",
+  "sample": {"method": "uniform_random", "size": 50},
+  "records": [
+    {
+      "record_id": "req-000412",
+      "question": "Summarize this invoice in two sentences for the billing team.",
+      "answer": "The invoice bills [EMAIL] for 3 months of fibre service. The total due is 1,497 THB by 15 October.",
+      "retrieval_context": [
+        {"doc_id": "inv-88213", "title": "Invoice 88213", "text": "Customer contact: [EMAIL]. Fibre 1 Gbps x 3 months. Total 1,497.00 THB. Due 2026-10-15."}
+      ],
+      "refused": false,
+      "latency_s": 1.84
+    },
+    {
+      "record_id": "req-001207",
+      "question": "Summarize this invoice in two sentences for the billing team.",
+      "answer": "The invoice is for one month of mobile service. The total due is 399 THB by 20 October.",
+      "retrieval_context": [
+        {"doc_id": "inv-90455", "title": "Invoice 90455", "text": "Contact phone: [PHONE]. Mobile plan 399 x 1 month. Total 399.00 THB. Due 2026-10-20."}
+      ],
+      "tool_calls": [
+        {"name": "lookup_plan", "output": {"plan": "Mobile 399", "months": 1}}
+      ],
+      "refused": false,
+      "latency_s": 2.31
+    }
+  ]
+}

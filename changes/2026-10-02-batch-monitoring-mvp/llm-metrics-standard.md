@@ -51,10 +51,11 @@ approval, in the YAML registry (S2-01).
 | All `latency_s` values are `null` | `p95_latency_s` only. The rollup ignores it. | `latency_not_reported` |
 
 **The judge**
-- Model: `claude-haiku-4-5` (`LLM_JUDGE_MODEL`). One call for each record.
+- Model: a local model behind the company LiteLLM proxy (decided 2026-10-05). `LLM_JUDGE_MODEL` is its alias on the proxy. One call for each record, with a fixed JSON schema for the answer (S2-09). Claude and the Anthropic API are not used.
+- Accepted judge identity and prompt version: recorded here after RAI accepts them (S2-10).
 - For each record, the judge gives four results: `groundedness`, `relevance`, `hallucination` and `pii`. The judge identity is stored with each score.
 - The judge prompt uses the **task description** of the use case from the YAML registry, for example "summaries of customer invoices". RAI approves each task description. Now, the prompt of the prototype says "telecom support chatbot".
-- If the backend cannot reach the Anthropic API, the judge is a local model on the on-premises server. RAI compares its scores with the Claude scores on a sample before use. Thai text needs special care.
+- RAI accepts the judge before its scores count for the release. RAI compares the judge with labels from people on a reference set of at least 60 records in Thai, English and mixed text (S2-10). If the model behind the alias changes, RAI accepts it again.
 - The offline heuristic judge is never used in production. It gives wrong scores for Thai text.
 
 ## The data that the GCP job sends

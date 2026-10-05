@@ -1,0 +1,21 @@
+{
+  "schema_version": "batch-run/1",
+  "use_case_id": "GCP-UC-03",
+  "run_id": "invoice-summary-2026-10-07",
+  "status": "completed",
+  "completed_at": "2026-10-07T02:15:00Z",
+  "request_count": "1840",
+  "failed_count": 0,
+  "model": "gemini-2.5-flash",
+  "sample": {"method": "uniform_random", "size": 50},
+  "records": [
+    {
+      "record_id": "req-000412",
+      "question": "Summarize this invoice in two sentences for the billing team.",
+      "answer": "The total due is 1,497 THB by 15 October.",
+      "retrieval_context": [],
+      "refused": false,
+      "latency_s": 0
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "batch-run/1",
+  "use_case_id": "GCP-UC-03",
+  "status": "completed",
+  "completed_at": "2026-10-06T02:12:30Z",
+  "request_count": 1795,
+  "failed_count": 2,
+  "model": "gemini-2.5-flash",
+  "sample": {"method": "uniform_random", "size": 50},
+  "records": [],
+  "records_reason": "records_not_approved"
+}
