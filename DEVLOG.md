@@ -75,8 +75,10 @@ depend on. The spec is
   OIDC server versions, the OAuth2 Proxy provider names, the Langfuse SSO settings and the
   LiteLLM `json_schema` request format were read from the official documentation on
   2026-10-05.
+- Posted: GitHub issues were enabled on the repository, and the 36 issues were created as
+  #3 (S1-01) to #38 (S4-07), with sprint and type labels. Each issue links to `issues.md`;
+  `issues.md` stays the source of the plan.
 - Remaining:
-  - The issues are not posted to GitHub (issues are disabled on the repository).
   - The S2-10 acceptance limits are a proposal; RAI must confirm them.
   - Open requests: LiteLLM proxy access (S1-12), the test-host DNS name and the Google
     OAuth clients.
