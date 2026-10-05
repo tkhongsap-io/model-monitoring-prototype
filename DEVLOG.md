@@ -47,6 +47,113 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-04 — batch MVP plan reviewed sprint by sprint; final pass
+
+- Changed: the project owner reviewed `changes/2026-10-02-batch-monitoring-mvp/issues.md`
+  sprint by sprint on 2026-10-03 and 2026-10-04. All four files of the change folder are
+  now in ASD-STE100. Main decisions:
+  - OpenTelemetry in the GCP jobs, through a front door and the Collector.
+  - Langfuse SDK v4 in the backend only.
+  - The trace ID in the `traceparent` header.
+  - Identity-only mode until security approves the records.
+  - A static API key with an IP allowlist.
+  - A YAML registry with API key hashes in the database.
+  - A dashboard with only the GCP use cases, the current UI and no record text. Langfuse for engineers only.
+  - A delivery lane on the existing alert engine.
+  - A judge retry, with a local-model fallback.
+  - Fixed versions: Python 3.12.15, PostgreSQL 17.11, Langfuse 4.50.0.
+  - RDS and S3 as plan A, with an in-cluster plan B.
+  - An installation on a test AWS cluster in Sprint 3.
+  - A use case passes only when its quality grade works.
+  - Prototype-only code is not maintained and is removed in S4-07.
+
+  The issues are renumbered: 32 issues (11, 8, 6 and 7). `plan.md`, `summary.md` and
+  `llm-metrics-standard.md` are rewritten to match. `flow.html` is marked as superseded.
+  No application code changed.
+- Evidence: `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`). Both Mermaid diagrams
+  in `summary.md` rendered in a browser with Mermaid 11, with no errors. The versions were
+  read from endoflife.date, Docker Hub, PyPI and GitHub releases on 2026-10-03 and
+  2026-10-04. SDK v4 has no `trace()` or `score()`; this was confirmed by installing
+  `langfuse==4.16.0`.
+- Remaining:
+  - The issues are not posted to GitHub.
+  - The ADR for push ingestion and `intent.md` with a new risk tier are not written yet.
+  - Open approvals: security (S1-08), the long-lead requests, and the on-call owner (S4-05).
+
+### 2026-10-03 — batch MVP: one LLM metric and data standard from the prototype
+
+- Changed: added `changes/2026-10-02-batch-monitoring-mvp/llm-metrics-standard.md`. All
+  10 GCP batch use cases are graded with the prototype's five LLM signals
+  (`hallucination_rate`, `groundedness`, `relevance`, `pii_exposure_rate`,
+  `p95_latency_s`), the contract §11 bands, the Claude Haiku judge, and the minimum sample
+  of 8. GCP jobs send only run identity plus a sample (default 50) of records using the
+  v1.1 `Trace` field names: `question`, `answer`, `retrieval_context`, `tool_calls`,
+  `refused`, `latency_s` (null for the Gemini Batch API). PII is replaced with typed
+  placeholders in GCP, and a placeholder in the answer counts as exposure. Plan, summary
+  and issues now use the standard: "reviewed rubric" became a per-use-case task
+  description for the judge prompt; "no customer text" became "redacted records only,
+  never text in spans or logs"; S1-01, S1-02, S1-04, S1-09, S2-06 and S2-08 updated.
+  No application code changed.
+- Evidence: signal names, bands, judge fields, `MIN_LIVE_TRACES = 8`,
+  `LLM_JUDGE_MAX_TRACES` default 20 and the `latency_missing` handling read from
+  `engines/health.py`, `adapters/llm_eval/live_http.py`, `config.py` and contract §9, §11,
+  §13, §14. `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`).
+- Remaining: redacted text now leaves GCP (to the monitor, the Anthropic judge and
+  Langfuse), which needs security approval by Oct 8 (S1-09). The placeholder rule, the
+  sample size of 50 and the per-use-case task descriptions are open decisions.
+
+### 2026-10-03 — batch MVP issues rewritten as paired, testable GitHub issues
+
+- Changed: rewrote `changes/2026-10-02-batch-monitoring-mvp/issues.md` as 32 issue drafts
+  (11, 9, 6 and 6 per sprint). Each has type, plan task, owner, dependencies, a "tested
+  with" partner issue, size, acceptance criteria and test steps. Each sprint opens with a
+  paired-test table; for example, the GCP OTel helper (S2-04) is proven by the Collector to
+  Langfuse issue (S2-03), with the run summary checked in monitor Postgres under the same
+  trace ID. Added plan tasks 1.9 (minimal Collector) and 1.10 (trace check tool,
+  `scripts/check_trace.py`), which every paired test uses. No application code changed.
+- Evidence: `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`).
+- Remaining: issues are not posted to GitHub (account suspended). Test host location and
+  the Langfuse SDK version are still open.
+
+### 2026-10-03 — batch MVP plan: OpenTelemetry as the tracing standard
+
+- Changed: added `changes/2026-10-02-batch-monitoring-mvp/summary.md`, a one-page summary
+  with the current flow (contract v1.1 pull on Replit, Langfuse SDK v2 direct, no OTel)
+  and the October target flow as Mermaid diagrams. `plan.md` now records OpenTelemetry as
+  the tracing standard for the monitor and the GCP batch jobs: one trace per batch run,
+  joined through `traceparent` in the run summary; monitor spans go through the OTel
+  Collector to self-hosted Langfuse; scores stay on the Langfuse score API. New tasks 1.8,
+  2.6 and 2.7, plus OTel deadlines, risks, glossary entries and the candidate pip packages.
+  The run summary push and the v1.1 data windows stay outside OTel because grading needs
+  exactly-once, checksummed records and lagged labels. No application code changed.
+- Evidence: a code search found no `opentelemetry`, `otel` or `otlp` usage in `backend/`,
+  `artifacts/`, `scripts/` or `docs/`; `backend/requirements.txt` pins
+  `langfuse>=2.53,<3`; `adapters/llm_eval/stores.py` calls the SDK v2 directly. Both
+  Mermaid diagrams rendered in a browser with Mermaid 11 and no errors.
+  `tests/test_docs.py` 5 passed (run with `uvx` and `--noconftest`; no backend `.venv` on
+  this host).
+- Remaining: the Langfuse SDK v2-or-v3 choice, the OTLP cross-cloud approval and the
+  span attribute allowlist are open decisions. `flow.html` predates the OTel decision and
+  still shows GCP spans as optional.
+
+### 2026-10-02 — October batch monitoring MVP plan: push ingestion, PM table format
+
+- Changed: moved `docs/mvp1st/` to `changes/2026-10-02-batch-monitoring-mvp/`
+  (`plan.md`, `issues.md`, `flow.html`) per the repository's change-plan convention.
+  Rewrote `plan.md` as tables for PM readers: sprints at a glance, deadlines for external
+  dependencies with fallbacks, per-sprint task tables (owner, done when, depends on),
+  shared rules, glossary, risks. Sprint 1 now covers getting data out of GCP: agree a
+  JSON body with the GCP job developer and build a token-protected, idempotent receiving
+  API (proposed `POST /api/batch/runs`) that each job calls after publishing. Pull
+  ingestion is recorded as not chosen. `flow.html` relabelled from pull to push;
+  `issues.md` marked out of date for Sprint 1. No application code changed.
+- Evidence: `tests/test_docs.py` 5 passed (run with `uvx` and `--noconftest`; the backend
+  `.venv` was not set up on this host). Diagram labels checked in a browser for overlap.
+- Remaining: push ingestion conflicts with the `CLAUDE.md` rules that the monitor makes
+  no producer demands and that only the poller writes data; needs an ADR, an `intent.md`
+  with a re-assessed risk tier, and a `spec.md` for JSON body v1 before code. Issue drafts
+  need rewriting to match the plan.
+
 ### 2026-10-02 — slow calibration tests C3 and C8: missing OpenMP runtime on macOS
 
 - Changed: `backend/tests/test_calibration.py` reads the estimate through a new
