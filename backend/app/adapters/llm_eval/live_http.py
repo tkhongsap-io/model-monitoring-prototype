@@ -28,7 +28,7 @@ import numpy as np
 from ... import config
 from ..base import LaneResult, TickContext
 from ..telemetry_http import pull, window_metadata
-from .stores import LangfuseCloudStore, SqliteTraceStore
+from .stores import SqliteTraceStore
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 _STOPWORDS = {
@@ -159,16 +159,10 @@ class LiveHttpLLMAdapter:
         self.use_case_id = use_case_id
         self.seed = seed
         self.judge_model = judge_model or config.LLM_JUDGE_MODEL
-        # push judged traces + scores to Langfuse Cloud when configured (LLM-eval side of
-        # the open-source stack: Langfuse for LLM evaluation). The cloud store ALSO writes
-        # SQLite, so the local drill-down is unaffected; degrades to SQLite-only if the
-        # keys are unset or the Langfuse SDK/host is unavailable (best-effort).
-        if config.langfuse_cloud_configured():
-            self.store = LangfuseCloudStore(
-                scenario_id, use_case_id, config.LANGFUSE_PUBLIC_KEY,
-                config.LANGFUSE_SECRET_KEY, config.LANGFUSE_HOST)
-        else:
-            self.store = SqliteTraceStore(scenario_id, use_case_id)
+        # judged traces + scores stay in the local store for the drill-down Traces tab.
+        # The chatbot forwards scores to Langfuse itself (write-back below); S2-02
+        # removed the monitor's own Langfuse SDK v2 push.
+        self.store = SqliteTraceStore(scenario_id, use_case_id)
 
     def evaluate(self, use_case_id: str, tick: TickContext) -> LaneResult:
         res = LaneResult()
@@ -234,7 +228,7 @@ class LiveHttpLLMAdapter:
                     self.store.score(t, "groundedness", sc["groundedness"])
                     self.store.score(t, "relevance", sc["relevance"])
                     self.store.score(t, "hallucination", 1.0 if sc["hallucination"] else 0.0)
-                self.store.flush(block=False)   # SQLite now; Langfuse via background thread
+                self.store.flush(block=False)
             except Exception as e:  # noqa: BLE001 — signals stand; note the store failure
                 res.errors["trace_store"] = f"{type(e).__name__}: {e}"
 

@@ -47,6 +47,26 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-05 — S2-02 slice 1: Langfuse SDK v4 packages, v2 store removed
+
+- Changed: the project owner approved the packages for S2-02 (#16). `requirements.txt` now
+  pins `langfuse>=4.16,<5` and `opentelemetry-api`, `opentelemetry-sdk` and
+  `opentelemetry-exporter-otlp-proto-http` at `>=1.45,<2`.
+  `opentelemetry-instrumentation-fastapi>=0.66b0,<0.67` is approved; S1-05 part B adds it.
+  The fixed-versions table in `issues.md` has the new rows. `LangfuseCloudStore` is
+  removed; `judge.py` and `live_http.py` use only `SqliteTraceStore`. Plan:
+  `changes/2026-10-05-s2-02-langfuse-v4-packages/`. S1-02 was started in a separate
+  session while S1-01 waits for the GCP developer to confirm the schema.
+- Evidence: new `tests/test_llm_eval_local_store.py` failed 4 of 4 before the change.
+  After the change, the fast suite passed (163 passed, 9 deselected) with `langfuse` 4.17.0
+  and OTel 1.45.0 from PyPI on Windows. Full suite: see the PR.
+- Remaining:
+  - S2-02 still needs the `monitor.evaluate` span and `create_score` (after S1-05 part B)
+    and the one-trace check (after S2-03).
+  - Strict live mode still requires `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`. The
+    monitor does not use them until the SDK v4 work. The check stays so that the Replit
+    deploy keeps the same secrets.
+
 ### 2026-10-05 — batch MVP plan: the test host moves to GCP
 
 - Changed: the project owner decided that the Sprint 1 to 3 test host runs in GCP. It is
