@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config, db, logging_setup, seeds_loader
+from .api import batch_routes
 from .live_poller import poller
 
 logging_setup.configure(config.LOG_FORMAT)
@@ -61,6 +62,7 @@ app = FastAPI(
     openapi_url=None if config.strict_live_mode() else "/openapi.json",
 )
 app.include_router(router)
+app.include_router(batch_routes.router)  # GCP batch run summaries (S1-02), both modes
 
 
 @app.middleware("http")
@@ -68,7 +70,9 @@ async def strict_live_route_isolation(request: Request, call_next):
     """Make baked/scenario APIs unreachable in production, even if code is installed.
 
     Only read-only live artifacts/observations plus service diagnostics are public.  The
-    background worker owns all live mutations; browser POSTs cannot advance cursors.
+    background worker owns all live mutations; browser POSTs cannot advance cursors.  The
+    one write from outside is the API-key batch run receiver, which stores a run summary
+    and never touches a cursor.
     """
     if config.strict_live_mode() and request.url.path.startswith("/api/"):
         allowed_exact = {"/api/health", "/api/healthz", "/api/version", "/api/readiness"}
@@ -78,6 +82,8 @@ async def strict_live_route_isolation(request: Request, call_next):
         worker_post = request.method == "POST" and (
             path == "/api/live/poll"
             or re.fullmatch(r"/api/live/sources/[^/]+/(skip|reset-ack)", path) is not None)
+        if request.method == "POST" and path == "/api/batch/runs":
+            return await call_next(request)
         if (request.method != "GET" and not worker_post) or not allowed:
             return JSONResponse({"detail": "not available in strict live mode"}, status_code=404)
     return await call_next(request)

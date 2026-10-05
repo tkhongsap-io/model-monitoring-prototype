@@ -240,6 +240,33 @@ live_baselines = Table(
     UniqueConstraint("source_id", "kind", "model_version", name="uq_live_baseline"),
 )
 
+# GCP batch run summaries pushed to POST /api/batch/runs (S1-02, body `batch-run/1`).
+# One row per (use_case_id, run_id), stored once and never updated or deleted: a retry
+# with the same content digest is a duplicate, other content is a conflict.  `payload`
+# is the canonical JSON of the body (records in arrival order, with `record_id`).
+batch_runs = Table(
+    "batch_runs", metadata,
+    Column("batch_run_id", String, primary_key=True),
+    Column("use_case_id", String, nullable=False, index=True),
+    Column("run_id", String, nullable=False),
+    Column("schema_version", String, nullable=False),
+    Column("status", String, nullable=False),
+    Column("completed_at", String, nullable=False),
+    Column("request_count", Integer, nullable=False),
+    Column("failed_count", Integer, nullable=False),
+    Column("model", String, nullable=False),
+    Column("sample_method", String, nullable=False),
+    Column("sample_size", Integer, nullable=False),
+    Column("records_reason", String),
+    Column("record_count", Integer, nullable=False),
+    Column("content_sha256", String, nullable=False),
+    Column("payload", Text, nullable=False),
+    Column("trace_id", String, nullable=False),
+    Column("trace_id_source", String, nullable=False),   # traceparent | generated
+    Column("received_at", Float, nullable=False),
+    UniqueConstraint("use_case_id", "run_id", name="uq_batch_run"),
+)
+
 live_worker_leases = Table(
     "live_worker_leases", metadata,
     Column("lease_name", String, primary_key=True),
@@ -284,6 +311,8 @@ def migrate_engine(bind) -> list[int]:
             bind=cx, tables=[live_health_snapshots, live_alerts], checkfirst=True)),
         (7, "persisted adapter baselines",
          lambda cx: live_baselines.create(bind=cx, checkfirst=True)),
+        (8, "batch run summaries",
+         lambda cx: batch_runs.create(bind=cx, checkfirst=True)),
     ]
     applied_now: list[int] = []
     # The local lock also makes SQLite thread-contention tests deterministic. Managed
@@ -1095,6 +1124,58 @@ def list_live_acks_to_retry(limit: int = 100) -> list[dict]:
     with engine().begin() as cx:
         rows = cx.execute(q).mappings().all()
     return [dict(row) for row in rows]
+
+
+# ---------------------------------------------------------------- batch run summaries (S1-02)
+
+class BatchRunConflict(RuntimeError):
+    """The (use_case_id, run_id) is stored with another content digest; it is not changed."""
+
+
+def _batch_run_where(use_case_id: str, run_id: str):
+    return (batch_runs.c.use_case_id == use_case_id) & (batch_runs.c.run_id == run_id)
+
+
+def put_batch_run(row: dict) -> tuple[dict, str]:
+    """Store one run summary once.  Returns (stored row, "created" | "duplicate").
+
+    A duplicate is the same pair with the same `content_sha256`: the first row is returned
+    unchanged (its trace ID and receive time included).  Other content raises
+    `BatchRunConflict`.  A stored row is never updated or deleted.
+    """
+    use_case_id, run_id = row["use_case_id"], row["run_id"]
+    new = {**row, "received_at": time.time(), "batch_run_id": str(uuid.uuid5(
+        uuid.NAMESPACE_URL, f"batch-run/{use_case_id}/{run_id}"))}
+    with engine().begin() as cx:
+        existing = cx.execute(select(batch_runs).where(
+            _batch_run_where(use_case_id, run_id))).mappings().fetchone()
+        if existing is None:
+            try:
+                with cx.begin_nested():
+                    cx.execute(insert(batch_runs), new)
+                return new, "created"
+            except IntegrityError:  # another request for the same run won after our SELECT
+                existing = cx.execute(select(batch_runs).where(
+                    _batch_run_where(use_case_id, run_id))).mappings().one()
+        if existing["content_sha256"] != row["content_sha256"]:
+            raise BatchRunConflict(f"run {run_id} of {use_case_id} is stored with other content")
+        return dict(existing), "duplicate"
+
+
+def get_batch_run(use_case_id: str, run_id: str) -> dict | None:
+    with engine().begin() as cx:
+        found = cx.execute(select(batch_runs).where(
+            _batch_run_where(use_case_id, run_id))).mappings().fetchone()
+    return dict(found) if found else None
+
+
+def list_batch_runs(use_case_id: str | None = None, limit: int = 100) -> list[dict]:
+    q = select(batch_runs).order_by(batch_runs.c.received_at.desc()).limit(
+        max(1, min(limit, 500)))
+    if use_case_id:
+        q = q.where(batch_runs.c.use_case_id == use_case_id)
+    with engine().begin() as cx:
+        return [dict(r) for r in cx.execute(q).mappings().all()]
 
 
 def clear_live_state(source_id: str | None = None) -> None:

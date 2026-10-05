@@ -42,7 +42,9 @@ present.
 - In scope: pull-based consumption of telemetry contract v1.1 for ML, LLM and NBA lanes;
   drift, label-free performance estimation, realized performance, LLM-as-judge scoring;
   durable observations with digest verification; a read-only redacted dashboard.
-- Out of scope: acting on models (retrain, roll back), paging or escalation, push ingest,
+- In progress (October batch MVP): push ingest of GCP batch run summaries,
+  `POST /api/batch/runs` ([plan](changes/2026-10-02-batch-monitoring-mvp/issues.md)).
+- Out of scope: acting on models (retrain, roll back), paging or escalation,
   per-use-case thresholds, LIME in production, non-uniform sampling policy.
 
 ## Architecture
@@ -74,7 +76,9 @@ in strict live mode; a chatbot trace without `latency_s` is excluded from the p9
 counted in `latency_missing`, never read as 0.0.
 
 Trust boundaries: the browser is read-only and never advances cursors. Mutating routes
-are limited to the worker-token `POST /api/live/poll`. Telemetry pulls and
+are limited to the worker-token `POST /api/live/poll` (and the operator unstick routes)
+and the API-key `POST /api/batch/runs`, which stores a GCP batch run summary once and
+never moves a cursor (see [docs/STRICT-LIVE.md](docs/STRICT-LIVE.md#batch-run-receiver)). Telemetry pulls and
 acknowledgements use `LIVE_TELEMETRY_TOKEN`; the SPA bundle is checked for leaked
 demo identifiers and secret names (`scripts/check-strict-live-bundle.mjs`, including
 `LIVE_ALERT_WEBHOOK_URL`). The only other outbound call is the alert webhook POST.
@@ -151,7 +155,8 @@ Layout: `backend/app/engines/` are pure functions, `backend/app/adapters/` do I/
 - Current work, evidence and known gaps: [DEVLOG.md](DEVLOG.md)
 - Change history: [CHANGELOG.md](CHANGELOG.md)
 - Change packages (intent, spec, plan per change): [changes/](changes/) — current:
-  [monitoring gap closure](changes/2026-10-01-monitoring-gap-closure/)
+  [batch monitoring MVP](changes/2026-10-02-batch-monitoring-mvp/) and its slice
+  [S1-02 batch runs API](changes/2026-10-05-s1-02-batch-runs-api/)
 - Telemetry contract (source of truth): [docs/MONITORING-CONTRACT.md](docs/MONITORING-CONTRACT.md)
 - Strict-live deployment and configuration: [docs/STRICT-LIVE.md](docs/STRICT-LIVE.md)
 - Local demo and onboarding a fourth model: [docs/LIVE-DEMO.md](docs/LIVE-DEMO.md)
