@@ -56,12 +56,70 @@ depend on. The spec is
   [changes/2026-10-06-ci-gcp-image/plan.md](changes/2026-10-06-ci-gcp-image/plan.md).
 - GCP setup by hand: the repository, the `gh-ci-pusher` service account, the Workload
   Identity pool and provider, and the GitHub repository variables.
-- Evidence: `import app.main` passed locally. Fast backend suite: 159 passed, 9
-  deselected (slow). A local `docker build` was not run (no Docker daemon on the host).
+- Evidence: after merging `dev` (with S1-02 and S2-02), `import app.main` passed and the
+  fast backend suite gave 251 passed, 9 deselected (slow). A local `docker build` was not
+  run (no Docker daemon on the host).
 - Remaining:
   - The first real proof is the first green run on `dev` and the image in the registry.
   - The VM pull (reader role, Private Google Access) and the `uat` and `main` builds.
   - The image has no dashboard SPA.
+
+### 2026-10-05 — S2-02 slice 1: Langfuse SDK v4 packages, v2 store removed
+
+- Changed: the project owner approved the packages for S2-02 (#16). `requirements.txt` now
+  pins `langfuse>=4.16,<5` and `opentelemetry-api`, `opentelemetry-sdk` and
+  `opentelemetry-exporter-otlp-proto-http` at `>=1.45,<2`.
+  `opentelemetry-instrumentation-fastapi>=0.66b0,<0.67` is approved; S1-05 part B adds it.
+  The fixed-versions table in `issues.md` has the new rows. `LangfuseCloudStore` is
+  removed; `judge.py` and `live_http.py` use only `SqliteTraceStore`. Plan:
+  `changes/2026-10-05-s2-02-langfuse-v4-packages/`. S1-02 was started in a separate
+  session while S1-01 waits for the GCP developer to confirm the schema.
+- Evidence: new `tests/test_llm_eval_local_store.py` failed 4 of 4 before the change.
+  After the change, the fast suite passed (163 passed, 9 deselected) with `langfuse` 4.17.0
+  and OTel 1.45.0 from PyPI on Windows. The full suite with the slow bakes passed (172
+  passed), so the golden bake did not change. Not run: the frontend checks (no frontend
+  change) and a real Langfuse server (not available locally).
+- Remaining:
+  - S2-02 still needs the `monitor.evaluate` span and `create_score` (after S1-05 part B)
+    and the one-trace check (after S2-03).
+  - Strict live mode still requires `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`. The
+    monitor does not use them until the SDK v4 work. The check stays so that the Replit
+    deploy keeps the same secrets.
+
+### 2026-10-05 — S1-02: receiving API `POST /api/batch/runs` (issue #4)
+
+- Changed: new `backend/app/batch_schema.py` (Pydantic model `BatchRunV1` of the S1-01
+  draft `batch-run/1`: strict types, unknown fields rejected at every level, the schema's
+  `allOf` rules, and the README backend rules: `failed_count` ≤ `request_count`, records ≤
+  `sample.size` and ≤ `request_count`, unique `record_id`; errors never echo the input).
+  New `backend/app/api/batch_routes.py` (key → size → body → use case → store; W3C
+  `traceparent` parser), mounted in both modes; the strict-live middleware lets
+  `POST /api/batch/runs` through. `db.py`: table `batch_runs` (migration 8, unique
+  `(use_case_id, run_id)`), `put_batch_run` (created / duplicate / `BatchRunConflict`),
+  `get_batch_run`, `list_batch_runs`; no update or delete path. `config.py`:
+  `BATCH_API_KEY_SHA256`, `BATCH_MAX_BODY_BYTES`, malformed entries reported by position in
+  readiness. Change package `changes/2026-10-05-s1-02-batch-runs-api/`. Docs: README,
+  `docs/STRICT-LIVE.md` (Batch run receiver), CHANGELOG.
+- Evidence: from `backend/` on Windows with the main checkout's `.venv` (Python 3.12,
+  pydantic 2.13.5, FastAPI 0.142.2), `python -m pytest -q -m "not slow"` → 247 passed,
+  9 deselected (159 before). New: `test_batch_schema.py` (38: the 5 valid and 3 invalid
+  S1-01 examples, each rule), `test_batch_runs_api.py` (each acceptance criterion of #4
+  behind the strict-live middleware, traceparent cases, a log capture that finds no key,
+  hash or record text), `test_batch_runs_store.py` (migration 8 on a new and an old
+  database, duplicate, conflict, unique pair). Three tests that list the migration
+  versions now expect 8. `scripts/migrate.py` twice on a scratch SQLite file → versions
+  1–8 both times. Not run: the slow suite and PostgreSQL (CI runs both); `pnpm` checks (no
+  frontend change). Unavailable: a real GCP job (S1-03 paired test), the test host (S1-04).
+- Learned: FastAPI 0.142 keeps an included router as one `_IncludedRouter` entry in
+  `app.routes`, so a mount test must send a request instead of reading the route paths.
+  `datetime.fromisoformat` puts the input in its error message, so the validator raises its
+  own message.
+- Remaining:
+  - The schema is a draft (S1-01). The per-use-case sample-size range (8 to 200) and the
+    registry keys come with S2-01; OTel context (S1-05 part B) replaces the header parser.
+  - An ADR for push ingest is still open (see 2026-10-02 below).
+  - The body limit is checked while the body streams in; a front-door limit (S1-06) is
+    still advised.
 
 ### 2026-10-05 — CI: no Replit deploy or wake
 
@@ -482,5 +540,7 @@ depend on. The spec is
   (RAI team via the webhook channel; producers are not paged). Alerts have no
   acknowledge workflow, SLA timer or escalation.
 - Out of scope and unscheduled: per-use-case thresholds, LIME in production, §14 sampling
-  policy, Alembic, Prometheus metrics, Slack SDK, paging/escalation, push ingest,
+  policy, Alembic, Prometheus metrics, Slack SDK, paging/escalation,
   skops/ONNX artifacts, retention pruning.
+- Push ingest of GCP batch run summaries (`POST /api/batch/runs`, S1-02) has no ADR yet,
+  although the contract is pull-only.

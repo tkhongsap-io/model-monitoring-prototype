@@ -70,7 +70,9 @@ pull request first.
 | ClickHouse | `clickhouse/clickhouse-server` | 25.12.11.4 | Newest patch of the 25.12 line that the Langfuse Compose file uses. Version 26.9 exists, but Langfuse does not use it. |
 | Redis | `redis` | 7.4.11 | Newest patch of the 7 line that the Langfuse Compose file uses. Version 8 exists, but Langfuse does not use it. |
 | S3 storage (MinIO) | `cgr.dev/chainguard/minio` | Fix by image digest | The image that the Langfuse Compose file uses. The free Chainguard image has only the `latest` tag, so record its digest. |
-| Langfuse Python SDK | `langfuse` | `>=4.16,<5` | S2-02 |
+| Langfuse Python SDK | `langfuse` | `>=4.16,<5` | S2-02. Approved by the project owner on 2026-10-05. 4.17.0 was the newest on PyPI. |
+| OTel API, SDK and OTLP/HTTP exporter (backend) | `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` | `>=1.45,<2` | S2-02. Approved 2026-10-05. `langfuse` 4.x needs 1.45 or later. S1-05 part B uses the same range. |
+| OTel FastAPI instrumentation (backend) | `opentelemetry-instrumentation-fastapi` | `>=0.66b0,<0.67` | Approved 2026-10-05. 0.66b0 is the release for OTel 1.45. S1-05 part B adds it to `requirements.txt`. |
 | Langfuse Helm chart | `langfuse/langfuse` (langfuse-k8s) | 2.1.3 | Released 2026-09-28. Set the image tags to Langfuse 4.50.0 in the values file (S3-06). |
 | OAuth2 Proxy (SSO for the dashboard) | `quay.io/oauth2-proxy/oauth2-proxy` | v7.15.5 | Released 2026-10-01. Checked 2026-10-05 (S3-07). |
 | Mock OIDC server (local stack and CI only) | `ghcr.io/navikt/mock-oauth2-server` | 6.0.4 | Released 2026-09-29. Checked 2026-10-05. Never on the test host or AWS (S3-07). |

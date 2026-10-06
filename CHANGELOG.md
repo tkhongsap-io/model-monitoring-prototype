@@ -17,6 +17,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The backend pins the Langfuse SDK v4 (`langfuse>=4.16,<5`) and the OpenTelemetry API,
+  SDK and OTLP/HTTP exporter (`>=1.45,<2`) instead of `langfuse>=2.53,<3` (S2-02).
+- The chatbot judge keeps its traces and scores in the local store only. The monitor no
+  longer pushes them to Langfuse Cloud with the SDK v2, also when the Langfuse keys are
+  set. The producer score write-back does not change (S2-02).
 - Every pulled telemetry window must carry `contract_version` `"1.0"` or `"1.1"`;
   any other value (or a missing field) is a `ContractVersionError`, recorded as the
   window's telemetry error, and holds the source cursor. `/telemetry/meta` is checked
@@ -45,6 +50,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `POST /api/batch/runs` receives one GCP batch run summary (`batch-run/1`, S1-01 draft
+  schema; issue S1-02). `Authorization: Bearer <key>`, checked against the SHA-256 hashes
+  in the new `BATCH_API_KEY_SHA256` setting in constant time. `201` stores the run once in
+  the new `batch_runs` table (migration 8); the same body again is `200`; other content
+  for the same `(use_case_id, run_id)` is `409` and the stored run does not change; `400`
+  lists the field errors; `401` no or wrong key; `403` a key of another use case; `413`
+  above `BATCH_MAX_BODY_BYTES` (default 10 MB). The trace ID comes from the `traceparent`
+  header, or is new. The key and the body are never logged. Available in strict live mode.
 - Operational resilience (spec D). Producer pulls, acknowledgements, score write-back
   and the alert webhook retry on 429/502/503/504 and connection errors: three attempts,
   exponential backoff 0.5 s → 4 s with jitter, `Retry-After` honoured; other 4xx are
