@@ -47,6 +47,36 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-06 — S1-05 part B: backend OpenTelemetry for batch runs
+
+- Changed: new `backend/app/tracing.py` (one provider, OTLP/HTTP export only with an
+  endpoint, FastAPI instrumentation that traces only `POST /api/batch/runs`).
+  `batch_routes.py` runs in `monitor.ingest` and takes the trace ID from the span;
+  `parse_traceparent` is removed. `db.BatchRunConflict.stored_trace_id`. Package:
+  `opentelemetry-instrumentation-fastapi>=0.66b0,<0.67` (approved in S2-02). Decisions with
+  the project owner: part B only; `batch.send` is an ancestor (not the parent) of
+  `monitor.ingest`, so S1-05, S1-07 and S1-10 in `issues.md` changed; `stored_trace_id`
+  on a resend. Change package `changes/2026-10-06-s1-05-backend-otel/`. Codex
+  implemented the plan; Claude reviewed the diff and reran the checks.
+- Deviations from the plan:
+  - FastAPI 0.142 has its own native telemetry. It traces **every** route when a global
+    OTel provider exists, which breaks the "only `/api/batch/runs`" rule. `setup` turns
+    it off on each app (`app._telemetry`, a private attribute; FastAPI reads it at
+    request time). One `test_tracing.py` test failed before this change.
+  - The `spans` fixture attaches a new in-memory exporter in each test, because a
+    `TestClient(main.app)` lifespan in another test shuts the shared provider down.
+  - The missing-flags `traceparent` case of the removed parser test moved to the
+    invalid-header test of `test_batch_runs_api.py`.
+- Evidence: fast suite 276 passed, 9 deselected; full suite 285 passed; docs test 5 passed
+  (Windows, rerun by Claude). TDD: Task 1 failed first at import; Task 2 failed first with 12
+  failed, 4 passed. Not run: a real Collector (S1-06), a real GCP job (part A), the test
+  host, the paired test S1-05 + S1-06.
+- Remaining:
+  - The GitHub issues #7, #9 and #12 still say "parent". Change them after the project
+    owner agrees. S1-07 must follow the parent IDs upward.
+  - `app._telemetry` is private FastAPI API. A FastAPI upgrade can change it; the
+    exclude-list tests in `test_tracing.py` should detect that.
+
 ### 2026-10-06 — CI builds the backend image for GCP Artifact Registry
 
 - Changed: added `backend/Dockerfile`, `backend/.dockerignore` and

@@ -418,7 +418,7 @@ Service is a paid service. Do not use it without a plan entry. Plain HTTP is not
 | 1 | GCP job (part A) | Start a root span `batch.run` with `use_case_id` and `run_id` |
 | 2 | GCP job (part A) | Make the child spans `batch.submit`, `batch.harvest`, `batch.publish` and `batch.send` |
 | 3 | GCP job (part A) | Call the API with an HTTP client that has OTel instrumentation. The client adds the `traceparent` header. |
-| 4 | Backend (part B) | The FastAPI instrumentation reads the header. The `monitor.ingest` span becomes a child of the `batch.send` span of the job. |
+| 4 | Backend (part B) | The FastAPI instrumentation reads the header. The backend server span is a child of the job's HTTP client span, and the `monitor.ingest` span is a child of the server span. Thus `batch.send` is an ancestor of `monitor.ingest` (decided 2026-10-06). |
 | 5 | Backend (part B) | The backend stores the trace ID in the `batch_runs` row |
 | 6 | Both | The spans go over OTLP/HTTP to the Collector (S1-06) |
 
@@ -428,14 +428,14 @@ contains no body content. The token spans and the attribute allowlist come in S2
 
 **Acceptance criteria**
 - [ ] Part A: one trace for each run. `batch.send` is the parent of the HTTP client span. The request has a `traceparent` header.
-- [ ] Part B: `monitor.ingest` has the same trace ID as the root span of the job. The `batch_runs` row stores this trace ID.
+- [ ] Part B: `monitor.ingest` has the same trace ID as the root span of the job, and `batch.send` is its ancestor (job HTTP client span → backend server span → `monitor.ingest`). The `batch_runs` row stores this trace ID.
 - [ ] A request without `traceparent` starts a new trace in the backend. The backend stores its ID.
 - [ ] The spans contain only IDs and the status (`use_case_id`, `run_id`, result). They contain no text from the body.
 - [ ] If the Collector is not available, the job and the API continue to work. The job logs the failed export.
 
 **How to test**
 1. Unit, part A (GCP repository): use an in-memory span exporter. Make sure that the span names and the parent links are correct, and that the request has a `traceparent` header.
-2. Unit, part B (backend): send a request with a known `traceparent`. Make sure that the trace ID and the parent of the span are correct, and that the stored trace ID is correct.
+2. Unit, part B (backend): send a request with a known `traceparent`. Make sure that the trace ID is correct, that the parent of the server span is the span ID in the header, that `monitor.ingest` is a child of the server span, and that the stored trace ID is correct.
 3. Paired with S1-06 on the test host: run the job. Make sure that the spans of the job and the backend span have the same trace ID in the Collector output. Run `scripts/check_trace.py <trace_id>`.
 4. If GCP cannot reach the Collector yet: the job sends its spans to Cloud Logging. The trace is still connected, because the header arrives at the backend.
 
@@ -498,7 +498,7 @@ for each item:
 | Run row | Postgres table `batch_runs` | A row has this trace ID |
 | GCP root span | Collector file | A `batch.run` span has this trace ID |
 | Monitor span | Collector file | A `monitor.ingest` span has this trace ID |
-| Parent link | Collector file | The parent of `monitor.ingest` is the job's `batch.send` span |
+| Ancestor link | Collector file | Following the parent IDs up from `monitor.ingest` reaches the job's `batch.send` span (through the job's HTTP client span and the backend server span). If no run row has the trace ID, but a `monitor.ingest` span has `stored_trace_id`, show "duplicate delivery; the run is stored under trace `<id>`". |
 | Langfuse trace and score | Langfuse API | Added in S2-03 |
 
 Run the script on the host where the stack runs. The script uses the read-only database
@@ -609,7 +609,7 @@ The read API for the dashboard comes in S2-07.
 - [ ] The source owner confirms that the run was a real published run.
 - [ ] The `batch_runs` table has the run one time only.
 - [ ] The job spans and the `monitor.ingest` span have the same trace ID in the Collector.
-- [ ] The parent of `monitor.ingest` is the job's `batch.send` span.
+- [ ] The job's `batch.send` span is an ancestor of `monitor.ingest`.
 - [ ] If records were sent, they contain placeholders and no raw PII.
 - [ ] If security did not approve records yet, the run is in identity-only mode. The result says "records not yet approved".
 

@@ -17,6 +17,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `POST /api/batch/runs` continues the GCP job's trace with OpenTelemetry: a FastAPI
+  server span and its child `monitor.ingest`, exported over OTLP/HTTP when
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The stored `trace_id` comes from the span. A
+  resend records `stored_trace_id` on its span. No other route makes spans (S1-05).
+
 - The backend pins the Langfuse SDK v4 (`langfuse>=4.16,<5`) and the OpenTelemetry API,
   SDK and OTLP/HTTP exporter (`>=1.45,<2`) instead of `langfuse>=2.53,<3` (S2-02).
 - The chatbot judge keeps its traces and scores in the local store only. The monitor no
