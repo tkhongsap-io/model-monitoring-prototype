@@ -38,6 +38,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `POST /api/batch/runs` receives one GCP batch run summary (`batch-run/1`, S1-01 draft
+  schema; issue S1-02). `Authorization: Bearer <key>`, checked against the SHA-256 hashes
+  in the new `BATCH_API_KEY_SHA256` setting in constant time. `201` stores the run once in
+  the new `batch_runs` table (migration 8); the same body again is `200`; other content
+  for the same `(use_case_id, run_id)` is `409` and the stored run does not change; `400`
+  lists the field errors; `401` no or wrong key; `403` a key of another use case; `413`
+  above `BATCH_MAX_BODY_BYTES` (default 10 MB). The trace ID comes from the `traceparent`
+  header, or is new. The key and the body are never logged. Available in strict live mode.
 - Operational resilience (spec D). Producer pulls, acknowledgements, score write-back
   and the alert webhook retry on 429/502/503/504 and connection errors: three attempts,
   exponential backoff 0.5 s → 4 s with jitter, `Retry-After` honoured; other 4xx are

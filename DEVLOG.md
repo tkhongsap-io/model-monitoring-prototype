@@ -47,6 +47,41 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-05 — S1-02: receiving API `POST /api/batch/runs` (issue #4)
+
+- Changed: new `backend/app/batch_schema.py` (Pydantic model `BatchRunV1` of the S1-01
+  draft `batch-run/1`: strict types, unknown fields rejected at every level, the schema's
+  `allOf` rules, and the README backend rules: `failed_count` ≤ `request_count`, records ≤
+  `sample.size` and ≤ `request_count`, unique `record_id`; errors never echo the input).
+  New `backend/app/api/batch_routes.py` (key → size → body → use case → store; W3C
+  `traceparent` parser), mounted in both modes; the strict-live middleware lets
+  `POST /api/batch/runs` through. `db.py`: table `batch_runs` (migration 8, unique
+  `(use_case_id, run_id)`), `put_batch_run` (created / duplicate / `BatchRunConflict`),
+  `get_batch_run`, `list_batch_runs`; no update or delete path. `config.py`:
+  `BATCH_API_KEY_SHA256`, `BATCH_MAX_BODY_BYTES`, malformed entries reported by position in
+  readiness. Change package `changes/2026-10-05-s1-02-batch-runs-api/`. Docs: README,
+  `docs/STRICT-LIVE.md` (Batch run receiver), CHANGELOG.
+- Evidence: from `backend/` on Windows with the main checkout's `.venv` (Python 3.12,
+  pydantic 2.13.5, FastAPI 0.142.2), `python -m pytest -q -m "not slow"` → 247 passed,
+  9 deselected (159 before). New: `test_batch_schema.py` (38: the 5 valid and 3 invalid
+  S1-01 examples, each rule), `test_batch_runs_api.py` (each acceptance criterion of #4
+  behind the strict-live middleware, traceparent cases, a log capture that finds no key,
+  hash or record text), `test_batch_runs_store.py` (migration 8 on a new and an old
+  database, duplicate, conflict, unique pair). Three tests that list the migration
+  versions now expect 8. `scripts/migrate.py` twice on a scratch SQLite file → versions
+  1–8 both times. Not run: the slow suite and PostgreSQL (CI runs both); `pnpm` checks (no
+  frontend change). Unavailable: a real GCP job (S1-03 paired test), the test host (S1-04).
+- Learned: FastAPI 0.142 keeps an included router as one `_IncludedRouter` entry in
+  `app.routes`, so a mount test must send a request instead of reading the route paths.
+  `datetime.fromisoformat` puts the input in its error message, so the validator raises its
+  own message.
+- Remaining:
+  - The schema is a draft (S1-01). The per-use-case sample-size range (8 to 200) and the
+    registry keys come with S2-01; OTel context (S1-05 part B) replaces the header parser.
+  - An ADR for push ingest is still open (see 2026-10-02 below).
+  - The body limit is checked while the body streams in; a front-door limit (S1-06) is
+    still advised.
+
 ### 2026-10-05 — CI: no Replit deploy or wake
 
 - Changed: the project owner decided that CI must not deploy to Replit. No workflow
@@ -466,5 +501,7 @@ depend on. The spec is
   (RAI team via the webhook channel; producers are not paged). Alerts have no
   acknowledge workflow, SLA timer or escalation.
 - Out of scope and unscheduled: per-use-case thresholds, LIME in production, §14 sampling
-  policy, Alembic, Prometheus metrics, Slack SDK, paging/escalation, push ingest,
+  policy, Alembic, Prometheus metrics, Slack SDK, paging/escalation,
   skops/ONNX artifacts, retention pruning.
+- Push ingest of GCP batch run summaries (`POST /api/batch/runs`, S1-02) has no ADR yet,
+  although the contract is pull-only.
