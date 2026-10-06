@@ -26,6 +26,7 @@ Collector over OTLP/HTTP when an endpoint is set.
 | Part B only | Part A is in the GCP job repository and has its own owner. |
 | `batch.send` is an **ancestor** of `monitor.ingest`, not its parent | The job's instrumented HTTP client span carries the `traceparent` ID, and the backend server span sits between them. S1-05, S1-07 and S1-10 change from "parent" to "ancestor". |
 | Only `POST /api/batch/runs` makes spans | Each trace is one batch run. The prototype routes and the health checks add no noise. |
+| A resend gets `stored_trace_id` on its `monitor.ingest` span | A rerun of the job with the same `run_id` has a new trace. The attribute connects it to the stored run without a migration. An audit table of every delivery can come later (S3-02). |
 | A small `tracing.py` with explicit FastAPI instrumentation | All packages are approved (S2-02). It is testable without a Collector. S2-02 uses the same provider later. |
 
 ## Success criteria

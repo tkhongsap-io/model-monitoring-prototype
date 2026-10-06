@@ -46,7 +46,14 @@ time limit, so a stop cannot hang.
   - `traceparent`, if the request had a valid incoming W3C trace context
   - `generated`, in all other cases
 - A duplicate (`200`) returns and keeps the stored trace ID of the first request. Its
-  `monitor.ingest` span has the trace ID of the retry.
+  `monitor.ingest` span has the trace ID of the resend.
+  - A retry inside the same job execution has the same trace ID, because it is a second
+    client span under the same `batch.send`.
+  - A new job execution with the same `run_id`, or a first request without
+    `traceparent`, has a different trace ID. The attribute `stored_trace_id` (below)
+    connects the two traces. A `409 conflict` works the same way. (Decided 2026-10-06.)
+- `db.BatchRunConflict` gets the attribute `stored_trace_id`, which `put_batch_run` sets
+  from the existing row. The handler needs no second query. No migration.
 
 ### `monitor.ingest` attributes
 
@@ -55,6 +62,7 @@ time limit, so a stop cannot hang.
 | `outcome` | Always. One of `created`, `duplicate`, `conflict`, `invalid`, `unauthorized`, `forbidden`, `too_large`. |
 | `use_case_id`, `run_id` | After the body passed the validation |
 | `record_count` | For `created` and `duplicate` |
+| `stored_trace_id` | For `duplicate` and `conflict`: the trace ID in the stored `batch_runs` row. It can be the same as the span's own trace ID. |
 
 Never in a span: the key, the key hash, the `Authorization` header, the body, a record
 field, or a field value from a validation error. Header capture of the FastAPI
@@ -87,7 +95,10 @@ In `changes/2026-10-02-batch-monitoring-mvp/issues.md`:
   the job's HTTP client span, and `monitor.ingest` is a child of the server span.
   `batch.send` is an ancestor of `monitor.ingest`.
 - S1-07: the "Parent link" row becomes "Ancestor link". The script follows the parent IDs
-  in the Collector file from `monitor.ingest` up to `batch.send`.
+  in the Collector file from `monitor.ingest` up to `batch.send`. If no `batch_runs` row
+  has the trace ID, but a `monitor.ingest` span with this trace ID has `stored_trace_id`,
+  the script shows "duplicate delivery; the run is stored under trace `<id>`", not only
+  "missing".
 - S1-10: the acceptance criterion says "ancestor", not "parent".
 
 The GitHub issues change only after the project owner agrees.
@@ -108,6 +119,10 @@ pytest with an in-memory exporter. No Collector, no network.
 6. An exporter that raises: the request returns `201`, and the row is stored.
 7. `OTEL_SDK_DISABLED=true`: no spans; the run is stored with a generated ID.
 8. The S1-02 tests that used `parse_traceparent` use the OTel path.
+9. A resend of a stored run with a different `traceparent`: the `200` span has
+   `outcome = duplicate` and `stored_trace_id` = the first trace ID, and the row keeps the
+   first trace ID. The same for a `409` with different content.
+10. A retry with the same trace ID: `stored_trace_id` equals the span's trace ID.
 
 Then the fast suite and the full suite. CI runs on the pull request.
 
