@@ -47,6 +47,23 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-06 — CI builds the backend image for GCP Artifact Registry
+
+- Changed: added `backend/Dockerfile`, `backend/.dockerignore` and
+  `.github/workflows/build-image.yml`. A push to `dev` that changes `backend/` builds the
+  image, runs an import smoke test, and pushes `dev/backend:<run_number>` to the
+  `model-monitoring` repository in `asia-southeast3`. Plan:
+  [changes/2026-10-06-ci-gcp-image/plan.md](changes/2026-10-06-ci-gcp-image/plan.md).
+- GCP setup by hand: the repository, the `gh-ci-pusher` service account, the Workload
+  Identity pool and provider, and the GitHub repository variables.
+- Evidence: after merging `dev` (with S1-02 and S2-02), `import app.main` passed and the
+  fast backend suite gave 251 passed, 9 deselected (slow). A local `docker build` was not
+  run (no Docker daemon on the host).
+- Remaining:
+  - The first real proof is the first green run on `dev` and the image in the registry.
+  - The VM pull (reader role, Private Google Access) and the `uat` and `main` builds.
+  - The image has no dashboard SPA.
+
 ### 2026-10-05 — S2-02 slice 1: Langfuse SDK v4 packages, v2 store removed
 
 - Changed: the project owner approved the packages for S2-02 (#16). `requirements.txt` now

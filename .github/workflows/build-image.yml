@@ -1,0 +1,49 @@
+name: Build backend image
+
+# Pushes the backend image to Artifact Registry for the GCP test host (S1-04).
+# Auth is Workload Identity Federation: no service-account key exists anywhere.
+# Repository variables: GCP_PROJECT_ID, GCP_REGION, GAR_REPO, WIF_PROVIDER, WIF_SERVICE_ACCOUNT.
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "backend/**"
+      - ".github/workflows/build-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: build-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPO }}/dev/backend
+      TAG: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker "$REGISTRY" --quiet
+      - name: Build
+        run: |
+          docker build \
+            --build-arg GIT_SHA="${{ github.sha }}" \
+            --label org.opencontainers.image.revision="${{ github.sha }}" \
+            --label org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}" \
+            -t "$IMAGE:$TAG" backend
+      - name: Smoke test the image
+        run: docker run --rm "$IMAGE:$TAG" python -c "import app.main"
+      - name: Push
+        run: docker push "$IMAGE:$TAG"
+      - run: echo "Pushed $IMAGE:$TAG (${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"

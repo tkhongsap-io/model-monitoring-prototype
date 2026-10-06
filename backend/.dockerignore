@@ -1,0 +1,13 @@
+.venv
+.venv-backend
+__pycache__
+*.pyc
+.pytest_cache
+tests
+.env
+*.env
+.build-sha
+control_tower.db
+artifacts
+Dockerfile
+.dockerignore
