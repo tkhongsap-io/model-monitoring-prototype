@@ -11,14 +11,15 @@ No other package. No paid service.
 
 ## Component 1: `backend/app/tracing.py`
 
-`setup(app, exporter=None) -> None`
+`build_provider(environ) -> TracerProvider | None`, `setup(app) -> None`,
+`tracer() -> Tracer`, `shutdown() -> None`, and the module value `PROVIDER`. Tests attach
+an in-memory exporter to `PROVIDER` (a `spans` fixture) instead of an `exporter` argument.
 
 1. If `OTEL_SDK_DISABLED` is `true`, do nothing.
 2. Make one `TracerProvider` with these resource attributes:
    - `service.name`: `OTEL_SERVICE_NAME`, default `model-monitor`
    - `service.version`: `config.BUILD_SHA`
 3. Add the span processor:
-   - If `exporter` is given (tests): a `SimpleSpanProcessor(exporter)`.
    - Else, if `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is
      set: a `BatchSpanProcessor(OTLPSpanExporter())`. The exporter reads the standard
      `OTEL_EXPORTER_OTLP_*` variables.
@@ -26,6 +27,8 @@ No other package. No paid service.
 4. Set the provider as the global provider. Do this one time for each process.
 5. Call `FastAPIInstrumentor.instrument_app(app, tracer_provider=..., excluded_urls=...)`.
    The exclude pattern matches every path except `/api/batch/runs`.
+   Before this, turn off the native telemetry of FastAPI 0.142 on the app (it traces
+   every route when a global provider exists), also when the SDK is disabled.
 6. If a step raises, log one error (no secret, no header value) and continue without
    tracing.
 

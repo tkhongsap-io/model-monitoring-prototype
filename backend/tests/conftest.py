@@ -152,3 +152,23 @@ def fake_producer(monkeypatch) -> FakeProducer:
     monkeypatch.setattr(engines, "cbpe_estimate", lambda *a, **k: (_ for _ in ()).throw(
         RuntimeError("cbpe disabled in tests")))
     return producer
+
+# ---- OpenTelemetry (S1-05) ------------------------------------------------------------
+
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor  # noqa: E402
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import (  # noqa: E402
+    InMemorySpanExporter,
+)
+
+
+@pytest.fixture()
+def spans():
+    """Fresh exporter: other TestClient lifespans may shut down earlier processors."""
+    from app import main, tracing  # noqa: F401 - importing main builds the provider
+
+    provider = tracing.PROVIDER
+    assert provider is not None, "tracing is off in the test process"
+    exporter = InMemorySpanExporter()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    yield exporter
+    exporter.clear()

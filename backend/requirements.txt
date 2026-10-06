@@ -11,11 +11,12 @@ lime>=0.2,<0.3
 shap>=0.44
 
 # S2-02 (approved 2026-10-05): Langfuse SDK v4 is built on OTel 1.45+. Read the release
-# notes before a major upgrade. S1-05 part B adds opentelemetry-instrumentation-fastapi.
+# notes before a major upgrade. S1-05 part B adds the FastAPI instrumentation.
 langfuse>=4.16,<5
 opentelemetry-api>=1.45,<2
 opentelemetry-sdk>=1.45,<2
 opentelemetry-exporter-otlp-proto-http>=1.45,<2
+opentelemetry-instrumentation-fastapi>=0.66b0,<0.67
 
 fastapi>=0.110
 uvicorn[standard]>=0.29
