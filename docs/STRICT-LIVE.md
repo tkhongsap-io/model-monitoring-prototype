@@ -1,7 +1,8 @@
 # Strict live control tower
 
-> **Prototype only.** This page describes the Replit prototype for the three
-> `ai-use-cases` models. Replit is not a release target. CI does not deploy to Replit
+> **Prototype only, except "Batch run receiver".** This page describes the Replit
+> prototype for the three `ai-use-cases` models. The "Batch run receiver" section is
+> for the batch MVP (S1-02). Replit is not a release target. CI does not deploy to Replit
 > and does not wake it (the `autoscale-poll.yml` schedule was removed on 2026-10-05).
 > The batch MVP releases to the GCP test host (S1-04) and then to production AWS (S4-01);
 > see [the batch MVP plan](../changes/2026-10-02-batch-monitoring-mvp/plan.md).
@@ -24,7 +25,8 @@ scenario, simulation, export, baked artifact, and browser-driven tick routes.
 - `ANTHROPIC_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`.
 - `LIVE_POLL_SECONDS` greater than zero; `LIVE_POLL_LEASE_SECONDS` defaults to 30.
 - Optional: `LOG_FORMAT=json` for one JSON object per log line (default plain text);
-  `LIVE_ALERT_WEBHOOK_URL` and `LIVE_DASHBOARD_URL` (see Alerting).
+  `LIVE_ALERT_WEBHOOK_URL` and `LIVE_DASHBOARD_URL` (see Alerting);
+  `BATCH_API_KEY_SHA256` and `BATCH_MAX_BODY_BYTES` (see Batch run receiver).
 
 `GET /api/readiness` returns HTTP 503 and `not_ready` until the durable database,
 external URLs, tokens, poller, and judge configuration are present. Health endpoints
@@ -133,6 +135,39 @@ blocks grading or holds a cursor. Logs name the webhook host only. Without a web
 phase is marked `skipped` and the alert remains visible in the API and UI. Triage
 ownership is recorded in [adr/0001-alert-ownership.md](adr/0001-alert-ownership.md).
 
+## Batch run receiver
+
+`POST /api/batch/runs` receives one run summary from a GCP batch job (October batch MVP,
+issue S1-02; spec in
+[changes/2026-10-05-s1-02-batch-runs-api/spec.md](../changes/2026-10-05-s1-02-batch-runs-api/spec.md)).
+It is available in demo and strict live mode. It stores the run in `batch_runs`
+(migration 8) and never touches a telemetry cursor.
+
+- Body: the S1-01 **draft** schema `batch-run/1`
+  ([schema](../changes/2026-10-02-batch-monitoring-mvp/schema/README.md)). The backend
+  enforces it in `backend/app/batch_schema.py`.
+- Key: `Authorization: Bearer <key>`. Configure only the SHA-256 of each key in
+  `BATCH_API_KEY_SHA256` as comma-separated `USE_CASE_ID:<64 hex>` entries. Two entries for
+  one use case are allowed during a key rotation. If the setting is empty, every request
+  is `401`. A malformed entry is listed by position in `GET /api/readiness`. The source
+  registry (S2-01) replaces this setting.
+- `BATCH_MAX_BODY_BYTES`: the body limit, default 10 MB (`413` above it).
+- Responses: `201` stored, `200` the same body again (no change), `409` the same
+  `(use_case_id, run_id)` with other content (the stored run does not change), `400` with
+  `errors` (`loc`, `msg`, `type`; never the input value), `401` no or wrong key, `403` the
+  key is for another use case. Nothing is stored unless the answer is `201`.
+- Trace ID: from a valid W3C `traceparent` header, else a new random ID. The row records
+  which (`trace_id_source`).
+- Logs carry the outcome, `use_case_id`, `run_id`, the record count and the trace ID.
+  They never carry the key, the `Authorization` header or the body.
+
+To make a key and its hash for one use case (the key goes to GCP Secret Manager, the hash
+to `BATCH_API_KEY_SHA256`; never put either in git, chat or email):
+
+```bash
+python -c "import hashlib,secrets; k=secrets.token_urlsafe(32); print(k); print(hashlib.sha256(k.encode()).hexdigest())"
+```
+
 ## Unsticking a source
 
 A source whose cursor is held shows `state: "error"` in `GET /api/live/sync` and a
@@ -195,7 +230,7 @@ Use case ids are `AICT-L01` (churn), `AICT-L02` (chatbot) and `AICT-L03` (NBA). 
 skipped window stays auditable: `GET /api/live/observations?uc=AICT-L01` lists the stub
 with `skipped: true` and `skip_reason`, and the use-case detail shows the same fields
 while it is the newest observation. Every other `POST` under `/api/live/` returns 404
-in strict live mode.
+in strict live mode; outside `/api/live/`, only `POST /api/batch/runs` is accepted.
 
 Sync states are `connecting`, `catching_up`, `at_tail`, `idle`, `stale`, and `error`.
 Inspect them through `GET /api/live/sync`, the live portfolio response, or a use-case

@@ -5,6 +5,7 @@ The demo runs with an empty .env: zero keys, zero network (Langfuse stub default
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -88,6 +89,14 @@ LLM_JUDGE_MODEL = _env("LLM_JUDGE_MODEL", "claude-haiku-4-5")
 # traces per window (the offline heuristic judge ignores the cap — it is instant). 0 = no cap.
 LLM_JUDGE_MAX_TRACES = int(_env("LLM_JUDGE_MAX_TRACES", "20"))
 
+# GCP batch run summaries (S1-02).  POST /api/batch/runs accepts `Authorization: Bearer
+# <key>` when the SHA-256 of the key is listed here as comma-separated
+# `USE_CASE_ID:<64 hex>` entries (two entries for one use case during key rotation).
+# Only hashes are configured, never a key.  Empty: every request is 401.  The source
+# registry (S2-01) replaces this setting.
+BATCH_API_KEY_SHA256 = os.getenv("BATCH_API_KEY_SHA256", "").strip()
+BATCH_MAX_BODY_BYTES = int(_env("BATCH_MAX_BODY_BYTES", str(10 * 1024 * 1024)))
+
 _BUILD_SHA_FILE = BACKEND_DIR / ".build-sha"
 
 
@@ -121,6 +130,23 @@ BUILD_SHA = _resolve_build_sha(os.environ, _BUILD_SHA_FILE)
 
 def langfuse_cloud_configured() -> bool:
     return bool(LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY)
+
+
+def _batch_key_entries() -> list[tuple[int, tuple[str, str] | None]]:
+    """(1-based position, (sha256 hex, use_case_id) or None when malformed) per entry."""
+    out: list[tuple[int, tuple[str, str] | None]] = []
+    entries = [e.strip() for e in BATCH_API_KEY_SHA256.split(",") if e.strip()]
+    for position, entry in enumerate(entries, start=1):
+        use_case_id, _, digest = entry.rpartition(":")
+        use_case_id, digest = use_case_id.strip(), digest.strip().lower()
+        ok = bool(use_case_id) and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
+        out.append((position, (digest, use_case_id) if ok else None))
+    return out
+
+
+def batch_api_key_hashes() -> list[tuple[str, str]]:
+    """The well-formed (sha256 hex, use_case_id) pairs of BATCH_API_KEY_SHA256."""
+    return [pair for _, pair in _batch_key_entries() if pair is not None]
 
 
 def live_enabled() -> bool:
@@ -183,4 +209,10 @@ def live_configuration_errors() -> list[str]:
         errors.append("LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are required")
     if LIVE_POLL_SECONDS <= 0:
         errors.append("LIVE_POLL_SECONDS must be greater than zero")
+    # optional until the batch path is deployed; a malformed entry is named by position
+    # only, so the error never shows a hash
+    malformed = [str(position) for position, pair in _batch_key_entries() if pair is None]
+    if malformed:
+        errors.append(f"BATCH_API_KEY_SHA256 entries {', '.join(malformed)} are malformed "
+                      "(expected USE_CASE_ID:<64 hex>)")
     return errors

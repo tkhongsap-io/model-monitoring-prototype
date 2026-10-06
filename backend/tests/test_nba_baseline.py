@@ -98,7 +98,7 @@ def test_migration_seven_is_recorded(isolated_db):
     bind = db.engine()
     with bind.begin() as cx:
         versions = list(cx.execute(db.select(db.schema_migrations.c.version)).scalars())
-    assert versions == [1, 2, 3, 4, 5, 6, 7]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 def test_unversioned_capture_stays_in_memory(isolated_db, fake_producer, monkeypatch):
