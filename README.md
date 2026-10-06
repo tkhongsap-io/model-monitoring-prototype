@@ -56,7 +56,7 @@ ai-use-cases producer (Reserved VM)              model-monitoring-prototype (Aut
   POST /api/sync/observed  <--ack--                          ├─ adapters/telemetry_http  (HTTP, digest check)
                                                               ├─ adapters/ml_monitor      (Evidently drift, NannyML CBPE,
                                                               │                            realized AUC, NBA offer mix)
-                                                              ├─ adapters/llm_eval        (Claude judge, Langfuse write-back)
+                                                              ├─ adapters/llm_eval        (Claude judge, score write-back)
                                                               ├─ adapters/explain         (LIME/SHAP, off in production)
                                                               └─ engines/health           (pure Green/Amber/Red rollup)
                                                                     │ durable write, then cursor advance

@@ -2,14 +2,15 @@
 
 The judge is a DETERMINISTIC SEEDED SIMULATION (count-based hallucination injection
 + seeded score draws, §A.3.2) — there is no live-LLM mode in demo scope. The two
-implementations differ only in their TraceStore (config flip, ADR-2).
+names share one implementation and the local SQLite TraceStore (S2-02 removed the
+Langfuse SDK v2 push).
 """
 from __future__ import annotations
 
 from ... import config
 from ...datagen import hr_corpus
 from ..base import LaneResult, TickContext
-from .stores import LangfuseCloudStore, SqliteTraceStore
+from .stores import SqliteTraceStore
 
 
 class SeededJudgeAdapter:
@@ -19,12 +20,7 @@ class SeededJudgeAdapter:
         self.name = name
         self.seed = seed
         self.use_case_id = use_case_id
-        if name == "langfuse_cloud" and config.langfuse_cloud_configured():
-            self.store = LangfuseCloudStore(
-                scenario_id, use_case_id, config.LANGFUSE_PUBLIC_KEY,
-                config.LANGFUSE_SECRET_KEY, config.LANGFUSE_HOST)
-        else:
-            self.store = SqliteTraceStore(scenario_id, use_case_id)
+        self.store = SqliteTraceStore(scenario_id, use_case_id)
 
     def evaluate(self, use_case_id: str, tick: TickContext) -> LaneResult:
         res = LaneResult()

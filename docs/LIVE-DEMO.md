@@ -115,7 +115,8 @@ never deploys to Replit; deploy by hand from Replit.
    - `LIVE_WORKER_TOKEN` = a separate strong secret
    - `ANTHROPIC_API_KEY` (real judge), `LLM_JUDGE_MODEL=claude-haiku-4-5`,
      `LLM_JUDGE_MAX_TRACES=20`
-   - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` (trace push)
+   - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` (required by strict live mode;
+     the monitor itself no longer pushes traces, see S2-02)
 3. Set GitHub Actions secret `MONITOR_WORKER_TOKEN` to the same value as
    `LIVE_WORKER_TOKEN`; optionally set repository variable `MONITOR_URL`. Open the monitor
    URL for a public, redacted, read-only dashboard. Generate production demo traffic only

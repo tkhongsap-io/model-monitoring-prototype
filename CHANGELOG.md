@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The backend pins the Langfuse SDK v4 (`langfuse>=4.16,<5`) and the OpenTelemetry API,
+  SDK and OTLP/HTTP exporter (`>=1.45,<2`) instead of `langfuse>=2.53,<3` (S2-02).
+- The chatbot judge keeps its traces and scores in the local store only. The monitor no
+  longer pushes them to Langfuse Cloud with the SDK v2, also when the Langfuse keys are
+  set. The producer score write-back does not change (S2-02).
 - Every pulled telemetry window must carry `contract_version` `"1.0"` or `"1.1"`;
   any other value (or a missing field) is a `ContractVersionError`, recorded as the
   window's telemetry error, and holds the source cursor. `/telemetry/meta` is checked
