@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- A push to `dev` that changes `backend/` builds the backend image and pushes it to GCP
+  Artifact Registry as `.../model-monitoring/dev/backend:<run_number>`
+  (`.github/workflows/build-image.yml`, `backend/Dockerfile`). GitHub signs in with
+  Workload Identity Federation; no service-account key exists.
+
 ### Changed
 
 - Every pulled telemetry window must carry `contract_version` `"1.0"` or `"1.1"`;
