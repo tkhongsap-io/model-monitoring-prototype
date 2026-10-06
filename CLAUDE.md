@@ -12,7 +12,10 @@
 - Architecture: `README.md#architecture`.
 - Current work and gaps: `DEVLOG.md`.
 - Applicable playbook version: `tkhongsap-ai-engineering-playbook@5ba9dc8`.
-- Release path: `docs/STRICT-LIVE.md` (Replit Autoscale, `scripts/deploy-*.sh`).
+- Release path: the batch MVP releases to the GCP test host (S1-04), then to production
+  AWS (S4-01); see `changes/2026-10-02-batch-monitoring-mvp/plan.md`. Replit is not a
+  release target: CI never deploys to it or wakes it. `docs/STRICT-LIVE.md` describes
+  the prototype only.
 - Incident path: none — pilot; see `DEVLOG.md` Known gaps.
 
 ## Before changing code or documentation

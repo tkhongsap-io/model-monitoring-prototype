@@ -69,6 +69,24 @@ depend on. The spec is
     monitor does not use them until the SDK v4 work. The check stays so that the Replit
     deploy keeps the same secrets.
 
+### 2026-10-05 — CI: no Replit deploy or wake
+
+- Changed: the project owner decided that CI must not deploy to Replit. No workflow
+  deployed to Replit before this change; `backend-live.yml` and
+  `strict-live-frontend.yml` only run checks. The only automatic link was the
+  `autoscale-poll.yml` schedule, which called the Replit app every five minutes (288 calls
+  each day). The schedule is removed; `workflow_dispatch` stays for a manual poll.
+  `CLAUDE.md`, `README.md`, `docs/STRICT-LIVE.md`, `docs/LIVE-DEMO.md` and `replit.md`
+  now say that Replit is the prototype only and that the batch MVP releases to the GCP
+  test host (S1-04), then to AWS (S4-01).
+- Evidence: `tests/test_docs.py` passed. A search of `.github/` found no other Replit URL
+  or deploy step.
+- Remaining:
+  - The Replit Autoscale deployment and its secrets still exist. To stop it, unpublish it
+    in Replit by hand. CI cannot do this.
+  - The GitHub secret `MONITOR_WORKER_TOKEN` and the variable `MONITOR_URL` stay for the
+    manual workflow.
+
 ### 2026-10-05 — batch MVP plan: the test host moves to GCP
 
 - Changed: the project owner decided that the Sprint 1 to 3 test host runs in GCP. It is

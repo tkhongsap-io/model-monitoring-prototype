@@ -1,8 +1,9 @@
-name: Wake Autoscale live poller
+name: Wake Autoscale live poller (manual only)
 
+# The schedule was removed on 2026-10-05: CI does not deploy to Replit or wake the Replit
+# prototype. The batch MVP releases to the GCP test host and then to AWS. Run this
+# workflow by hand only if an operator must start one poll cycle on the prototype.
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions: {}

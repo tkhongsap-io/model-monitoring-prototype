@@ -28,6 +28,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Deprecated or removed
 
+- The `autoscale-poll.yml` schedule (every five minutes) is removed. CI no longer wakes
+  the Replit prototype; the workflow runs by hand only. Replit is not a release target:
+  the batch MVP releases to the GCP test host, then to AWS.
 - Dead scaffold deleted (spec E.1): `.migration-backup/`, `lib/api-spec`, `lib/api-zod`,
   `lib/api-client-react`, `lib/db`, `artifacts/mockup-sandbox`, the TypeScript stub under
   `artifacts/api-server/src` (plus its `build.mjs` / `tsconfig.json`; the Replit

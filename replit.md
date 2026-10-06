@@ -5,6 +5,9 @@ pulls authenticated telemetry, persists cursors and observations in its own Post
 database, evaluates real closed windows, and acknowledges matching window digests back
 to the producer. Production never serves baked scenario data.
 
+Replit hosts the prototype only. It is not a release target, and CI never deploys to it
+or wakes it. The batch MVP releases to the GCP test host, then to AWS.
+
 Project documentation lives in [README.md](README.md); agent instructions in
 [CLAUDE.md](CLAUDE.md). Deployment safety and exact URL mapping are in
 [docs/STRICT-LIVE.md](docs/STRICT-LIVE.md) and [docs/LIVE-DEMO.md](docs/LIVE-DEMO.md).
@@ -28,7 +31,8 @@ The root `.replit` publishes an Autoscale deployment. `scripts/deploy-run.sh` al
 - `LIVE_CHURN_URL`, `LIVE_CHATBOT_URL`, `LIVE_NBA_URL` — producer gateway service prefixes
 - `LIVE_PRODUCER_URL` — producer gateway root for version checks and acknowledgements
 - `LIVE_TELEMETRY_TOKEN` — same value as producer `RAI_TELEMETRY_TOKEN`
-- `LIVE_WORKER_TOKEN` — same value as GitHub secret `MONITOR_WORKER_TOKEN`
+- `LIVE_WORKER_TOKEN` — same value as GitHub secret `MONITOR_WORKER_TOKEN` (used only by
+  the manual poll workflow)
 - `ANTHROPIC_API_KEY` — real Claude judge
 - `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`
 - `LIVE_POLL_SECONDS` — positive warm-instance polling interval

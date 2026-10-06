@@ -101,8 +101,9 @@ hosting convenience only.
 ### 4b. Autoscale monitor (`model-monitoring-prototype` repo)
 `.replit` is pre-configured for **Autoscale**. Monitor state and artifact bytes live in
 a monitor-owned managed PostgreSQL database. A renewable database lease prevents duplicate
-observations across instances; `.github/workflows/autoscale-poll.yml` wakes a scaled-to-zero
-deployment every five minutes and waits for one authenticated poll cycle.
+observations across instances. Nothing wakes a scaled-to-zero deployment on a schedule:
+`.github/workflows/autoscale-poll.yml` runs one authenticated poll cycle by hand only. CI
+never deploys to Replit; deploy by hand from Replit.
 
 1. Add a separate managed PostgreSQL database, then deploy → **Autoscale**.
 2. Secrets:
