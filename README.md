@@ -93,8 +93,10 @@ body). Triage ownership: [docs/adr/0001-alert-ownership.md](docs/adr/0001-alert-
 
 Models: churn classifier (`AICT-L01`, ML lane), support chatbot (`AICT-L02`, LLM lane
 judged by `claude-haiku-4-5`), NBA recommender (`AICT-L03`, ML + feedback lanes).
-Deployment: the producer is a Replit Reserved VM; the monitor is Replit Autoscale with its
-own managed PostgreSQL. Local development uses SQLite and `CONTROL_TOWER_MODE=demo`.
+Deployment: the prototype producer is a Replit Reserved VM and the prototype monitor is
+Replit Autoscale with its own managed PostgreSQL. Replit is not a release target, and CI
+never deploys to it. The batch MVP releases to the GCP test host (S1-04), then to AWS
+(S4-01). Local development uses SQLite and `CONTROL_TOWER_MODE=demo`.
 
 Layout: `backend/app/engines/` are pure functions, `backend/app/adapters/` do I/O,
 `backend/app/scenario/live_runner.py` orchestrates, `backend/app/api/` exposes routes,
@@ -114,9 +116,11 @@ Layout: `backend/app/engines/` are pure functions, `backend/app/adapters/` do I/
 ## Release and operations
 
 - Environments: local demo (SQLite, `CONTROL_TOWER_MODE=demo`); CI (PostgreSQL 16
-  service, placeholder producer URLs); production (Replit Autoscale,
-  `CONTROL_TOWER_MODE=live`, managed PostgreSQL).
-- Release procedure: [docs/STRICT-LIVE.md](docs/STRICT-LIVE.md). `.replit` builds with
+  service, placeholder producer URLs; tests only, no deploy); prototype (Replit
+  Autoscale, `CONTROL_TOWER_MODE=live`, managed PostgreSQL; deployed by hand only).
+- Release path: the batch MVP releases to the GCP test host (S1-04), then to production
+  AWS (S4-01); see [the batch MVP plan](changes/2026-10-02-batch-monitoring-mvp/plan.md).
+- Prototype procedure: [docs/STRICT-LIVE.md](docs/STRICT-LIVE.md). `.replit` builds with
   `scripts/deploy-build.sh` and runs `scripts/deploy-run.sh`; `scripts/post-merge.sh` only
   reinstalls dependencies. Replit-specific notes are in [replit.md](replit.md).
 - Running identity: `GET /api/version` reports `build_sha` (the deployed Git commit),
@@ -125,8 +129,8 @@ Layout: `backend/app/engines/` are pure functions, `backend/app/adapters/` do I/
   poll cycle's duration, outcome and per-source error under `poller.last_cycle`),
   `GET /api/live/sync` (per-source cursor state) and `GET /api/live/alerts?open=true`
   (open health-transition alerts with their delivery status).
-  `.github/workflows/autoscale-poll.yml` wakes the Autoscale deployment every five
-  minutes with the worker token.
+  `.github/workflows/autoscale-poll.yml` runs one poll cycle on the Replit prototype with
+  the worker token, by hand only (no schedule).
 - Optional environment: `LIVE_ALERT_WEBHOOK_URL` (Slack incoming webhook or any JSON
   receiver; a secret — never logged beyond its host, never in the bundle),
   `LIVE_DASHBOARD_URL` (public SPA origin linked from each notification) and

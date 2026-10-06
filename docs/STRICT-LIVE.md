@@ -1,5 +1,12 @@
 # Strict live control tower
 
+> **Prototype only, except "Batch run receiver".** This page describes the Replit
+> prototype for the three `ai-use-cases` models. The "Batch run receiver" section is
+> for the batch MVP (S1-02). Replit is not a release target. CI does not deploy to Replit
+> and does not wake it (the `autoscale-poll.yml` schedule was removed on 2026-10-05).
+> The batch MVP releases to the GCP test host (S1-04) and then to production AWS (S4-01);
+> see [the batch MVP plan](../changes/2026-10-02-batch-monitoring-mvp/plan.md).
+
 Set `CONTROL_TOWER_MODE=live` for the deployed monitor. In this mode the backend does
 not bake or reset `DEMO-FULL`, does not seed the simulated registry, and returns 404 for
 scenario, simulation, export, baked artifact, and browser-driven tick routes.
@@ -12,8 +19,9 @@ scenario, simulation, export, baked artifact, and browser-driven tick routes.
   All four must be `https://` (the bearer token travels with every call); `http://` or a
   localhost address is a configuration error.
 - `LIVE_TELEMETRY_TOKEN`: shared bearer token used for pulls, score write-back, and ack.
-- `LIVE_WORKER_TOKEN`: dedicated bearer token for `POST /api/live/poll`. Set the same
-  value as GitHub Actions secret `MONITOR_WORKER_TOKEN` (never expose it to the SPA).
+- `LIVE_WORKER_TOKEN`: dedicated bearer token for `POST /api/live/poll`. The manual
+  GitHub Actions workflow uses the same value as secret `MONITOR_WORKER_TOKEN` (never
+  expose it to the SPA).
 - `ANTHROPIC_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`.
 - `LIVE_POLL_SECONDS` greater than zero; `LIVE_POLL_LEASE_SECONDS` defaults to 30.
 - Optional: `LOG_FORMAT=json` for one JSON object per log line (default plain text);
@@ -29,9 +37,9 @@ bypass and is intended solely for isolated automated tests.
 
 The producer remains a Reserved VM. The monitor is Autoscale, with cursors,
 observations, history, leases, and live artifact bytes in a separate monitor-owned
-PostgreSQL database. Because Autoscale may scale to zero, `.github/workflows/autoscale-poll.yml`
-wakes the monitor every five minutes and waits for an authenticated, lease-protected
-`POST /api/live/poll` cycle. A process-local poller improves latency while an instance is
+PostgreSQL database. Autoscale may scale to zero, and nothing wakes it on a schedule:
+`.github/workflows/autoscale-poll.yml` runs only by hand and then waits for one
+authenticated, lease-protected `POST /api/live/poll` cycle. A process-local poller improves latency while an instance is
 warm; neither browsers nor GET health checks advance monitoring state. A heartbeat
 renews lease ownership while Evidently, SHAP, or Claude work is in flight.
 Each observation and its signal history are committed before the source cursor advances.
