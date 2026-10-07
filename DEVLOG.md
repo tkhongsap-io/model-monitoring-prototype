@@ -62,6 +62,10 @@ depend on. The spec is
   to `/data/spans.jsonl` in the named volume `collector-data`, and a one-time
   `collector-init` (`busybox:1.37.0`, new row in the fixed-versions table) gives the volume
   to uid 10001; the Collector stays non-root. Tests first: 5 failed, then green.
+- CI evidence after the fix: `Compose smoke test` passed on `3918f0f` (run 37588234590,
+  2 min 6 s): `SMOKE PASS: run smoke-20261007T073712Z-d478a3, trace
+  080ed143ce9ccee4f06ea15b15389666`. `Strict live backend` passed on the same commit.
+  The hand test on the project owner's Mac is still open.
 - Evidence: `tests/test_compose_files.py` 9 passed; fast suite 318 passed, 9 deselected
   (1 warning); `tests/test_docs.py` 5 passed (rerun by Claude). Codex implemented the
   plan; Claude reviewed it: four files are identical to the plan, and the comment in
