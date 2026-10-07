@@ -19,6 +19,23 @@
    python -c "import json,jsonschema; jsonschema.Draft202012Validator(json.load(open('batch-run-1.schema.json'))).validate(json.load(open('my-body.json')))"
    ```
 
+## Share a real body without its text
+
+A real body can contain customer data. Before you share it, or give it to Claude, remove
+the free text. Put the file in `data/` (git ignores it), then run this from the
+repository root:
+
+```bash
+python scripts/strip_record_text.py data/<file>.json
+```
+
+The script writes `data/<file>.stripped.json`. In the copy, `question`, `answer`,
+`retrieval_context[].title/text` and `tool_calls[].output` become
+`[REMOVED <n> chars <placeholder counts>]`, for example `[REMOVED 142 chars [EMAIL]x1]`.
+All other values do not change. The script prints only counts, never text. Share only
+the `.stripped.json` file. It keeps the lengths and the placeholder counts, so the
+schema checks and the PII rule can still be examined.
+
 ## Shape at a glance
 
 ```

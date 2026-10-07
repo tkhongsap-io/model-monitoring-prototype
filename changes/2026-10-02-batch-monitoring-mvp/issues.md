@@ -108,6 +108,9 @@ remaining prototype-only code.
 |---|---|---|---|---|---|
 | S1-01 | Map one GCP job and write the JSON body v1 | Feature | GCP job developer. Backend reviews and approves. | S1-03 (a real body agrees with the schema) | M |
 | S1-02 | Receiving API `POST /api/batch/runs` with API key | Feature | Backend | S1-03 | L |
+| S1-02a | Paired test: a real GCP job sends a run summary to the test host | Verification | Backend + GCP job developer | S1-03 | S |
+| S1-02b | Make the receiver agree with the approved S1-01 schema | Feature | Backend | S1-03 | S |
+| S1-02c | ADR: push ingestion of GCP batch run summaries | Decision | Backend + project owner | — | S |
 | S1-03 | GCP job sends the run summary after it publishes | Feature | GCP job developer | S1-02 | M |
 | S1-04 | Deploy the monitor backend to a test host in GCP | Infrastructure | Platform | S1-03 | M |
 | S1-05 | OTel in the GCP job and the backend: one trace for each run | Feature | Part A: GCP job developer. Part B: backend. | S1-06 | M + M |
@@ -158,7 +161,7 @@ only. GitHub issues are the tracker; this file is the source of their text.
 | Prepare | Self-hosted Langfuse and Collector hardening | S2-03, S3-03 | Platform |
 | Prepare | SSO login (Google now, Entra ID later) | S3-07 | Platform |
 | Prepare | Kubernetes files and production AWS cluster | S3-06, S4-01 | Platform |
-| Build | JSON body, receiving API and GCP send step | S1-01, S1-02, S1-03 | GCP job developer + backend |
+| Build | JSON body, receiving API and GCP send step | S1-01, S1-02, S1-02a, S1-02b, S1-02c, S1-03 | GCP job developer + backend |
 | Build | OpenTelemetry tracing and trace check tool | S1-05, S1-07, S2-04 | GCP job developer + backend |
 | Build | Registry, evaluator and LiteLLM judge | S2-01, S2-05, S2-09 | Backend |
 | Build | Dashboard and delivery alerts | S2-07, S3-02 | Backend |
@@ -300,6 +303,86 @@ Other options:
 1. Unit and integration: `pytest` for each acceptance criterion, with the S1-01 examples.
 2. Full backend suite: `.venv/bin/python -m pytest -q -m "not slow"`.
 3. Paired with S1-03: a real GCP job sends to the test host. Make sure that one row exists for its `run_id`.
+
+### S1-02a — Paired test: a real GCP job sends a run summary to the test host
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Verification | Backend + GCP job developer | #41 merged, S1-03 (#5), S1-04 (#6) | S1-03 | S |
+
+**What:** Do step 3 of "How to test" of #4. A real GCP job sends its run summary to
+`POST /api/batch/runs` on the test host. This is the paired test of S1-02 and S1-03. The
+code and the unit tests are in #41. They cannot prove this step, because no real job and
+no test host were available.
+
+**Preparation**
+1. Make a key and its hash for the use case of the job (command in `docs/STRICT-LIVE.md`, "Batch run receiver").
+2. Put the key in GCP Secret Manager of the job project.
+3. Put only the hash in `BATCH_API_KEY_SHA256` on the test host.
+
+Warning: never put the key or the hash in git, chat, email or a ticket.
+
+**Acceptance criteria**
+- [ ] A real run of the job gives `201`. One row exists in `batch_runs` for its `(use_case_id, run_id)`.
+- [ ] A retry of the same send gives `200`. There is still one row.
+- [ ] The stored body agrees with what the job sent (record count, `record_id` values).
+- [ ] If S1-05 part A is ready: the stored `trace_id` is the trace ID of the job, and `trace_id_source` is `traceparent`. If not: `trace_id_source` is `generated`. Record which.
+- [ ] The logs of the test host contain no key, no `Authorization` header and no body text.
+- [ ] A send with a wrong key gives `401`. The GCP developer confirms that the job logged the failed send for its own team (S1-01 criterion 6; the monitor team has no access to GCP logs).
+
+**How to test**
+1. Run the job on the test host path. Query `batch_runs` for its `run_id`.
+2. Send the same body again from the job (retry). Count the rows again.
+3. Search the test host logs for the key, the record text and `Authorization`.
+4. Record the evidence in `DEVLOG.md` and in a comment on #4.
+
+### S1-02b — Make the receiver agree with the approved S1-01 schema
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | S1-01 (#3) approved, #41 merged | S1-03 | S |
+
+**What:** #41 builds the receiver against the S1-01 **draft** schema `batch-run/1`. When
+the GCP developer, RAI and security approve S1-01, make the backend agree with the
+approved schema. All the rules are in one module, `backend/app/batch_schema.py`, so the
+change is small.
+
+The schema README says that the schema "moves to the backend" with S1-02. Today the
+tests read the examples from `changes/2026-10-02-batch-monitoring-mvp/schema/examples/`.
+
+**Acceptance criteria**
+- [ ] Compare the approved `batch-run-1.schema.json` with `BatchRunV1` field by field (types, lengths, required fields, the `allOf` rules). Record each difference in the pull request.
+- [ ] Change `batch_schema.py` and its tests for each difference. Remove the "DRAFT" note.
+- [ ] Move the approved schema file and its examples to the backend (for example `backend/schemas/batch-run/1/`). Point `tests/test_batch_schema.py` and `tests/test_batch_runs_api.py` to the new location.
+- [ ] If a change makes stored rows invalid, the schema version changes (`batch-run/2`). Stored rows never change (#4).
+- [ ] Update `docs/STRICT-LIVE.md` ("Batch run receiver"), `CHANGELOG.md` and `DEVLOG.md`.
+
+**How to test**
+1. `.venv/bin/python -m pytest -q -m "not slow"` from `backend/`.
+2. Each approved example passes. Each invalid example fails with the expected field.
+
+### S1-02c — ADR: push ingestion of GCP batch run summaries
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Decision | Backend + project owner | — | — | S |
+
+**What:** Write an ADR for push ingestion of GCP batch run summaries
+(`POST /api/batch/runs`, #41). The monitoring contract v1.1 is pull-only, and
+`CLAUDE.md` says that the monitor makes no producer demands and that only the poller
+writes monitoring data. `DEVLOG.md` (2026-10-02) asked for this ADR before code. #41 added
+the endpoint as #4 specifies, so the ADR records the decision after the fact.
+
+**Acceptance criteria**
+- [ ] `docs/adr/0002-batch-push-ingest.md` and its line in `docs/adr/README.md`.
+- [ ] The ADR states: why push and not pull for the GCP jobs, the trust boundary (API key, HTTPS, network rules), why the endpoint never touches a v1.1 cursor, and how stored runs stay immutable.
+- [ ] The ADR states the risk tier (`intent.md` of the batch MVP) and who accepted it.
+- [ ] `CLAUDE.md` and `README.md` agree with the ADR (`CLAUDE.md` stays within 120 lines).
+- [ ] The "Known gaps" entry in `DEVLOG.md` about the missing ADR is removed.
+
+**How to test**
+1. `backend/tests/test_docs.py` passes (links resolve, one H1, `CLAUDE.md` ≤ 120 lines).
+2. The project owner approves the pull request.
 
 ### S1-03 — GCP job sends the run summary after it publishes
 

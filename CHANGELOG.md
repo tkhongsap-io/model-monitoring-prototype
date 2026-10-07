@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `scripts/strip_record_text.py` writes a copy of a GCP run summary without its free text
+  (`question`, `answer`, `retrieval_context`, `tool_calls` output), so a real body can be
+  shared for development. It prints only counts. `/data/` is ignored by git.
 - A local Docker Compose stack (`deploy/compose/`): the backend, PostgreSQL 18.6 and the
   OTel Collector 0.161.0, with a smoke test (`scripts/compose-smoke.sh`) that runs in CI
   (`compose-smoke.yml`) and on macOS (S1-06).

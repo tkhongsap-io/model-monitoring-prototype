@@ -85,6 +85,17 @@ depend on. The spec is
   also stopped because S1-13 and S2-11 are not in the "Overview by phase" table.)
 - The GitHub bodies of #3 (S1-01), #7 (S1-05) and #10 (S1-08) are updated from
   `issues.md` of this branch.
+- Issue check (all 41 S-numbered GitHub issues against `issues.md`): #8 (S1-06) and #30
+  (S3-06) lacked text that #54 and #49 added to `issues.md`; both synced from `dev`.
+  S1-02a, S1-02b and S1-02c (#43–#45) were made on GitHub only; their sections are now
+  in `issues.md` (after S1-02), in "All issues" and in the overview. In S1-02a, the
+  `401` criterion now says that the GCP developer confirms the job's own log entry.
+  Known gap, not changed: S1-13 and S2-11 are not in "Overview by phase".
+- New `scripts/strip_record_text.py` (standard library only): writes a copy of a run
+  body with `question`, `answer`, `retrieval_context` title/text and `tool_calls` output
+  replaced by `[REMOVED <n> chars <placeholder counts>]`, and prints only counts. The
+  project owner uses it before a real GCP body is shared or given to Claude. `/data/` is
+  now in `.gitignore`. Tests: `tests/test_strip_record_text.py` (synthetic text) 8 passed.
 - Remaining for S1-01: the developer fixes `request_count` and the sample and answers
   issue #3; RAI decides `groundedness` and `hallucination_rate` for image-only use cases
   (registry, S2-01); reviews by RAI and security (S1-08).
