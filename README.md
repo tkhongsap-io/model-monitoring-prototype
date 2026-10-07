@@ -42,8 +42,10 @@ present.
 - In scope: pull-based consumption of telemetry contract v1.1 for ML, LLM and NBA lanes;
   drift, label-free performance estimation, realized performance, LLM-as-judge scoring;
   durable observations with digest verification; a read-only redacted dashboard.
-- In progress (October batch MVP): push ingest of GCP batch run summaries,
-  `POST /api/batch/runs` ([plan](changes/2026-10-02-batch-monitoring-mvp/issues.md)).
+- In progress (October batch MVP, risk tier **R2**): push ingest of GCP batch run
+  summaries, `POST /api/batch/runs` ([plan](changes/2026-10-02-batch-monitoring-mvp/issues.md),
+  [intent](changes/2026-10-02-batch-monitoring-mvp/intent.md),
+  [ADR 0002](docs/adr/0002-batch-push-ingest.md)).
 - Out of scope: acting on models (retrain, roll back), paging or escalation,
   per-use-case thresholds, LIME in production, non-uniform sampling policy.
 
