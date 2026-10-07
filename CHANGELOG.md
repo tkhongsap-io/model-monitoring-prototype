@@ -20,6 +20,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The draft run summary `batch-run/1` (S1-01) states its meanings more clearly for GCP
+  job developers: `request_count` counts all requests (successful + failed), the sample
+  contains only requests that Gemini answered or refused, `retrieval_context` holds any
+  input text that the answer must agree with, and an image in the prompt becomes
+  `[IMAGE]` in `question`. No validation rule changed.
 - The backend serves only the batch MVP API: `POST /api/batch/runs`, `/api/health`,
   `/api/healthz`, `/api/readiness` and `/api/version`. Health is a liveness check (no
   database call); readiness checks only `DATABASE_URL` (PostgreSQL) and

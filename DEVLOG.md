@@ -47,6 +47,36 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-07 — S1-01: schema clarifications after the first GCP example
+
+- Input: the GCP job developer sent one real body (fraud validation job, 8 records, text
+  removed for privacy; the file is not committed). Its field set is the same as the draft:
+  no unknown field, no missing required field. With placeholder text, `validate_run`
+  accepts it.
+- Found from its values, and confirmed by the project owner with the developer:
+  - `request_count` was the successful requests only (243), with `failed_count` 106 on
+    top. The schema means all requests (349). With the job's meaning, a run with more
+    failures than successes fails `failed_count` ≤ `request_count`. The job changes, not
+    the schema.
+  - 3 sampled records were failed requests (`latency_s: null` in an online job). The job
+    now samples only requests that Gemini answered or refused.
+  - `sample.size` is the `SAMPLE_SIZE` setting.
+  - The job is image input only (Gemini reads the image). `question` gets the marker
+    `[IMAGE]`; `retrieval_context` is `[]`.
+- Changed (descriptions only, no validation rule): `schema/batch-run-1.schema.json`
+  (`request_count`, `failed_count`, `records`, `question`, `retrieval_context`),
+  `schema/README.md` (clarifications and `retrieval_context` examples),
+  `llm-metrics-standard.md` (the same rules; a selected online request that fails is not
+  sent). `backend/app/batch_schema.py` does not change.
+- Evidence: with the edited schema (`jsonschema` in a throwaway environment), the 5
+  `examples/valid/` pass and the 3 `examples/invalid/` plus 6 built negative cases fail.
+  `tests/test_docs.py` + `tests/test_batch_schema.py` 43 passed; fast suite 319 passed,
+  9 deselected (1 warning). The local venv was synced to `requirements.txt` first (it
+  lacked `opentelemetry-sdk`).
+- Remaining for S1-01: the developer fixes `request_count` and the sample; RAI decides
+  `groundedness` and `hallucination_rate` for image-only use cases (registry, S2-01);
+  logs agreement (criterion 6); reviews by RAI and security (S1-08).
+
 ### 2026-10-07 — S1-06 local part: Docker Compose stack and smoke test
 
 - Changed: `deploy/compose/` (base and local Compose files, Collector configuration,

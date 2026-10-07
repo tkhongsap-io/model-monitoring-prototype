@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Reviewed 2026-10-04 |
+| **Status** | Reviewed 2026-10-04. Clarified 2026-10-07 after the first GCP example: `request_count`, sample selection, `retrieval_context`, image input. |
 | **Applies to** | All 10 GCP batch use cases that call Gemini |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [Summary](summary.md) · [Issues](issues.md) · [Monitoring contract v1.1](../../docs/MONITORING-CONTRACT.md) |
@@ -72,8 +72,8 @@ The job sends one JSON body for each completed run, after the publish step. The 
 | `run_id` | Yes | A stable ID of this run. The same run always sends the same ID. |
 | `status` | Yes | `completed`, `partial` or `failed` |
 | `completed_at` | Yes | The time when the job published the results (UTC, ISO 8601) |
-| `request_count` | Yes | The number of requests in the run |
-| `failed_count` | Yes | The number of requests that gave no usable output |
+| `request_count` | Yes | The number of **all** requests in the run: successful + failed. Count each request one time, without retries. |
+| `failed_count` | Yes | The number of requests that gave no usable output. It is a part of `request_count`. |
 | `model` | Yes | The Gemini model ID of the run |
 | `sample` | Yes | `{"method": "uniform_random", "size": n}`: how the job selected the records |
 | `records` | Yes | The sampled records. Empty in identity-only mode, or when `request_count` is 0. |
@@ -85,9 +85,9 @@ The job sends one JSON body for each completed run, after the publish step. The 
 | Field | Required | Used by | What to put in it for a batch job |
 |---|---|---|---|
 | `record_id` | Yes | Identity | The ID of the request in the run. It is not a customer ID. The judge uses it as `trace_id`. |
-| `question` | Yes | relevance, groundedness, hallucination | The instruction that the model got, without the source material. PII replaced by placeholders. |
+| `question` | Yes | relevance, groundedness, hallucination | The instruction that the model got, without the source material. PII replaced by placeholders. If the prompt contains an image, write `[IMAGE]` where each image was. Never send the image, base64 data or an image URL. |
 | `answer` | Yes | The four judge metrics | The output of the model for this request. PII replaced by placeholders. |
-| `retrieval_context` | Yes, can be `[]` | groundedness, hallucination | The source material that the model got, as `[{"doc_id", "title", "text"}]`. For example, the document that the model summarized. PII replaced by placeholders. |
+| `retrieval_context` | Yes, can be `[]` | groundedness, hallucination | The source material that the model got with the instruction, as `[{"doc_id", "title", "text"}]`: any input text that the answer must agree with. For example, a document to summarize, a transaction to check, a complaint, OCR text or retrieved chunks. It is not only for document retrieval. One item for each source. PII replaced by placeholders. `[]` if the prompt has no text source material, for example when the only input is an image. |
 | `tool_calls` | No | groundedness | Only if the job uses function calls: `[{"name", "output"}]` |
 | `refused` | Yes | groundedness, hallucination | `true` if the model declined or was blocked: a safety finish reason, a blocked prompt, or a clear refusal |
 | `latency_s` | No, never `0` | p95_latency_s | The real time of the request in seconds. **`null` for the Gemini Batch API**, because it has no time for each request. |
@@ -101,7 +101,7 @@ other fields. The API rejects unknown fields.
 | Setting | Value |
 |---|---|
 | Records for each run | Default **50**. Set for each use case in the YAML registry, from 8 to 200. |
-| Selection | Uniform random. For online jobs, select the sample before the calls start (S2-04). If the run has fewer requests than the sample size, send all of them. |
+| Selection | Uniform random. For online jobs, select the sample before the calls start (S2-04). If the run has fewer requests than the sample size, send all of them. Send only the requests that Gemini answered or refused. If a selected request fails, do not send it. |
 | Judged by the backend | All the records that the job sends |
 | Cost | 50 judge calls for each run. With 10 use cases, approximately 500 calls in a daily cycle. |
 

@@ -50,6 +50,39 @@ Body
 - `records: []` with `request_count > 0` needs `records_reason`. Records present means no `records_reason`.
 - `status: failed` means `records: []` and `records_reason: job_failed`.
 
+## Clarifications after the first GCP example (2026-10-07)
+
+The first real body from a GCP job (a fraud validation job, `request_count` 243,
+`failed_count` 106, 8 records) agreed with the field shape. Its values showed these
+misunderstandings. The schema descriptions now state each rule.
+
+| Topic | Rule |
+|---|---|
+| `request_count` | **All** requests sent to Gemini: successful + failed, each request one time, no retries. `failed_count` is a part of it. The job sent 243 (successful only) and 106 (failed); the correct values are `request_count: 349`, `failed_count: 106`. With the wrong meaning, a run with more failures than successes fails the rule `failed_count` ≤ `request_count`. |
+| Sample | Sample only from the requests that Gemini answered or refused. Never include a failed request. In an online job, every sampled record then has a `latency_s`. |
+| `sample.size` | The `SAMPLE_SIZE` setting (confirmed), not `len(records)` |
+| `retrieval_context` | Any input text that the answer must agree with: a document, a transaction, a complaint, OCR text, retrieved chunks. Not only for document retrieval. |
+| Image input (Gemini reads the image directly) | `question` is the text instruction with `[IMAGE]` where each image was. `retrieval_context` is `[]` if the prompt has no other text. Never send the image, base64 data or an image URL. |
+
+`[IMAGE]` is not a PII placeholder. It does not count for `pii_exposure_rate`. For a use
+case with image input only, the judge has no source material, so `groundedness` and
+`hallucination_rate` have no useful meaning. RAI decides how to treat them for that use
+case in the registry (S2-01).
+
+### `retrieval_context` examples (synthetic)
+
+| Case | Item |
+|---|---|
+| Document summary | `{"doc_id": "inv-88213", "title": "Invoice 88213", "text": "Customer contact: [EMAIL]. Total 1,497.00 THB."}` |
+| Transaction check | `{"doc_id": "req-000047-input", "title": "Transaction", "text": "Amount 45,000 THB; channel card-not-present; device new"}` |
+| Complaint | `{"doc_id": "cmp-5521", "title": "", "text": "No signal since Monday. Call me at [PHONE]."}` |
+| OCR step before Gemini | `{"doc_id": "req-000047-ocr", "title": "Invoice scan (OCR)", "text": "INVOICE No. INV-88213 Total 1,497.00 THB"}` |
+| Retrieved chunk | `{"doc_id": "kb-roaming-004#2", "title": "Roaming packages", "text": "Asia roaming pack 399 THB, 7 days."}` |
+| Image only, or no source material | `[]` |
+
+If the input has no document ID, use `<record_id>-input`. Never use a customer, card,
+account or phone number as `doc_id`.
+
 ## Rules the backend checks (JSON Schema cannot express them)
 
 The backend (S1-02) returns `400` for these:
