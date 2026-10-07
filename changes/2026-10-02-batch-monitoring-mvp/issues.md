@@ -67,6 +67,7 @@ pull request first.
 | PostgreSQL (monitor database: test host) | Cloud SQL for PostgreSQL | 18.6 | Decided 2026-10-06 (paid; GCP sandbox budget). Google manages the minor version. Record the version that the instance shows when it changes. |
 | PostgreSQL (Langfuse database) | `postgres:17.11-bookworm` | 17.11 | Released 2026-08-10. The Langfuse Compose file uses PostgreSQL 17. A separate database from the monitor. |
 | OTel Collector | `otel/opentelemetry-collector-contrib` | 0.161.0 | Newest image on Docker Hub. Release 0.162.0 (2026-09-29) has no Docker Hub image yet. |
+| Volume setup for the Collector (one-time `collector-init`) | `busybox` | 1.37.0 | Added 2026-10-07 (S1-06). Gives the `collector-data` volume to the Collector user (uid 10001). Checked on Docker Hub 2026-10-07. |
 | Langfuse web | `langfuse/langfuse` | 4.50.0 | Released 2026-10-02 |
 | Langfuse worker | `langfuse/langfuse-worker` | 4.50.0 | Must be the same version as Langfuse web |
 | ClickHouse | `clickhouse/clickhouse-server` | 25.12.11.4 | Newest patch of the 25.12 line that the Langfuse Compose file uses. Version 26.9 exists, but Langfuse does not use it. |
@@ -472,6 +473,13 @@ contains no body content. The token spans and the attribute allowlist come in S2
 **What:** Add the OTel Collector to Docker Compose. Use the contrib image with a fixed
 version. The Collector receives spans on OTLP/HTTP. It writes the spans to the `debug`
 output and to a file in a mounted folder. The Langfuse export comes in S2-03.
+
+**Local part (done in `changes/2026-10-07-s1-06-local-compose/`):** `deploy/compose/compose.yaml`
+(base), `compose.local.yaml`, `otel-collector.yaml`, `scripts/compose-smoke.sh` and
+`.github/workflows/compose-smoke.yml`. The file output is `/data/spans.jsonl` in the
+named volume `collector-data`. The distroless Collector image has no `/tmp` and runs as
+uid 10001, so a one-time `collector-init` service (`busybox:1.37.0`) gives the volume to
+that user first; the Collector stays non-root. Read the file with `docker compose cp`. The test host adds `compose.testhost.yaml` (S1-04).
 
 On the test host, put one reverse proxy (the front door) in front of the backend and the
 Collector:

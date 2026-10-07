@@ -47,6 +47,36 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-07 — S1-06 local part: Docker Compose stack and smoke test
+
+- Changed: `deploy/compose/` (base and local Compose files, Collector configuration,
+  README), `scripts/compose-smoke.sh`, `.github/workflows/compose-smoke.yml`,
+  `backend/tests/test_compose_files.py`. Decisions with the project owner: CI smoke test
+  plus a hand test on a Mac; base file plus one file for each environment; loopback-only
+  ports; the Collector file in the `collector-data` volume (see below). Change package
+  `changes/2026-10-07-s1-06-local-compose/`.
+- First CI run of #54 failed at the last step: build, health checks, readiness, `201` and
+  the `batch_runs` row passed, but the Collector restarted in a loop with
+  `open /tmp/spans.jsonl: no such file or directory` — the distroless image has **no
+  `/tmp`**. The design had assumed `/tmp`. Fix, chosen by the project owner: the file goes
+  to `/data/spans.jsonl` in the named volume `collector-data`, and a one-time
+  `collector-init` (`busybox:1.37.0`, new row in the fixed-versions table) gives the volume
+  to uid 10001; the Collector stays non-root. Tests first: 5 failed, then green.
+- CI evidence after the fix: `Compose smoke test` passed on `3918f0f` (run 37588234590,
+  2 min 6 s): `SMOKE PASS: run smoke-20261007T073712Z-d478a3, trace
+  080ed143ce9ccee4f06ea15b15389666`. `Strict live backend` passed on the same commit.
+  The project owner ran `bash scripts/compose-smoke.sh` on a Mac on 2026-10-07: passed
+  (reported in chat).
+- Evidence: `tests/test_compose_files.py` 9 passed; fast suite 318 passed, 9 deselected
+  (1 warning); `tests/test_docs.py` 5 passed (rerun by Claude). Codex implemented the
+  plan; Claude reviewed it: four files are identical to the plan, and the comment in
+  `compose.local.yaml` no longer names the plain test key (the plan's own test caught it).
+  Not run here (no Docker and no bash on the Windows host): the stack, `docker compose
+  config`, `bash -n`, the smoke test. CI runs the smoke test on the pull request; the project owner
+  runs it on a Mac.
+- Remaining: the test-host part of S1-06 (front door, OTLP token,
+  `compose.testhost.yaml`) with S1-04. S1-07 can now read the Collector file.
+
 ### 2026-10-07 — S1-02c: ADR 0002 for push ingest; the batch MVP is risk tier R2
 
 - Changed: `docs/adr/0002-batch-push-ingest.md` records why GCP batch jobs push to

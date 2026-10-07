@@ -1,0 +1,27 @@
+name: Compose smoke test
+
+on:
+  pull_request:
+    paths:
+      - "deploy/compose/**"
+      - "backend/**"
+      - "scripts/compose-smoke.sh"
+      - ".github/workflows/compose-smoke.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "deploy/compose/**"
+      - "backend/**"
+      - "scripts/compose-smoke.sh"
+      - ".github/workflows/compose-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/compose-smoke.sh

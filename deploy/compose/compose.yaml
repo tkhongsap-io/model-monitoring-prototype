@@ -1,0 +1,52 @@
+# Base services of the batch MVP stack (S1-06). The same on every host.
+# Use with one environment file: compose.local.yaml (laptop and CI) or, with S1-04,
+# compose.testhost.yaml. Run from this folder:
+#   docker compose -f compose.yaml -f compose.local.yaml up --build --wait
+name: model-monitor
+
+services:
+  backend:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+      OTEL_SERVICE_NAME: model-monitor
+      LOG_FORMAT: json
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status == 200 else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      collector:
+        condition: service_started
+    restart: unless-stopped
+
+  # One-time step: a new named volume belongs to root, and the Collector runs as uid 10001.
+  # This gives the volume to that user, then stops. (The distroless Collector image has no
+  # /tmp and no shell, so it cannot prepare a folder itself.)
+  collector-init:
+    image: busybox:1.37.0
+    command: ["chown", "-R", "10001:10001", "/data"]
+    volumes:
+      - collector-data:/data
+    restart: "no"
+
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - collector-data:/data
+    depends_on:
+      collector-init:
+        condition: service_completed_successfully
+    # No Docker health check: the image has no shell. A Collector problem never stops
+    # the backend (S1-05); the smoke test checks the span file instead.
+    restart: unless-stopped
+
+volumes:
+  collector-data:
