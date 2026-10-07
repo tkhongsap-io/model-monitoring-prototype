@@ -156,8 +156,15 @@ It is available in demo and strict live mode. It stores the run in `batch_runs`
   `(use_case_id, run_id)` with other content (the stored run does not change), `400` with
   `errors` (`loc`, `msg`, `type`; never the input value), `401` no or wrong key, `403` the
   key is for another use case. Nothing is stored unless the answer is `201`.
-- Trace ID: from a valid W3C `traceparent` header, else a new random ID. The row records
-  which (`trace_id_source`).
+- Trace ID: the OTel FastAPI instrumentation reads the W3C `traceparent` header and the
+  handler runs in the span `monitor.ingest`; the row stores that span's trace ID with
+  `trace_id_source = traceparent`. Without a valid header, or with tracing off, a new ID
+  is stored with `trace_id_source = generated`. Only `POST /api/batch/runs` makes spans.
+- Tracing settings (all optional): `OTEL_EXPORTER_OTLP_ENDPOINT` sends the spans to the
+  Collector over OTLP/HTTP (unset: no export); `OTEL_SERVICE_NAME` (default
+  `model-monitor`); `OTEL_SDK_DISABLED=true` turns tracing off;
+  `OTEL_PYTHON_FASTAPI_EXCLUDED_URLS` replaces the exclude pattern. A failed export never
+  stops a run.
 - Logs carry the outcome, `use_case_id`, `run_id`, the record count and the trace ID.
   They never carry the key, the `Authorization` header or the body.
 

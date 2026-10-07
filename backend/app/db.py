@@ -1129,7 +1129,14 @@ def list_live_acks_to_retry(limit: int = 100) -> list[dict]:
 # ---------------------------------------------------------------- batch run summaries (S1-02)
 
 class BatchRunConflict(RuntimeError):
-    """The (use_case_id, run_id) is stored with another content digest; it is not changed."""
+    """The (use_case_id, run_id) is stored with another content digest; it is not changed.
+
+    `stored_trace_id` is the trace ID of the stored row (S1-05: the `monitor.ingest` span
+    of the refused request records it)."""
+
+    def __init__(self, message: str, stored_trace_id: str | None = None) -> None:
+        super().__init__(message)
+        self.stored_trace_id = stored_trace_id
 
 
 def _batch_run_where(use_case_id: str, run_id: str):
@@ -1158,7 +1165,8 @@ def put_batch_run(row: dict) -> tuple[dict, str]:
                 existing = cx.execute(select(batch_runs).where(
                     _batch_run_where(use_case_id, run_id))).mappings().one()
         if existing["content_sha256"] != row["content_sha256"]:
-            raise BatchRunConflict(f"run {run_id} of {use_case_id} is stored with other content")
+            raise BatchRunConflict(f"run {run_id} of {use_case_id} is stored with other content",
+                                   stored_trace_id=existing["trace_id"])
         return dict(existing), "duplicate"
 
 

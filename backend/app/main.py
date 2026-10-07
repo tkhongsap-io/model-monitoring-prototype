@@ -19,7 +19,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, logging_setup, seeds_loader
+from . import config, db, logging_setup, seeds_loader, tracing
 from .api import batch_routes
 from .live_poller import poller
 
@@ -52,6 +52,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         poller().stop()
+        tracing.shutdown()
 
 
 app = FastAPI(
@@ -63,6 +64,7 @@ app = FastAPI(
 )
 app.include_router(router)
 app.include_router(batch_routes.router)  # GCP batch run summaries (S1-02), both modes
+tracing.setup(app)  # only POST /api/batch/runs makes spans (S1-05)
 
 
 @app.middleware("http")

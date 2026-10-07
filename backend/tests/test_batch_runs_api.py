@@ -15,7 +15,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app import config, db, main
+from app import config, db, main, tracing
 from app.api import batch_routes
 
 EXAMPLES = (Path(__file__).resolve().parents[2] / "changes" / "2026-10-02-batch-monitoring-mvp"
@@ -45,6 +45,7 @@ def client(isolated_db, monkeypatch) -> TestClient:
     strict_app = FastAPI()
     strict_app.include_router(batch_routes.router)
     strict_app.middleware("http")(main.strict_live_route_isolation)
+    tracing.setup(strict_app)
     with TestClient(strict_app) as c:
         yield c
 
@@ -233,6 +234,7 @@ def test_body_too_large_413_nothing_stored(client, monkeypatch):
     None,
     "",
     "garbage",
+    f"00-{TRACE_ID}-00f067aa0ba902b7",                   # missing flags (old parser case)
     "00-" + "0" * 32 + "-00f067aa0ba902b7-01",           # all-zero trace ID
     f"00-{TRACE_ID}-" + "0" * 16 + "-01",                # all-zero parent ID
     f"ff-{TRACE_ID}-00f067aa0ba902b7-01",                # forbidden version
@@ -250,16 +252,6 @@ def test_missing_or_invalid_traceparent_starts_a_new_trace(client, header):
     assert trace_id != TRACE_ID
     stored = db.get_batch_run("GCP-UC-03", "invoice-summary-2026-10-06")
     assert stored["trace_id"] == trace_id and stored["trace_id_source"] == "generated"
-
-
-def test_parse_traceparent():
-    parse = batch_routes.parse_traceparent
-    assert parse(TRACEPARENT) == TRACE_ID
-    assert parse(f"  {TRACEPARENT} ") == TRACE_ID
-    # a later version may add fields after the flags (W3C Trace Context, versioning)
-    assert parse(f"01-{TRACE_ID}-00f067aa0ba902b7-01-future") == TRACE_ID
-    assert parse(f"00-{TRACE_ID}-00f067aa0ba902b7") is None
-    assert parse(None) is None
 
 
 # ---- logging and routing ----------------------------------------------------------
