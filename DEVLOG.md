@@ -73,9 +73,19 @@ depend on. The spec is
   `tests/test_docs.py` + `tests/test_batch_schema.py` 43 passed; fast suite 319 passed,
   9 deselected (1 warning). The local venv was synced to `requirements.txt` first (it
   lacked `opentelemetry-sdk`).
-- Remaining for S1-01: the developer fixes `request_count` and the sample; RAI decides
-  `groundedness` and `hallucination_rate` for image-only use cases (registry, S2-01);
-  logs agreement (criterion 6); reviews by RAI and security (S1-08).
+- Decision (project owner, 2026-10-07): the monitor team gets **no access to GCP logs**.
+  The batch jobs belong to teams across the company, and log access is hard to get. The
+  monitor uses only what the jobs send: the body (`status: failed` when possible) and the
+  OTel spans. Changed in `issues.md`: S1-01 criterion 6; S1-05 gets a criterion for the
+  error status on `batch.send` and `batch.run`; the S1-08 row "Read access to GCP Cloud
+  Logging" is removed. `schema/README.md` questions 13 and 14 follow. The 10 open
+  questions are posted on issue #3 for the developer.
+- `model_monitoring_issues.xlsx` is not regenerated: `build_issues_xlsx.py` stops because
+  S1-13 and S2-11 are not in the "Overview by phase" table (a gap from earlier PRs).
+- Remaining for S1-01: the developer fixes `request_count` and the sample and answers
+  issue #3; RAI decides `groundedness` and `hallucination_rate` for image-only use cases
+  (registry, S2-01); reviews by RAI and security (S1-08); the GitHub bodies of issues #3,
+  S1-05 and S1-08 follow `issues.md` after this PR merges.
 
 ### 2026-10-07 — S1-06 local part: Docker Compose stack and smoke test
 

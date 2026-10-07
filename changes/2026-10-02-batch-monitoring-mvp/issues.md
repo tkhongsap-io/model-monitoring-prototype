@@ -247,7 +247,7 @@ The developer answers these questions in the schema or in the pull request:
 - [ ] Each field has a description that tells its source in the job. The required fields and the optional fields are clear. The schema rejects unknown fields.
 - [ ] Free text is allowed only in `question`, `answer`, `retrieval_context` and `tool_calls`. The schema has no customer ID field.
 - [ ] The body has no trace field. The trace ID goes in the `traceparent` HTTP header (S1-05).
-- [ ] The logs are agreed with the GCP developer: the job writes a log entry when the job fails and when a send to the monitor fails. The monitor team can read these logs during the pilot.
+- [ ] The failure signals are agreed with the GCP developer. The job writes a log entry for its own team when the job fails and when a send to the monitor fails (never the key or the body). The monitor gets failures only from what the job sends: a body with `status: failed` when possible, and the OTel span of the send step with its error status (S1-05). The monitor team needs no access to GCP logs (decided 2026-10-07).
 - [ ] Backend, RAI and security (S1-08) reviewed the schema.
 
 **How to test**
@@ -456,6 +456,7 @@ contains no body content. The token spans and the attribute allowlist come in S2
 - [ ] Part B: `monitor.ingest` has the same trace ID as the root span of the job, and `batch.send` is its ancestor (job HTTP client span → backend server span → `monitor.ingest`). The `batch_runs` row stores this trace ID.
 - [ ] A request without `traceparent` starts a new trace in the backend. The backend stores its ID.
 - [ ] The spans contain only IDs and the status (`use_case_id`, `run_id`, result). They contain no text from the body.
+- [ ] Part A: a failed send sets the error status on `batch.send`, with the attempt number and the HTTP status or the error type. A failed job sets the error status on `batch.run`. These spans are how the monitor sees GCP-side failures, because the monitor team has no access to GCP logs (S1-01).
 - [ ] If the Collector is not available, the job and the API continue to work. The job logs the failed export.
 
 **How to test**
@@ -576,7 +577,6 @@ Security must approve these items:
 | The private CA certificate of the test host | S1-04 |
 | The OTLP endpoint that the GCP jobs reach through the front door | S1-06 |
 | Real redacted data on the test host in GCP: on the VM and in the Cloud SQL instance (private IP only, TLS only, automatic backups for 7 days). On the test host, the records stay in GCP. Only the judge calls go to the LiteLLM proxy. | S1-04, S1-11, S1-12 |
-| Read access to GCP Cloud Logging for the monitor team | S1-01 |
 | Database accounts, and who can read real data | S1-11 |
 
 **Acceptance criteria**

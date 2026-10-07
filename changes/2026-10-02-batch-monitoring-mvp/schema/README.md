@@ -130,8 +130,8 @@ The backend (S1-02) returns `400` for these:
 12. Where can PII occur: in the input data, in the documents, in the output? Which types (phone, email, national ID, other)? The redaction in S1-03 must cover all these locations.
 
 **Failure and logs**
-13. When the job fails now, what does it log, and where (Cloud Logging log name)? Can the job still send a run summary with `status: failed`? What `request_count` can it report then?
-14. Can the monitor team get read access to these logs during the pilot (S1-08)?
+13. When the job fails, can it still send a run summary with `status: failed`? What `request_count` can it report then?
+14. Does the job write a log entry for its own team when the job fails and when a send fails? The monitor team does not need access to these logs (decided 2026-10-07). The monitor sees failures only through the body and the OTel spans (`batch.send`, `batch.run`) with an error status (S1-05).
 
 ## How to test (from the issue)
 
