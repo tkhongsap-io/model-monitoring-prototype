@@ -65,7 +65,7 @@ ROW="$("${COMPOSE[@]}" exec -T postgres psql -U monitor -d monitor -tAc \
 
 STEP="monitor.ingest span in the Collector file"
 for _ in $(seq 1 15); do
-  if "${COMPOSE[@]}" cp collector:/tmp/spans.jsonl "$WORK/spans.jsonl" >/dev/null 2>&1 &&
+  if "${COMPOSE[@]}" cp collector:/data/spans.jsonl "$WORK/spans.jsonl" >/dev/null 2>&1 &&
      python3 - "$WORK/spans.jsonl" "$TRACE_ID" <<'PY'
 import json, sys
 found = False

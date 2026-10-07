@@ -27,7 +27,7 @@ ID. A smoke test proves this in CI on each change and on the project owner's Mac
 |---|---|
 | Proof: a CI smoke test, plus a hand test on the project owner's Mac | Docker does not run on the Windows development computer |
 | Files: a base `compose.yaml` and one file for each environment (`compose.local.yaml` now, `compose.testhost.yaml` with S1-04) | The test host reuses the backend and Collector definition that CI tested |
-| The Collector writes its file to `/tmp` in the container, and the smoke test reads it with `docker compose cp` | The Collector runs as uid 10001 and cannot write to a new root-owned volume; the image has no shell; the file output is temporary until S2-03 |
+| ~~The Collector writes its file to `/tmp`~~ **Changed 2026-10-07:** the Collector writes `/data/spans.jsonl` in the named volume `collector-data`; a one-time `collector-init` service (`busybox:1.37.0`) gives the volume to uid 10001 first. The smoke test reads the file with `docker compose cp`. | The first CI run of #54 failed: the distroless Collector image has **no `/tmp`**. The Collector runs as uid 10001, a new volume belongs to root, and the image has no shell. The Collector stays non-root. The file output is temporary until S2-03. |
 | Local ports are published on `127.0.0.1` only; PostgreSQL is not published | A laptop stack must not be reachable from the network |
 | A fixed, documented local test key (`local-dev-batch-key-not-a-secret`) | The smoke test needs a key; only its hash is in the file, and it is not a secret |
 

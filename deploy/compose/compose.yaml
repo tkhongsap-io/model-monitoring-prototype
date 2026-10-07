@@ -25,11 +25,28 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # One-time step: a new named volume belongs to root, and the Collector runs as uid 10001.
+  # This gives the volume to that user, then stops. (The distroless Collector image has no
+  # /tmp and no shell, so it cannot prepare a folder itself.)
+  collector-init:
+    image: busybox:1.37.0
+    command: ["chown", "-R", "10001:10001", "/data"]
+    volumes:
+      - collector-data:/data
+    restart: "no"
+
   collector:
     image: otel/opentelemetry-collector-contrib:0.161.0
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - collector-data:/data
+    depends_on:
+      collector-init:
+        condition: service_completed_successfully
     # No Docker health check: the image has no shell. A Collector problem never stops
     # the backend (S1-05); the smoke test checks the span file instead.
     restart: unless-stopped
+
+volumes:
+  collector-data:

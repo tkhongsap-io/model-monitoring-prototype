@@ -52,9 +52,17 @@ depend on. The spec is
 - Changed: `deploy/compose/` (base and local Compose files, Collector configuration,
   README), `scripts/compose-smoke.sh`, `.github/workflows/compose-smoke.yml`,
   `backend/tests/test_compose_files.py`. Decisions with the project owner: CI smoke test
-  plus a hand test on a Mac; base file plus one file for each environment; the Collector
-  file in `/tmp`; loopback-only ports. Change package `changes/2026-10-07-s1-06-local-compose/`.
-- Evidence: `tests/test_compose_files.py` 8 passed; fast suite 318 passed, 9 deselected
+  plus a hand test on a Mac; base file plus one file for each environment; loopback-only
+  ports; the Collector file in the `collector-data` volume (see below). Change package
+  `changes/2026-10-07-s1-06-local-compose/`.
+- First CI run of #54 failed at the last step: build, health checks, readiness, `201` and
+  the `batch_runs` row passed, but the Collector restarted in a loop with
+  `open /tmp/spans.jsonl: no such file or directory` — the distroless image has **no
+  `/tmp`**. The design had assumed `/tmp`. Fix, chosen by the project owner: the file goes
+  to `/data/spans.jsonl` in the named volume `collector-data`, and a one-time
+  `collector-init` (`busybox:1.37.0`, new row in the fixed-versions table) gives the volume
+  to uid 10001; the Collector stays non-root. Tests first: 5 failed, then green.
+- Evidence: `tests/test_compose_files.py` 9 passed; fast suite 318 passed, 9 deselected
   (1 warning); `tests/test_docs.py` 5 passed (rerun by Claude). Codex implemented the
   plan; Claude reviewed it: four files are identical to the plan, and the comment in
   `compose.local.yaml` no longer names the plain test key (the plan's own test caught it).

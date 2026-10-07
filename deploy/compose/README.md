@@ -58,7 +58,7 @@ telemetrygen traces --otlp-http --otlp-insecure --otlp-endpoint 127.0.0.1:4318 -
 Read the spans:
 
 ```bash
-docker compose -f compose.yaml -f compose.local.yaml cp collector:/tmp/spans.jsonl ./spans.jsonl
+docker compose -f compose.yaml -f compose.local.yaml cp collector:/data/spans.jsonl ./spans.jsonl
 ```
 
 Read the database:
@@ -83,5 +83,6 @@ Do not commit that change: the smoke test uses port 8000.
 
 - Not the test host: the front door on port 443, the OTLP token, Cloud SQL and the
   Artifact Registry image come with S1-04 (`compose.testhost.yaml`).
-- The span file in `/tmp` is lost when the Collector container is removed. S2-03 sends the
-  spans to Langfuse.
+- The span file `/data/spans.jsonl` is in the named volume `collector-data`. It stays when
+  the Collector restarts, and `down -v` removes it. The span file grows without a limit; it
+  is temporary until S2-03 sends the spans to Langfuse.

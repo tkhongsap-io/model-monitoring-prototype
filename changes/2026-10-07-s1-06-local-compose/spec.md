@@ -29,8 +29,17 @@ Run every command from `deploy/compose/`:
 `collector`:
 - `image: otel/opentelemetry-collector-contrib:0.161.0` (fixed-versions table).
 - `command: ["--config=/etc/otelcol/config.yaml"]`; `volumes`:
-  `./otel-collector.yaml:/etc/otelcol/config.yaml:ro`.
-- No Docker health check (the image has no shell). `restart: unless-stopped`.
+  `./otel-collector.yaml:/etc/otelcol/config.yaml:ro` and `collector-data:/data`.
+- `depends_on: collector-init` with `condition: service_completed_successfully`.
+- No Docker health check (the image has no shell). `restart: unless-stopped`. No `user`
+  setting: the Collector stays uid 10001.
+
+`collector-init` (added 2026-10-07 after the first CI run; the distroless image has no
+`/tmp`):
+- `image: busybox:1.37.0` (fixed-versions table); `command: ["chown", "-R", "10001:10001", "/data"]`;
+  `volumes: collector-data:/data`; `restart: "no"`.
+
+Named volume `collector-data` in the base file.
 
 ## Local: `compose.local.yaml`
 
@@ -69,7 +78,7 @@ exporters:
   debug:
     verbosity: basic
   file:
-    path: /tmp/spans.jsonl
+    path: /data/spans.jsonl
 service:
   extensions: [health_check]
   pipelines:
@@ -95,7 +104,7 @@ Bash with `set -euo pipefail`. Needs `docker` (Compose v2), `curl`, `python3`.
    `traceparent: 00-<trace>-<parent>-01`. Expect `201` and `trace_id` = the sent trace ID.
 4. `docker compose exec -T postgres psql -U monitor -d monitor -tAc "select trace_id, trace_id_source from batch_runs where run_id = '<run_id>'"`
    must return `<trace>|traceparent`.
-5. For up to 30 s, every 2 s: `docker compose cp collector:/tmp/spans.jsonl <tmp file>`
+5. For up to 30 s, every 2 s: `docker compose cp collector:/data/spans.jsonl <tmp file>`
    and look for a span named `monitor.ingest` whose trace ID is the sent trace ID (the
    file holds OTLP JSON; trace IDs are hex strings).
 6. Print `SMOKE PASS` and exit `0`. On a failure: print `SMOKE FAIL: <step>`, the last
@@ -120,8 +129,8 @@ The script never prints the key or the body.
 - `TESTING.md`: the smoke test command; "CI, macOS and Linux; not on a Windows host
   without Docker".
 - `README.md`: one line that links `deploy/compose/README.md`.
-- `issues.md`, S1-06: the local acceptance criteria name these files; record the `/tmp`
-  decision. GitHub issue #8 gets the same text.
+- `issues.md`, S1-06: the local acceptance criteria name these files; record the
+  `collector-data` volume decision. GitHub issue #8 gets the same text.
 - `CHANGELOG.md`, `DEVLOG.md`.
 
 ## Acceptance (local part of S1-06)
