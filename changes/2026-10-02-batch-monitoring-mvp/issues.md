@@ -63,7 +63,9 @@ pull request first.
 | Component | Image or package | Version | Note |
 |---|---|---|---|
 | Python (backend) | `python:3.12.15-slim-bookworm` | 3.12.15 | Released 2026-10-01. Python 3.12 gets security fixes only, until 2028-10-31. |
-| PostgreSQL (monitor and Langfuse) | `postgres:17.11-bookworm` | 17.11 | Released 2026-08-10. PostgreSQL 17 is supported until 2029-11-08. |
+| PostgreSQL (monitor database: local stack and CI) | `postgres:18.6-bookworm` | 18.6 | Changed 2026-10-07: the same major and minor version as the Cloud SQL instance of the test host. |
+| PostgreSQL (monitor database: test host) | Cloud SQL for PostgreSQL | 18.6 | Decided 2026-10-06 (paid; GCP sandbox budget). Google manages the minor version. Record the version that the instance shows when it changes. |
+| PostgreSQL (Langfuse database) | `postgres:17.11-bookworm` | 17.11 | Released 2026-08-10. The Langfuse Compose file uses PostgreSQL 17. A separate database from the monitor. |
 | OTel Collector | `otel/opentelemetry-collector-contrib` | 0.161.0 | Newest image on Docker Hub. Release 0.162.0 (2026-09-29) has no Docker Hub image yet. |
 | Langfuse web | `langfuse/langfuse` | 4.50.0 | Released 2026-10-02 |
 | Langfuse worker | `langfuse/langfuse-worker` | 4.50.0 | Must be the same version as Langfuse web |
@@ -200,7 +202,7 @@ them in Sprint 1, so that the answers arrive before the sprint that needs them.
 |---|---|---|---|
 | DNS name and certificate for the AWS production stack | Your team + network team | S4-01 (26 October) | Use the IP address and a private CA certificate |
 | Production AWS Kubernetes cluster, its owner and access | Platform | S4-01 (26 October) | Report the result as a pilot on the test AWS cluster. Do not report a production release. |
-| Amazon RDS for PostgreSQL 17 and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
+| Amazon RDS for PostgreSQL (monitor 18, Langfuse 17) and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
 | Test AWS Kubernetes cluster (not production) and access | Your team | S3-06 (19 October) | Test the S3-06 files on a disposable local cluster (kind) only |
 | LiteLLM virtual keys for the judge (test host and AWS), the model alias, and a network path to the proxy (S1-12) | LiteLLM proxy owner + network team | S2-09 (12 October) | Do not deploy S2-09 to the test host. Test S2-05 and S2-09 on the local stack with a fake LiteLLM server. The Sprint 2 demo shows the trace without scores. |
 | A private DNS name for the test host under a company domain, in a Cloud DNS private zone (for example `monitor-test.<company domain>`). Google does not accept an IP address or a `.internal` name in an SSO redirect URI. The name does not have to be public. | Your team + network team | S3-07 (19 October) | No SSO on the test host. The dashboard and Langfuse keep only the firewall rules and the Langfuse accounts. S3-05 records the exception. |
@@ -346,9 +348,10 @@ server. Only the test from start to end waits for the API (S1-02) on the test ho
 | Infrastructure | Platform | The prerequisites below. Due Tuesday 6 October. | S1-03 | M |
 
 **What:** Make one Compute Engine VM in GCP (decided 2026-10-05). Install the monitor
-backend, its database and the Collector (S1-06) on it with Docker Compose. The GCP jobs
-reach the VM on a private VPC path. The VM has no public IP. In Sprint 2, Langfuse comes on
-the same VM (S2-03).
+backend and the Collector (S1-06) on it with Docker Compose. The monitor database is a
+**Cloud SQL for PostgreSQL** instance with a private IP only (decided 2026-10-06), not a
+container on the VM. The GCP jobs reach the VM on a private VPC path. The VM has no public
+IP. In Sprint 2, Langfuse comes on the same VM, with its own PostgreSQL container (S2-03).
 
 **Prerequisites (ask the network team and the GCP owner first)**
 
@@ -367,11 +370,23 @@ the same VM (S2-03).
 | Item | Setting |
 |---|---|
 | Machine | `e2-standard-8` (8 vCPU, 32 GiB), the recommended size of the Sprint 2 prerequisites. It is large enough for Langfuse. Thus no resize is necessary in Sprint 2. |
-| Disk | 200 GiB `pd-balanced`. A daily snapshot schedule that keeps 7 snapshots. |
+| Disk | 200 GiB `pd-balanced`. A daily snapshot schedule that keeps 7 snapshots. The snapshots hold the Langfuse data (S2-03) and the Collector files. The monitor data is in Cloud SQL, with its own backups. |
 | Image | Ubuntu 24.04 LTS, Shielded VM on |
 | Network | No external IP. Cloud NAT for outbound traffic only (Docker images, operating-system updates). |
 | Service account | A dedicated account with only the roles that the VM needs, for example log and metric writer. Do not use the default Compute Engine service account. |
 | SSH | Only through IAP: `gcloud compute ssh <vm> --tunnel-through-iap`. The firewall allows port 22 only from the IAP range `35.235.240.0/20`. |
+
+**The Cloud SQL instance (monitor database)**
+
+| Item | Setting |
+|---|---|
+| Engine | Cloud SQL for PostgreSQL 18.6 (fixed-versions table). Google manages the minor version. |
+| Size | 1 vCPU, 3.75 GiB memory, 100 GB SSD. Zonal, not high availability, because it is a test host. |
+| Network | **Private IP only**, in the VM's VPC (Private Services Access). No public IP and no authorized networks. |
+| Encryption | Allow only TLS connections. The backend uses `sslmode=verify-ca` in `DATABASE_URL` with the server CA file of the instance. |
+| Backups | Automatic daily backups, 7 kept, and point-in-time recovery |
+| Cost | A paid service, approved on the GCP sandbox budget (2026-10-06) |
+| Accounts | S1-11. The backend never uses the `postgres` user. |
 
 **VPC firewall rules (ingress)**
 
@@ -380,7 +395,10 @@ the same VM (S2-03).
 | 443 | The network ranges of the GCP jobs | The API and the Collector (S1-06) |
 | 8443, 3443 | The staff network ranges (from Sprint 2) | The dashboard and Langfuse |
 | 22 | `35.235.240.0/20` (IAP) | SSH for platform and developers (S1-11) |
-| All other ports | — | Refused. The database ports are never open. |
+| All other ports | — | Refused. The database ports on the VM (Langfuse, from Sprint 2) are never open. |
+
+The VPC firewall rules do not protect the Cloud SQL private IP. Cloud SQL is protected by
+the private IP only, TLS only, and the database accounts (S1-11).
 
 **Certificate.** The name is private. Thus a public CA cannot sign it. Make a private CA
 and a certificate for the private DNS name. Replace the certificate before it expires. The
@@ -390,10 +408,12 @@ Service is a paid service. Do not use it without a plan entry. Plain HTTP is not
 **Acceptance criteria**
 - [ ] The answers to the prerequisites are in this issue.
 - [ ] The VM exists with the settings in the table. It has no external IP.
-- [ ] The monitor backend, PostgreSQL and the Collector run on the VM.
+- [ ] The monitor backend and the Collector run on the VM.
+- [ ] The Cloud SQL instance has the settings in the table. It has no public IP. It accepts only TLS connections.
+- [ ] The backend connects to Cloud SQL over the private IP with `sslmode=verify-ca`. The migrations run when the backend starts.
 - [ ] The private DNS name resolves from the job VPC to the internal IP of the VM.
 - [ ] The API uses HTTPS with the private CA certificate. Plain HTTP is refused.
-- [ ] Only the network ranges of the jobs can reach port 443. The database ports are closed.
+- [ ] Only the network ranges of the jobs can reach port 443. The database ports on the VM are closed.
 - [ ] SSH works only through IAP.
 - [ ] The API key and the other secrets are host secrets. They are not in the repository.
 
@@ -403,7 +423,9 @@ Service is a paid service. Do not use it without a plan entry. Plain HTTP is not
 3. `POST /api/batch/runs` without a key returns `401`.
 4. `gcloud compute instances describe <vm>` shows no external IP. The private DNS name does not resolve from the internet.
 5. `gcloud compute ssh <vm> --tunnel-through-iap` works. SSH to the internal IP from outside the VPC does not work.
-6. If the VM is late: the GCP developer saves a real body to a file. We send it to the local stack and record that the real delivery was not tested.
+6. `gcloud sql instances describe <instance>` shows no public IP (`ipv4Enabled: false`) and the TLS-only setting. On the VM, `GET /api/readiness` shows `database.ok: true`.
+7. On the VM, `psql "host=<private-ip> sslmode=disable ..."` is refused. With `sslmode=verify-ca` it works.
+8. If the VM is late: the GCP developer saves a real body to a file. We send it to the local stack and record that the real delivery was not tested.
 
 ### S1-05 — OTel in the GCP job and the backend: one trace for each run
 
@@ -543,7 +565,7 @@ Security must approve these items:
 | An API key on a private VPC path in GCP (test host), and later on the internet with an IP allowlist (AWS, Sprint 4) | S1-02, S1-04, S4-01 |
 | The private CA certificate of the test host | S1-04 |
 | The OTLP endpoint that the GCP jobs reach through the front door | S1-06 |
-| Real redacted data on the test host VM in GCP. On the test host, the records stay in GCP. Only the judge calls go to the LiteLLM proxy. | S1-04, S1-12 |
+| Real redacted data on the test host in GCP: on the VM and in the Cloud SQL instance (private IP only, TLS only, automatic backups for 7 days). On the test host, the records stay in GCP. Only the judge calls go to the LiteLLM proxy. | S1-04, S1-11, S1-12 |
 | Read access to GCP Cloud Logging for the monitor team | S1-01 |
 | Database accounts, and who can read real data | S1-11 |
 
@@ -625,33 +647,34 @@ The read API for the dashboard comes in S2-07.
 |---|---|---|---|---|
 | Infrastructure | Platform + backend | S1-04 | S1-02, S1-07 | S |
 
-**What:** Make database accounts on the test host. Do not use one shared administrator
-account.
+**What:** Make database accounts in the Cloud SQL instance of the test host (S1-04). Use
+Cloud SQL built-in users. Do not use one shared administrator account.
 
 | Account | Type | Used by | Permissions |
 |---|---|---|---|
 | `monitor_app` | Bot | The backend service | Owns the monitor schema. Reads and writes the monitor tables. Runs the migrations when the backend starts, as the backend does now. |
 | `monitor_readonly` | Bot | The S1-07 tool and other checks | Reads the monitor tables only |
 | `dev_<name>` | Person, one for each developer | Developers | Read-only on the test host, because the test host has real redacted data. Full access only on the local stack. |
-| Postgres administrator | Person | Platform only | For emergencies only. The backend and the tools do not use it. |
+| `postgres` (the Cloud SQL administrator user) | Person | Platform only | For emergencies and for making the other accounts. The backend and the tools do not use it. |
 
 Rules:
 - Keep the passwords as host secrets. Do not put them in the repository or in chat.
-- The database port is not open outside the VM. Developers connect through IAP SSH (`gcloud compute ssh <vm> --tunnel-through-iap`), then use `psql` on the VM or an SSH port forward.
+- Cloud SQL has a private IP only and accepts only TLS (S1-04). Developers connect through IAP SSH to the VM (`gcloud compute ssh <vm> --tunnel-through-iap`), then use `psql` with `sslmode=verify-ca` to the Cloud SQL private IP. No Cloud SQL Auth Proxy is necessary.
 - Remove a developer account when the person leaves the project.
-- Langfuse gets its own database account in S2-03.
+- Langfuse gets its own database and account in its PostgreSQL container on the VM (S2-03). It does not use Cloud SQL.
 
 **Acceptance criteria**
-- [ ] Each account in the table exists, with the given permissions.
-- [ ] The backend uses `monitor_app` in `DATABASE_URL`. It does not use the administrator account.
-- [ ] A developer can connect through IAP SSH. A developer cannot connect to the database port directly.
+- [ ] Each account in the table exists in Cloud SQL, with the given permissions.
+- [ ] The backend uses `monitor_app` in `DATABASE_URL`. It does not use the `postgres` user.
+- [ ] A developer can connect through IAP SSH and the VM. A developer cannot reach the Cloud SQL instance from outside the VPC.
 - [ ] This issue lists the accounts and their owners. It contains no passwords.
 
 **How to test**
 1. Start the backend with `monitor_app`. Make sure that the migrations run and the API stores a run.
 2. Connect as `monitor_readonly`. Make sure that `SELECT` works and `INSERT` fails.
 3. Connect as a `dev_<name>` account on the test host. Make sure that `INSERT` fails.
-4. Try to connect to the database port from another VM in the VPC. Make sure that the connection is refused.
+4. From a computer outside the VPC, try to connect to the Cloud SQL instance. Make sure that it cannot be reached (it has no public IP).
+5. On the VM, connect with `sslmode=disable`. Make sure that Cloud SQL refuses the connection.
 
 ### S1-12 — Access to the company LiteLLM proxy for the judge
 
@@ -705,7 +728,7 @@ Server size for the test host:
 
 | Item | Minimum | Recommended | Reason |
 |---|---|---|---|
-| CPU | 6 vCPU | 8 vCPU | Langfuse alone needs at least 4 cores (Langfuse self-hosting guide). The monitor backend, two PostgreSQL databases and the Collector need more. |
+| CPU | 6 vCPU | 8 vCPU | Langfuse alone needs at least 4 cores (Langfuse self-hosting guide). The monitor backend, the Langfuse PostgreSQL container and the Collector need more. The monitor database is in Cloud SQL, not on the VM (S1-04). |
 | Memory | 24 GiB | 32 GiB | Langfuse alone needs at least 16 GiB. The monitor backend loads pandas, Evidently and NannyML. |
 | Disk | 150 GiB SSD | 200 GiB SSD | Langfuse recommends 100 GiB for its data. The monitor database, the logs and the Docker images need more. |
 | Operating system | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS | Docker Engine and Docker Compose v2 |
@@ -719,7 +742,8 @@ Ports on the test host (VPC firewall rules, S1-04):
 | 8443 | Monitor dashboard | RAI team, engineers | The staff network ranges. From S3-07, also Google SSO. |
 | 3443 | Langfuse UI | Engineers only | The staff network ranges. From S3-07, also Google SSO, with no password login. |
 | 22 | SSH | Platform, developers | IAP only (`35.235.240.0/20`) |
-| None | PostgreSQL, ClickHouse, Redis, MinIO | — | Closed. Developers use IAP SSH (S1-11). |
+| None | Langfuse PostgreSQL, ClickHouse, Redis, MinIO (on the VM) | — | Closed. Developers use IAP SSH (S1-11). |
+| 5432 on the Cloud SQL private IP | Monitor database (Cloud SQL) | The backend and developers, from the VM | Private IP only, TLS only (S1-04, S1-11) |
 
 Langfuse uses its own port because it does not work easily under a URL path.
 
@@ -846,7 +870,7 @@ GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse p
 | Do the engineers reach port 3443 through the company network path to the VPC? If not, use an IAP tunnel: `gcloud compute start-iap-tunnel <vm> 3443`. | Network team |
 
 **Rules**
-- Langfuse uses its own PostgreSQL container and account. It does not share the monitor database (S1-11).
+- Langfuse uses its own PostgreSQL container (`postgres:17.11-bookworm`) and account on the VM (decided 2026-10-06). It does not use the Cloud SQL monitor database (S1-04, S1-11).
 - Turn off public sign-up in Langfuse. Make one account for each engineer. Langfuse is for engineers. The RAI team uses the dashboard.
 - Use the company Google email of each engineer for the account. Then S3-07 can link the account to SSO and keep its project role.
 - The Collector exporter sends the header `x-langfuse-ingestion-version: 4`. Without this header, new data can appear in Langfuse up to 10 minutes late.
@@ -1446,7 +1470,7 @@ on the production cluster. Use the versions in the fixed-versions table.
 
 | Part | Plan A (selected) | Plan B (fallback) |
 |---|---|---|
-| PostgreSQL 17 (monitor and Langfuse) | Amazon RDS for PostgreSQL 17 | Container in the cluster, with our backups |
+| PostgreSQL (monitor 18, Langfuse 17) | Amazon RDS for PostgreSQL: one instance for the monitor (18) and one for Langfuse (17). Make sure that RDS offers PostgreSQL 18 when S3-06 starts. | Containers in the cluster, with our backups |
 | S3 storage for Langfuse | Amazon S3 | MinIO container in the cluster |
 | Langfuse, ClickHouse, Redis | Official Langfuse Helm chart | Official Langfuse Helm chart |
 | Monitor backend, Collector, front door, OAuth2 Proxy (S3-07) | Our own manifests | Our own manifests |

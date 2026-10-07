@@ -35,19 +35,21 @@ ready, we report the result as a pilot, with each blocker. We do not report a re
 | 2026-10-03 | YAML registry for the settings, and a database table for the API key hashes | Changes to the settings are reviewed and have a history | S2-01 |
 | 2026-10-03 | Langfuse is for engineers. The dashboard is for the RAI team. The dashboard shows only the GCP use cases, with the current UI and no record text. | No UI change. No text in the browser. | S2-07 |
 | 2026-10-03 | The prototype use cases are a scaffold. Keep the shared code. Do not maintain the prototype-only code. Remove it after the release. | No work on code that we will remove | S4-07 |
-| 2026-10-03 | Fixed versions: Python 3.12.15, PostgreSQL 17.11, Langfuse 4.50.0 | Stable and known versions | [Issues: fixed versions](issues.md#fixed-versions-checked-2026-10-03) |
+| 2026-10-03 | Fixed versions: Python 3.12.15, PostgreSQL 17.11, Langfuse 4.50.0 (the monitor database changed to PostgreSQL 18.6 on 2026-10-07) | Stable and known versions | [Issues: fixed versions](issues.md#fixed-versions-checked-2026-10-03) |
 | 2026-10-04 | On AWS: RDS and S3 (plan A), or everything in the cluster (plan B) | Less operations work with managed services | S3-06 |
 | 2026-10-04 | Install on a test AWS cluster in Sprint 3 | Sprint 4 repeats a known installation | S3-06 |
 | 2026-10-05 | The judge is a local model through the company LiteLLM proxy. Claude is not used. The backend calls the proxy with `httpx`. The `anthropic` package is removed. | Redacted records stay inside the company network. No new package. | S1-12, S2-09, S2-10 |
 | 2026-10-05 | Staff log in with Google Workspace SSO: OAuth2 Proxy for the dashboard, the built-in SSO for Langfuse. The change to Entra ID later is a change of settings only. | Named access for each person instead of only an IP allowlist | S3-07 |
 | 2026-10-05 | On port 443, the front door sends only `/api/batch/runs` and `/api/health` to the backend | Nobody reads the dashboard API around the SSO | S1-06 |
 | 2026-10-05 | The test host for Sprints 1 to 3 is a Compute Engine VM in GCP with Docker Compose, on a private VPC path, with no public IP. The API key stays. The Sprint 3 Kubernetes test stays on the test AWS cluster. Production stays on AWS. | Real redacted data stays in GCP during the test. The same API key method as production. | S1-02, S1-04, S3-06 |
+| 2026-10-06 | The monitor database on the test host is **Cloud SQL for PostgreSQL 18.6** (1 vCPU, 3.75 GiB, 100 GB SSD, private IP only, TLS only). The Langfuse database stays a PostgreSQL 17.11 container on the VM. Paid service on the GCP sandbox budget. | Managed backups and no database container on the VM, as on AWS (RDS) | S1-04, S1-11, S2-03 |
+| 2026-10-07 | The monitor database is PostgreSQL 18.6 in every environment: Cloud SQL, the local stack and CI. AWS RDS targets PostgreSQL 18 (S3-06). | Tests run on the production version | S1-06, S3-06 |
 
 ## Sprints at a glance
 
 | Sprint | Dates | Question | Use cases | Where it runs | Demo on Friday |
 |---|---|---|---|---|---|
-| **1** | 5 to 9 October | Can we get data out of GCP? | 1 | Test host: Compute Engine VM in GCP (Docker Compose) | One real run arrives. The backend span has the trace ID of the job. |
+| **1** | 5 to 9 October | Can we get data out of GCP? | 1 | Test host: Compute Engine VM in GCP (Docker Compose) and Cloud SQL | One real run arrives. The backend span has the trace ID of the job. |
 | **2** | 12 to 16 October | Can the jobs use the same path, with grades and traces? | 4 | Test host | One run is one trace in Langfuse, from the GCP job to the scores. Its grade is on the dashboard. |
 | **3** | 19 to 23 October | What happens when something fails? | 8 | Test host, and the test AWS cluster | The drills pass. The stack runs on the test AWS cluster. |
 | **4** | 26 to 30 October | Does it work in production? | 10 | Production AWS cluster | The 10-row evidence checklist is signed |
@@ -58,7 +60,7 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 
 | Item | Owner | Needed by | If it is late |
 |---|---|---|---|
-| Test host VM in GCP, with the private VPC path from the first job (S1-04) | Platform + network team | Tue 6 October | Replay a saved real body into the local stack |
+| Test host VM and Cloud SQL instance in GCP, with the private VPC path from the first job (S1-04) | Platform + network team | Tue 6 October | Replay a saved real body into the local stack |
 | JSON body v1 | GCP job developer + backend | Wed 7 October | The Sprint 1 demo moves |
 | Security approval of the records, the PII list and the data flow | Security | Thu 8 October | Identity-only mode. A use case cannot pass the release without records. |
 | Inventory of the 10 use cases and their October run dates | PM + owners | Fri 9 October | Sprint 2 cannot select the jobs |

@@ -47,6 +47,30 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-07 — batch MVP plan: Cloud SQL and PostgreSQL 18.6 for the monitor database
+
+- Changed: the plan now matches the Cloud SQL decision of 2026-10-06. The project owner
+  gave the instance settings: Cloud SQL for PostgreSQL 18.6, 1 vCPU, 3.75 GiB, 100 GB SSD,
+  no public IP. The project owner also decided that the monitor database is PostgreSQL
+  18.6 in every environment (Cloud SQL, the local stack and CI); AWS RDS targets
+  PostgreSQL 18 (S3-06). The Langfuse database stays `postgres:17.11-bookworm` on the VM.
+  `issues.md`: the fixed-versions table (three PostgreSQL rows), S1-04 (a Cloud SQL table:
+  private IP only, TLS only with `sslmode=verify-ca`, daily backups kept 7 days and
+  point-in-time recovery; new criteria and tests), S1-08 (data in Cloud SQL), S1-11 (Cloud
+  SQL built-in users; developers use IAP SSH to the VM, then `psql` to the private IP; no
+  Auth Proxy), the Sprint 2 prerequisites (VM size reason and ports), S2-03 (the Langfuse
+  database rule), S3-06 and the long-lead request (RDS monitor 18, Langfuse 17).
+  `plan.md`: two decision rows and the test-host text. GitHub issues #6, #10, #13 and #17
+  got the same text.
+- Evidence: `tests/test_docs.py` passed. `db.engine()` rewrites only the URL scheme, so
+  `sslmode` and `sslrootcert` in `DATABASE_URL` reach psycopg. `postgres:18.6-bookworm`
+  exists on Docker Hub (checked 2026-10-07).
+- Remaining:
+  - CI still uses `postgres:16` (`backend-live.yml`). Change it to
+    `postgres:18.6-bookworm` with S1-06.
+  - The VPC firewall rules do not protect the Cloud SQL private IP. The protection is the
+    private IP, TLS only and the accounts (S1-11).
+
 ### 2026-10-06 — S1-05 part B: backend OpenTelemetry for batch runs
 
 - Changed: new `backend/app/tracing.py` (one provider, OTLP/HTTP export only with an
@@ -85,8 +109,8 @@ depend on. The spec is
   container in Docker Compose on the VM (S2-03).
 - Effect: no backend code change. The backend needs only a PostgreSQL `DATABASE_URL`, and
   the in-code migrations in `db.py` run on Cloud SQL as before (no Alembic).
-- Remaining: `issues.md` and the GitHub issues still say "PostgreSQL on the VM". Change
-  them in a pull request:
+- Remaining (done on 2026-10-07, see the entry above): `issues.md` and the GitHub issues
+  still say "PostgreSQL on the VM". Change them in a pull request:
   - S1-04 (#6): a Cloud SQL instance with a private IP only, in the VM's VPC; Cloud SQL
     backups instead of VM disk snapshots for the monitor data; the acceptance criterion
     "the monitor backend, PostgreSQL and the Collector run on the VM".
