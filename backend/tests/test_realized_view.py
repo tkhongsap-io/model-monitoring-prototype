@@ -129,7 +129,7 @@ def test_runner_payload_carries_rollup_meta(isolated_db, fake_producer):
 def _live_client(monkeypatch):
     monkeypatch.setattr(config, "LIVE_POLL_SECONDS", 0)
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "test-key")
-    from app.main import app
+    from tests.prototype_app import app
     return TestClient(app)
 
 
