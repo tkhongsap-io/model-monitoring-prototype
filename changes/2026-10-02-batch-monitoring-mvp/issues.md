@@ -472,6 +472,12 @@ contains no body content. The token spans and the attribute allowlist come in S2
 version. The Collector receives spans on OTLP/HTTP. It writes the spans to the `debug`
 output and to a file in a mounted folder. The Langfuse export comes in S2-03.
 
+**Local part (done in `changes/2026-10-07-s1-06-local-compose/`):** `deploy/compose/compose.yaml`
+(base), `compose.local.yaml`, `otel-collector.yaml`, `scripts/compose-smoke.sh` and
+`.github/workflows/compose-smoke.yml`. The file output is `/tmp/spans.jsonl` in the
+Collector container (the Collector runs as uid 10001 and cannot write to a new volume);
+read it with `docker compose cp`. The test host adds `compose.testhost.yaml` (S1-04).
+
 On the test host, put one reverse proxy (the front door) in front of the backend and the
 Collector:
 

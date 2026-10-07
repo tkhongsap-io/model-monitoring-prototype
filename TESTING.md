@@ -10,6 +10,15 @@ Backend, run from `backend/`:
 .venv/bin/python scripts/migrate.py           # migrations apply and are idempotent
 ```
 
+Local stack (S1-06), run from the repository root on macOS or Linux with Docker:
+
+```bash
+bash scripts/compose-smoke.sh   # expected last line: SMOKE PASS
+```
+
+`.github/workflows/compose-smoke.yml` runs it in CI. On a Windows host without Docker,
+report it as unavailable; `backend/tests/test_compose_files.py` checks the files statically.
+
 Frontend and workspace, run from the repository root:
 
 ```bash
@@ -43,9 +52,9 @@ DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.12/site-packages/sklearn/.dyl
 Linux wheels bundle `libgomp`, so CI needs nothing; on Replit `backend/run.sh` probes the
 Nix store for `libgomp.so.1`. The fast suite (`-m "not slow"`) never imports NannyML.
 
-CI runs the full backend suite, slow tests included, against PostgreSQL 16 in
-`.github/workflows/backend-live.yml` and also validates the strict-live configuration
-with CI placeholder URLs and tokens. Locally the suite uses SQLite under a temporary
+CI runs the full backend suite, slow tests included, against PostgreSQL 18.6 in
+`.github/workflows/backend-live.yml` and validates the batch MVP configuration
+(`config.batch_configuration_errors()`). Locally the suite uses SQLite under a temporary
 directory; no test needs a real producer, Langfuse, or a live Claude judge, and those
 three are always reported as unavailable in this environment.
 

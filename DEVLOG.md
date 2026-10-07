@@ -47,6 +47,23 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-07 — S1-06 local part: Docker Compose stack and smoke test
+
+- Changed: `deploy/compose/` (base and local Compose files, Collector configuration,
+  README), `scripts/compose-smoke.sh`, `.github/workflows/compose-smoke.yml`,
+  `backend/tests/test_compose_files.py`. Decisions with the project owner: CI smoke test
+  plus a hand test on a Mac; base file plus one file for each environment; the Collector
+  file in `/tmp`; loopback-only ports. Change package `changes/2026-10-07-s1-06-local-compose/`.
+- Evidence: `tests/test_compose_files.py` 8 passed; fast suite 318 passed, 9 deselected
+  (1 warning); `tests/test_docs.py` 5 passed (rerun by Claude). Codex implemented the
+  plan; Claude reviewed it: four files are identical to the plan, and the comment in
+  `compose.local.yaml` no longer names the plain test key (the plan's own test caught it).
+  Not run here (no Docker and no bash on the Windows host): the stack, `docker compose
+  config`, `bash -n`, the smoke test. CI runs the smoke test on the pull request; the project owner
+  runs it on a Mac.
+- Remaining: the test-host part of S1-06 (front door, OTLP token,
+  `compose.testhost.yaml`) with S1-04. S1-07 can now read the Collector file.
+
 ### 2026-10-07 — S1-13: serve only the batch MVP API
 
 - Changed: `main.py` mounts only `batch_routes` and the new `ops_routes`; no mode, no

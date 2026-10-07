@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- A local Docker Compose stack (`deploy/compose/`): the backend, PostgreSQL 18.6 and the
+  OTel Collector 0.161.0, with a smoke test (`scripts/compose-smoke.sh`) that runs in CI
+  (`compose-smoke.yml`) and on macOS (S1-06).
 - A push to `dev` that changes `backend/` builds the backend image and pushes it to GCP
   Artifact Registry as `.../model-monitoring/dev/backend:<run_number>`
   (`.github/workflows/build-image.yml`, `backend/Dockerfile`). GitHub signs in with

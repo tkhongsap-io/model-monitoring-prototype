@@ -108,6 +108,7 @@ Layout: `backend/app/engines/` are pure functions, `backend/app/adapters/` do I/
 | Build | `pnpm run build:live` (repo root; Linux x64 only, see [TESTING.md](TESTING.md)) | `artifacts/control-tower/dist/public/` produced |
 | Unit tests | `.venv/bin/python -m pytest -q -m "not slow"` (from `backend/`) | all passed, `9 deselected` (slow bakes) |
 | Integration tests | `.venv/bin/python -m pytest -q` (from `backend/`) | adds the slow DEMO-FULL bake and calibration tests; SQLite, no external services |
+| Local stack | `bash scripts/compose-smoke.sh` (repo root; macOS/Linux with Docker; see [deploy/compose/README.md](deploy/compose/README.md)) | `SMOKE PASS`; CI: `compose-smoke.yml` |
 | AI evaluations | none automated | the LLM judge is exercised only with a fake judge in `backend/tests/test_live_judge_strict.py`; no live Claude call |
 | Lint/type/security | `pnpm run typecheck`; `pnpm run check:strict-live` (repo root) | `Done` per package; bundle contains no forbidden strings |
 | Migrations | `.venv/bin/python scripts/migrate.py` (from `backend/`) | prints the ordered schema versions; idempotent |

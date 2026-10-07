@@ -605,7 +605,7 @@ report it as unavailable; `backend/tests/test_compose_files.py` checks the files
 `README.md`: in the "Development" table, add a row after "Integration tests":
 
 ```markdown
-| Local stack | `bash scripts/compose-smoke.sh` (repo root; macOS/Linux with Docker; see [deploy/compose/README.md](deploy/compose/README.md)) | `SMOKE PASS`; CI: `compose-smoke.yml` |
+| Local stack | `bash scripts/compose-smoke.sh` (repo root; macOS/Linux with Docker; see [deploy/compose/README.md](../../deploy/compose/README.md)) | `SMOKE PASS`; CI: `compose-smoke.yml` |
 ```
 
 `changes/2026-10-02-batch-monitoring-mvp/issues.md`, section `### S1-06`:
