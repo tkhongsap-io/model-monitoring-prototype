@@ -47,6 +47,26 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-06 — decision: the test host uses Cloud SQL for the monitor database
+
+- Decided: the project owner decided that the monitor database on the GCP test host is
+  **Cloud SQL for PostgreSQL**, not a PostgreSQL container on the VM. Cloud SQL is a paid
+  service; the GCP sandbox has a budget for it. The Langfuse database stays a PostgreSQL
+  container in Docker Compose on the VM (S2-03).
+- Effect: no backend code change. The backend needs only a PostgreSQL `DATABASE_URL`, and
+  the in-code migrations in `db.py` run on Cloud SQL as before (no Alembic).
+- Remaining: `issues.md` and the GitHub issues still say "PostgreSQL on the VM". Change
+  them in a pull request:
+  - S1-04 (#6): a Cloud SQL instance with a private IP only, in the VM's VPC; Cloud SQL
+    backups instead of VM disk snapshots for the monitor data; the acceptance criterion
+    "the monitor backend, PostgreSQL and the Collector run on the VM".
+  - S1-11 (#13): the accounts become Cloud SQL users; the developer access path (Cloud SQL
+    Auth Proxy or IAM database login instead of `psql` on the VM).
+  - S1-08 (#10): real redacted data in Cloud SQL.
+  - S2-03 (#17): record that the Langfuse PostgreSQL stays on the VM.
+  - `plan.md` decision table, the fixed-versions table (a Cloud SQL PostgreSQL 17 row)
+    and the VM size in the Sprint 2 prerequisites (one PostgreSQL container, not two).
+
 ### 2026-10-06 — CI builds the backend image for GCP Artifact Registry
 
 - Changed: added `backend/Dockerfile`, `backend/.dockerignore` and
