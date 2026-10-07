@@ -9,7 +9,9 @@
 | `GET /api/readiness` | `200` `{"status": "ready", "database": {"ok": true, "error": null}, "batch_api_keys": <n>, "errors": []}` or `503` with `"status": "not_ready"` and the errors |
 | `GET /api/version` | `200` `{"service": "model-monitor", "build_sha": "<sha>", "batch_schema": "batch-run/1"}`. No outbound call. |
 
-Every other method and path returns `404`. The OpenAPI pages (`/docs`, `/redoc`,
+Every other path returns `404`. Another method on a served path (for example
+`GET /api/batch/runs`) returns `405`, the standard FastAPI answer (found while writing the
+plan, 2026-10-07). The OpenAPI pages (`/docs`, `/redoc`,
 `/openapi.json`) are off. The dashboard is not served.
 
 ## Component 1: `backend/app/main.py`
