@@ -9,6 +9,7 @@
 - Source of truth: `docs/MONITORING-CONTRACT.md` (telemetry contract v1.1). Code and
   persisted observations implement it; the contract wins on conflict.
 - Risk tier: R1 — assisted internal workflow (rationale in `changes/2026-10-01-monitoring-gap-closure/intent.md`).
+  The October batch MVP is **R2** (`changes/2026-10-02-batch-monitoring-mvp/intent.md`).
 - Architecture: `README.md#architecture`.
 - Current work and gaps: `DEVLOG.md`.
 - Applicable playbook version: `tkhongsap-ai-engineering-playbook@5ba9dc8`.
@@ -64,6 +65,8 @@ locally and no test needs them.
   `content_sha256` are never rewritten. Cursors advance only after a durable write.
 - Schema changes are ordered in-code migrations in `backend/app/db.py`; keep them additive.
 - Contract version stays `"1.1"`; the monitor is a consumer and makes no producer demands.
+  Exception: GCP batch jobs push run summaries to `POST /api/batch/runs`, which writes
+  only `batch_runs` and never moves a cursor (`docs/adr/0002-batch-push-ingest.md`).
 - No new paid dependencies, pip packages, or npm packages without a plan entry.
 
 ## Permissions and safety

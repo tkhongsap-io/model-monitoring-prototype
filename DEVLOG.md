@@ -64,6 +64,23 @@ depend on. The spec is
 - Remaining: the test-host part of S1-06 (front door, OTLP token,
   `compose.testhost.yaml`) with S1-04. S1-07 can now read the Collector file.
 
+### 2026-10-07 — S1-02c: ADR 0002 for push ingest; the batch MVP is risk tier R2
+
+- Changed: `docs/adr/0002-batch-push-ingest.md` records why GCP batch jobs push to
+  `POST /api/batch/runs` (options: push, pull from GCP storage, v1.1 pull), the trust
+  boundary, why no cursor moves, and why a stored run never changes. New
+  `changes/2026-10-02-batch-monitoring-mvp/intent.md`. The project owner measured the
+  risk tier with `handbook/risk-tiers.md` of `tkhongsap-ai-engineering-playbook@5ba9dc8`
+  and accepted **R2**: base R1, escalated for confidential customer data and for
+  untrusted text read by the LLM judge. The prototype stays R1. `CLAUDE.md` (the push
+  exception and the R2 line) and `README.md` point to the ADR. New issue S2-11 (threat
+  model), because R2 requires one. The "Known gaps" line about the missing ADR is removed.
+- Evidence: `tests/test_docs.py` passed; `CLAUDE.md` is 97 lines (budget 120).
+- Remaining:
+  - The AI system card (playbook `templates/ai-system-card.md`): the project owner
+    decided to write it later, before S4-06.
+  - S2-11 threat model, due Wednesday 14 October.
+
 ### 2026-10-07 — S1-13: serve only the batch MVP API
 
 - Changed: `main.py` mounts only `batch_routes` and the new `ops_routes`; no mode, no
@@ -651,5 +668,3 @@ depend on. The spec is
 - Out of scope and unscheduled: per-use-case thresholds, LIME in production, §14 sampling
   policy, Alembic, Prometheus metrics, Slack SDK, paging/escalation,
   skops/ONNX artifacts, retention pruning.
-- Push ingest of GCP batch run summaries (`POST /api/batch/runs`, S1-02) has no ADR yet,
-  although the contract is pull-only.

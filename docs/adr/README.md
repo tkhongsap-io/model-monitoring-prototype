@@ -15,3 +15,4 @@ Options considered, Decision, Consequences, Validation and rollback, Sources.
 | ADR | Status | Decision |
 |---|---|---|
 | [0001](0001-alert-ownership.md) | Accepted | The RAI team owns alert triage through the monitor's webhook channel; producers are not paged |
+| [0002](0002-batch-push-ingest.md) | Accepted | GCP batch jobs push their run summaries to `POST /api/batch/runs` (an API key for each use case); an exception to the pull-only contract for the batch MVP, which is risk tier R2 |
