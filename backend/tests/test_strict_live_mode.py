@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app import config, db
 from app.api.live_routes import _worker_token_matches
-from app.main import app
+from tests.prototype_app import app
 
 
 def test_strict_live_hides_baked_routes_and_poison_data(tmp_path, monkeypatch):

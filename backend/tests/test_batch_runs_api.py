@@ -12,10 +12,9 @@ import re
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app import config, db, main, tracing
+from app import config, db, main
 from app.api import batch_routes
 
 EXAMPLES = (Path(__file__).resolve().parents[2] / "changes" / "2026-10-02-batch-monitoring-mvp"
@@ -38,15 +37,9 @@ def example(name: str, folder: str = "valid") -> dict:
 
 @pytest.fixture()
 def client(isolated_db, monkeypatch) -> TestClient:
-    monkeypatch.setattr(config, "LIVE_POLL_SECONDS", 0)
     monkeypatch.setattr(config, "BATCH_API_KEY_SHA256",
                         f"GCP-UC-03:{sha(KEY_03)}, GCP-UC-07:{sha(KEY_07)}")
-    assert config.strict_live_mode()
-    strict_app = FastAPI()
-    strict_app.include_router(batch_routes.router)
-    strict_app.middleware("http")(main.strict_live_route_isolation)
-    tracing.setup(strict_app)
-    with TestClient(strict_app) as c:
+    with TestClient(main.app) as c:              # the app that is deployed (S1-13)
         yield c
 
 
@@ -274,10 +267,13 @@ def test_key_and_body_never_logged(client, caplog):
         assert secret not in text
 
 
-def test_get_and_other_methods_unreachable_in_strict_mode(client):
-    assert client.get(URL).status_code == 404
+def test_get_and_other_methods_are_not_served(client):
+    # the strict-live middleware answered 404; without it FastAPI answers 405 for another
+    # method on a served path (S1-13). Nothing is stored either way.
+    assert client.get(URL).status_code == 405
+    assert client.put(URL, json={}, headers=AUTH).status_code == 405
     assert client.get("/api/batch/runs/GCP-UC-03").status_code == 404
-    assert client.put(URL, json={}, headers=AUTH).status_code == 404
+    assert rows() == []
 
 
 def test_route_is_mounted_on_the_app(monkeypatch):

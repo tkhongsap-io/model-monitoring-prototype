@@ -66,7 +66,7 @@ Contract v1.1 and the prototype pull lane do not change.
 | Transport | HTTPS only: a private CA on the test host (S1-04), a public or company CA on AWS (S4-01) |
 | Network | Test host: a private VPC path; port 443 only from the job network ranges. AWS: only the egress IPs of the jobs (S4-01). |
 | Input | Strict schema `batch-run/1` (`400` with field errors, nothing stored); a body size limit (`413`); the key, the header and the body are never logged |
-| Surface | In strict live mode, the middleware lets only `POST /api/batch/runs` through from outside, next to the read-only live routes |
+| Surface | Since S1-13 the app serves only the batch MVP API: `POST /api/batch/runs` and the service checks (`/api/health`, `/api/healthz`, `/api/readiness`, `/api/version`). The prototype routes are not mounted; every other path is `404`. |
 
 **No cursor moves.** The receiver writes only the `batch_runs` table. It never reads or
 advances a v1.1 telemetry cursor and never writes `live_observations`. The poller stays
@@ -109,7 +109,8 @@ on 2026-10-07. Details: [batch MVP intent](../../changes/2026-10-02-batch-monito
 ## Validation and rollback
 
 Validated by `backend/tests/test_batch_runs_api.py` (each acceptance criterion of #4
-behind the strict-live middleware, no key or body in logs), `test_batch_runs_store.py`
+on the deployed app, no key or body in logs), `test_app_surface.py` (the served
+routes; S1-13), `test_batch_runs_store.py`
 (migration 8, duplicate, conflict, unique pair), `test_batch_schema.py` and
 `test_batch_runs_tracing.py`.
 
@@ -124,4 +125,5 @@ different design supersedes this ADR with a new one.
 - `changes/2026-10-02-batch-monitoring-mvp/issues.md` (S1-02, S1-04, S1-05, S1-08, S4-01)
 - `changes/2026-10-05-s1-02-batch-runs-api/spec.md`
 - `backend/app/api/batch_routes.py`, `backend/app/batch_schema.py`, `backend/app/db.py`
+- `changes/2026-10-07-s1-13-batch-only-api/spec.md` (the served surface)
 - `handbook/risk-tiers.md` in `tkhongsap-ai-engineering-playbook@5ba9dc8`

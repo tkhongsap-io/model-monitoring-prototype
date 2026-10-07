@@ -4,7 +4,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app import config, db, main
+from app import config, db
+from tests import prototype_app as main
 from app.api import live_routes
 
 UC = "AICT-L01"
