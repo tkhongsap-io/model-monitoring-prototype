@@ -1,0 +1,30 @@
+# OTel Collector for the batch MVP (S1-06). Receives OTLP/HTTP and writes the spans to
+# the log and to /tmp/spans.jsonl in the container (read it with `docker compose cp`).
+# The file output is temporary: S2-03 adds the export to Langfuse. S3-03 adds the memory
+# limit and the attribute filter. This file contains no credential.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  debug:
+    verbosity: basic
+  file:
+    path: /tmp/spans.jsonl
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, file]

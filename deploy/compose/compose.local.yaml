@@ -1,0 +1,37 @@
+# Laptop and CI settings (S1-06). Never use this file on the test host.
+# The PostgreSQL password and the API key are local test values, not secrets:
+# Only the local test API key's SHA-256 is here.
+services:
+  postgres:
+    image: postgres:18.6-bookworm
+    environment:
+      POSTGRES_USER: monitor
+      POSTGRES_PASSWORD: monitor
+      POSTGRES_DB: monitor
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "monitor", "-d", "monitor"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  backend:
+    build: ../../backend
+    image: model-monitor-backend:local
+    environment:
+      DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor
+      BATCH_API_KEY_SHA256: GCP-UC-03:ca9263478834f0d9f054e84eda1a55dee86d8a6551f27aa8a2c751a4b541b200
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  collector:
+    ports:
+      - "127.0.0.1:4318:4318"
+
+volumes:
+  pgdata:
