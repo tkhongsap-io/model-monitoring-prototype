@@ -148,8 +148,7 @@ remaining prototype-only code.
 ## Overview by phase
 
 For the overall view, the issues are in 16 workstreams. Each issue is in one workstream
-only. The Tracker sheet of `model_monitoring_issues.xlsx` shows this table, with the dates
-of the sprints of its issues.
+only. GitHub issues are the tracker; this file is the source of their text.
 
 | Phase | Workstream | Issues | PIC |
 |---|---|---|---|

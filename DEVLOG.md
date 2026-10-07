@@ -80,12 +80,14 @@ depend on. The spec is
   error status on `batch.send` and `batch.run`; the S1-08 row "Read access to GCP Cloud
   Logging" is removed. `schema/README.md` questions 13 and 14 follow. The 10 open
   questions are posted on issue #3 for the developer.
-- `model_monitoring_issues.xlsx` is not regenerated: `build_issues_xlsx.py` stops because
-  S1-13 and S2-11 are not in the "Overview by phase" table (a gap from earlier PRs).
+- Removed (project owner): `model_monitoring_issues.xlsx` and `build_issues_xlsx.py`.
+  GitHub issues are the tracker, and `issues.md` is the source of their text. (The script
+  also stopped because S1-13 and S2-11 are not in the "Overview by phase" table.)
+- The GitHub bodies of #3 (S1-01), #7 (S1-05) and #10 (S1-08) are updated from
+  `issues.md` of this branch.
 - Remaining for S1-01: the developer fixes `request_count` and the sample and answers
   issue #3; RAI decides `groundedness` and `hallucination_rate` for image-only use cases
-  (registry, S2-01); reviews by RAI and security (S1-08); the GitHub bodies of issues #3,
-  S1-05 and S1-08 follow `issues.md` after this PR merges.
+  (registry, S2-01); reviews by RAI and security (S1-08).
 
 ### 2026-10-07 — S1-06 local part: Docker Compose stack and smoke test
 
