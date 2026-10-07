@@ -68,3 +68,6 @@ __pycache__/
 
 # Claude Code local state (personal settings, runtime locks)
 .claude/
+
+# Raw run summaries from GCP jobs: may contain customer data. Never commit.
+/data/

@@ -41,12 +41,12 @@
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
     },
     "request_count": {
-      "description": "SOURCE: GCP job developer to fill in. The number of model requests in the run (the input rows that the job sent to Gemini).",
+      "description": "SOURCE: GCP job developer to fill in. The number of ALL model requests in the run: the successful requests plus the failed requests. Count each request one time; do not count retries. Example: 243 successful and 106 failed gives request_count 349 and failed_count 106.",
       "type": "integer",
       "minimum": 0
     },
     "failed_count": {
-      "description": "SOURCE: GCP job developer to fill in. The number of requests that gave no usable output (error, timeout, empty or unparsable response). Not more than request_count. A safety block is not a failure: it is a record with refused=true.",
+      "description": "SOURCE: GCP job developer to fill in. The number of requests that gave no usable output (error, timeout, empty or unparsable response). A part of request_count, so never more than request_count. A safety block is not a failure: it is a record with refused=true.",
       "type": "integer",
       "minimum": 0
     },
@@ -75,7 +75,7 @@
       }
     },
     "records": {
-      "description": "The sampled records, with PII replaced by placeholders. Empty in identity-only mode (SEND_RECORDS off), when the job failed, or when request_count is 0.",
+      "description": "The sampled records, with PII replaced by placeholders. Sample only from the requests that Gemini answered or refused; never include a failed request. Empty in identity-only mode (SEND_RECORDS off), when the job failed, or when request_count is 0.",
       "type": "array",
       "maxItems": 200,
       "items": { "$ref": "#/$defs/record" }
@@ -157,7 +157,7 @@
           "$ref": "#/$defs/identifier"
         },
         "question": {
-          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The instruction that the model got, without the source material and without the system prompt. Redacted.",
+          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The instruction that the model got, without the source material and without the system prompt. Redacted. If the prompt contains an image, write the marker [IMAGE] where each image was; never send the image, base64 data or an image URL.",
           "allOf": [{ "$ref": "#/$defs/redactedText" }],
           "minLength": 1,
           "maxLength": 32000
@@ -168,7 +168,7 @@
           "maxLength": 32000
         },
         "retrieval_context": {
-          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The source material that the model got, for example the document that it summarized. [] if the prompt has no source material.",
+          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The source material that the model got with the instruction: any input text that the answer must agree with, for example a document, a transaction, a complaint, OCR text or retrieved chunks. Not only for document retrieval. Send the text as the model got it, one item for each source. [] if the prompt has no text source material, for example when the only input is an image.",
           "type": "array",
           "maxItems": 20,
           "items": {

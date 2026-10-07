@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `scripts/strip_record_text.py` writes a copy of a GCP run summary without its free text
+  (`question`, `answer`, `retrieval_context`, `tool_calls` output), so a real body can be
+  shared for development. It prints only counts. `/data/` is ignored by git.
 - A local Docker Compose stack (`deploy/compose/`): the backend, PostgreSQL 18.6 and the
   OTel Collector 0.161.0, with a smoke test (`scripts/compose-smoke.sh`) that runs in CI
   (`compose-smoke.yml`) and on macOS (S1-06).
@@ -20,6 +23,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The draft run summary `batch-run/1` (S1-01) states its meanings more clearly for GCP
+  job developers: `request_count` counts all requests (successful + failed), the sample
+  contains only requests that Gemini answered or refused, `retrieval_context` holds any
+  input text that the answer must agree with, and an image in the prompt becomes
+  `[IMAGE]` in `question`. No validation rule changed.
 - The backend serves only the batch MVP API: `POST /api/batch/runs`, `/api/health`,
   `/api/healthz`, `/api/readiness` and `/api/version`. Health is a liveness check (no
   database call); readiness checks only `DATABASE_URL` (PostgreSQL) and
