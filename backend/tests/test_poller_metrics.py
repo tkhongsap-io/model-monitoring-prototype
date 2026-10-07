@@ -6,7 +6,8 @@ import logging
 
 from fastapi.testclient import TestClient
 
-from app import config, db, live_poller, logging_setup, main
+from app import config, db, live_poller, logging_setup
+from tests import prototype_app as main
 from app.api import live_portfolio
 from app.scenario import live_runner as live_runner_module
 

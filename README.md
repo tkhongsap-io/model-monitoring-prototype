@@ -26,12 +26,11 @@ tests are the slow DEMO-FULL bakes; exact counts live in `DEVLOG.md`) and
 workspace package with a `typecheck` script).
 
 To see the API, from `backend/` run
-`CONTROL_TOWER_MODE=demo LIVE_POLL_SECONDS=0 .venv/bin/python -m uvicorn app.main:app --port 8000`
-and open `http://127.0.0.1:8000/api/readiness`. It returns HTTP 200 with
-`{"status": "ready", "database": {"ok": true, ...}, "mode": "demo"}`. In strict live
-mode the same endpoint returns 503 (`not_ready`, or `degraded` when only the judge key
-is missing) until the configuration in [docs/STRICT-LIVE.md](docs/STRICT-LIVE.md) is
-present.
+`.venv/bin/python -m uvicorn app.main:app --port 8000` and open
+`http://127.0.0.1:8000/api/health`. It returns HTTP 200 with `{"status": "ok", ...}`.
+`/api/readiness` returns 503 with the missing batch settings (`DATABASE_URL`,
+`BATCH_API_KEY_SHA256`) until they are set. The app serves only the batch MVP API
+(S1-13); see `changes/2026-10-07-s1-13-batch-only-api/spec.md`.
 
 ## Scope
 
@@ -125,12 +124,8 @@ Layout: `backend/app/engines/` are pure functions, `backend/app/adapters/` do I/
   reinstalls dependencies. Replit-specific notes are in [replit.md](replit.md).
 - Running identity: `GET /api/version` reports `build_sha` (the deployed Git commit),
   `contract_version`, and the producer gateway SHA.
-- Monitoring: `GET /api/readiness` (database, poller, judge, configuration and the last
-  poll cycle's duration, outcome and per-source error under `poller.last_cycle`),
-  `GET /api/live/sync` (per-source cursor state) and `GET /api/live/alerts?open=true`
-  (open health-transition alerts with their delivery status).
-  `.github/workflows/autoscale-poll.yml` runs one poll cycle on the Replit prototype with
-  the worker token, by hand only (no schedule).
+- Monitoring: `GET /api/readiness` (database and batch settings). The prototype endpoints
+  are not served since S1-13.
 - Optional environment: `LIVE_ALERT_WEBHOOK_URL` (Slack incoming webhook or any JSON
   receiver; a secret — never logged beyond its host, never in the bundle),
   `LIVE_DASHBOARD_URL` (public SPA origin linked from each notification) and

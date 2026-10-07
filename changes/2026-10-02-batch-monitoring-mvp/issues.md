@@ -117,6 +117,7 @@ remaining prototype-only code.
 | S1-10 | First real run end to end | Verification | Backend + GCP job developer | S1-07 (trace check tool) | S |
 | S1-11 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-02, S1-07 | S |
 | S1-12 | Access to the company LiteLLM proxy for the judge | Discovery | Backend + LiteLLM proxy owner | S2-09 | S |
+| S1-13 | Serve only the batch MVP API | Feature | Backend | S1-06 | M |
 | S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-06 | M |
 | S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05 | M |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 | L |
@@ -711,6 +712,47 @@ S2-09 can start on Monday 12 October.
 1. On the test host: `curl -H "Authorization: Bearer $LLM_JUDGE_API_KEY" https://<litellm-proxy>/v1/models`. Make sure that the list contains the judge alias. Use `--cacert` for a private CA.
 2. On the test host: send one `POST /v1/chat/completions` request with synthetic text and the `json_schema` response format of S2-09. Make sure that the answer is a JSON object with the four fields.
 3. Record the model name in the `model` field of the answer. Compare it with the answer of the proxy owner.
+
+### S1-13 — Serve only the batch MVP API (prototype routes not mounted)
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Feature | Backend | S1-02, S1-05 | S1-06 (Compose smoke test), S1-04 | M |
+
+**What:** The backend app serves only the batch MVP API. The prototype code stays in the repository until S4-07 removes it, but `main.py` does not mount it. There is no mode: a prototype route is not in the app, so it returns `404` (decided 2026-10-07).
+
+Why now: in strict live mode, the backend is not "ready" without the prototype settings (`LIVE_*` producer URLs, `LIVE_TELEMETRY_TOKEN`, `LIVE_WORKER_TOKEN`, `ANTHROPIC_API_KEY`, the Langfuse keys). The batch MVP has none of them. Thus the test host (S1-04) health check would fail.
+
+| Route | Served | Why |
+|---|---|---|
+| `POST /api/batch/runs` | Yes | The batch receiver (S1-02, S1-05) |
+| `GET /api/health`, `GET /api/healthz` | Yes | Front door and Compose health checks |
+| `GET /api/readiness` | Yes | Checks only the batch settings |
+| `GET /api/version` | Yes | `build_sha` only, no producer SHA |
+| Demo routes (`/api/scenario`, `/api/sim`, `/api/registry`, `/api/board`, ...) | No (`404`) | Prototype only (S4-07 removes the code) |
+| Prototype live routes (`/api/live/*`), including `poll`, `skip` and `reset-ack` | No (`404`) | Prototype pull lane |
+
+Other changes:
+- The prototype poller does not start.
+- `CONTROL_TOWER_MODE` is not used by `main.py`. The strict-live route middleware is removed, because routes that are not mounted need no blocking.
+- Readiness does not check the `LIVE_*` settings, `ANTHROPIC_API_KEY` (the judge is the local model through LiteLLM, S2-09) or the Langfuse keys (S2-02 and S2-09 add their own checks).
+- Tests of the prototype code build a test app that mounts the prototype router directly. The prototype code keeps its tests until S4-07.
+
+Accepted effects: the current dashboard cannot load `/api/live/*` data until S2-07. The Replit prototype stops working if it is redeployed from `dev` (Replit is not a release target, #42).
+
+**Acceptance criteria**
+- [ ] `POST /api/batch/runs`, `/api/health`, `/api/healthz`, `/api/readiness` and `/api/version` work with only `DATABASE_URL` and `BATCH_API_KEY_SHA256` set.
+- [ ] Every demo and prototype route returns `404`, with any value of `CONTROL_TOWER_MODE`.
+- [ ] The prototype poller does not start.
+- [ ] Readiness reports only batch settings. No `LIVE_*`, Anthropic or Langfuse setting is required.
+- [ ] The prototype tests still pass with their own test app.
+- [ ] `CLAUDE.md`, `README.md` and `docs/STRICT-LIVE.md` say that only the batch API is served.
+
+**How to test**
+1. Unit: a route table test lists every served path. Any other path returns `404`.
+2. Start the backend with only `DATABASE_URL` and `BATCH_API_KEY_SHA256`. Make sure that `/api/readiness` is `200` and a batch run is stored.
+3. Full backend suite.
+4. Paired with S1-06: the Compose smoke test uses this app.
 
 ---
 

@@ -55,11 +55,13 @@ locally and no test needs them.
 - Engines are pure (`backend/app/engines/`), adapters do I/O
   (`backend/app/adapters/`), runners orchestrate (`backend/app/scenario/live_runner.py`).
   Dependencies point inward: adapters and runners import engines, never the reverse.
-- The browser never advances telemetry cursors. Only the lease-held poller
-  (`backend/app/live_poller.py`) and the worker-token `POST /api/live/poll` do.
+- `backend/app/main.py` mounts only the batch MVP API (`api/batch_routes.py`,
+  `api/ops_routes.py`); every other path is 404, with no mode (S1-13). A new route needs
+  a plan entry. The prototype code (demo and strict-live routers, `live_poller.py`, the
+  dashboard) is not mounted; its tests use `backend/tests/prototype_app.py`; S4-07
+  removes it.
 - Observations are immutable once digested: `live_observations.payload` and
   `content_sha256` are never rewritten. Cursors advance only after a durable write.
-- Demo and scenario routes return 404 in strict live mode (`CONTROL_TOWER_MODE=live`).
 - Schema changes are ordered in-code migrations in `backend/app/db.py`; keep them additive.
 - Contract version stays `"1.1"`; the monitor is a consumer and makes no producer demands.
 - No new paid dependencies, pip packages, or npm packages without a plan entry.

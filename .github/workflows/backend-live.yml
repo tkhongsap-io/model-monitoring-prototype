@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18.6-bookworm
         env:
           POSTGRES_USER: monitor
           POSTGRES_PASSWORD: monitor
@@ -40,6 +40,8 @@ jobs:
       LANGFUSE_PUBLIC_KEY: ci-public
       LANGFUSE_SECRET_KEY: ci-secret
       LIVE_POLL_SECONDS: "5"
+      # batch MVP (S1-13): a test entry; sha256 of "ci-batch-key-not-a-secret-000000000000"
+      BATCH_API_KEY_SHA256: CI-UC:d515aa23d62cf288456a1c3f5616a78435d8970760cf7954c949fcd1694ca846
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,6 +52,6 @@ jobs:
       - run: python -m pip install -r backend/requirements.txt
       - run: python -m compileall -q backend/app backend/scripts
       - run: python backend/scripts/migrate.py
-      - name: Validate strict-live configuration
-        run: python -c "from app import config; assert config.live_configuration_errors() == [], config.live_configuration_errors()"
+      - name: Validate batch MVP configuration
+        run: python -c "from app import config; assert config.batch_configuration_errors() == [], config.batch_configuration_errors()"
       - run: python -m pytest -q backend/tests

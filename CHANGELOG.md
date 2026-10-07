@@ -17,6 +17,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The backend serves only the batch MVP API: `POST /api/batch/runs`, `/api/health`,
+  `/api/healthz`, `/api/readiness` and `/api/version`. Health is a liveness check (no
+  database call); readiness checks only `DATABASE_URL` (PostgreSQL) and
+  `BATCH_API_KEY_SHA256`. CI uses PostgreSQL 18.6 (S1-13).
 - `POST /api/batch/runs` continues the GCP job's trace with OpenTelemetry: a FastAPI
   server span and its child `monitor.ingest`, exported over OTLP/HTTP when
   `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The stored `trace_id` comes from the span. A
@@ -40,6 +44,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Deprecated or removed
 
+- Not served any more (S1-13): the demo and strict-live prototype routes, the operator
+  routes, the pull-lane poller, the dashboard and the OpenAPI pages. The code stays until
+  S4-07.
 - The `autoscale-poll.yml` schedule (every five minutes) is removed. CI no longer wakes
   the Replit prototype; the workflow runs by hand only. Replit is not a release target:
   the batch MVP releases to the GCP test host, then to AWS.

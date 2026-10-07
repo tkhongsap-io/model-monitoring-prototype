@@ -149,6 +149,27 @@ def batch_api_key_hashes() -> list[tuple[str, str]]:
     return [pair for _, pair in _batch_key_entries() if pair is not None]
 
 
+def batch_configuration_errors() -> list[str]:
+    """Readiness blockers of the batch MVP app (S1-13).
+
+    Only the batch settings count: the prototype settings (`LIVE_*`, Anthropic, Langfuse)
+    are not read.  A malformed key entry is named by position only, never by its text.
+    """
+    errors: list[str] = []
+    if not DATABASE_URL:
+        errors.append("DATABASE_URL is not set (SQLite is for development only)")
+    elif not DATABASE_URL.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
+        errors.append("DATABASE_URL must use PostgreSQL")
+    entries = _batch_key_entries()
+    malformed = [str(position) for position, pair in entries if pair is None]
+    if malformed:
+        errors.append(f"BATCH_API_KEY_SHA256 entries {', '.join(malformed)} are malformed "
+                      "(expected USE_CASE_ID:<64 hex>)")
+    if not any(pair is not None for _, pair in entries):
+        errors.append("BATCH_API_KEY_SHA256 has no valid entry (every request would be 401)")
+    return errors
+
+
 def live_enabled() -> bool:
     return bool(LIVE_CHURN_URL)
 

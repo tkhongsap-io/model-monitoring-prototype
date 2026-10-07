@@ -1,5 +1,9 @@
 # Strict live control tower
 
+> **Not served since S1-13.** `app/main.py` mounts only the batch MVP API. This page
+> describes prototype code that stays in the repository until S4-07; only the "Batch run
+> receiver" section applies to the running app.
+
 > **Prototype only, except "Batch run receiver".** This page describes the Replit
 > prototype for the three `ai-use-cases` models. The "Batch run receiver" section is
 > for the batch MVP (S1-02). Replit is not a release target. CI does not deploy to Replit

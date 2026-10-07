@@ -47,6 +47,24 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-07 — S1-13: serve only the batch MVP API
+
+- Changed: `main.py` mounts only `batch_routes` and the new `ops_routes`; no mode, no
+  poller, no middleware, no dashboard, no OpenAPI pages. `config.batch_configuration_errors()`.
+  The old composition is `backend/tests/prototype_app.py` for the prototype tests. CI uses
+  `postgres:18.6-bookworm` and validates the batch settings. Change package
+  `changes/2026-10-07-s1-13-batch-only-api/`.
+  Codex implemented the plan; Claude reviewed the diff and reran the checks.
+- Deviations from the plan: the version test first blocked `httpx.Client.send`, which
+  `TestClient` also uses; the test now keeps the test client's own `send` and still
+  blocks every other outbound call. Another method on a served path is `405`, not `404`
+  (spec updated while the plan was written).
+- Evidence: fast suite 310 passed, 9 deselected (276 before); full suite 319 passed;
+  `tests/test_docs.py` 5 passed (Windows, rerun by Claude). TDD: the new surface tests
+  failed first (21 failed, 13 passed). Not run: the test host (S1-04), the Compose smoke
+  test (S1-06, next), CI on PostgreSQL 18.6 (runs on the PR).
+- Remaining: the dashboard returns with S2-07. S1-06 builds the Compose stack on this app.
+
 ### 2026-10-07 — batch MVP plan: Cloud SQL and PostgreSQL 18.6 for the monitor database
 
 - Changed: the plan now matches the Cloud SQL decision of 2026-10-06. The project owner

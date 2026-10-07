@@ -12,7 +12,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter
 from opentelemetry.trace import StatusCode
 
-from app import config, db, main, tracing
+from app import config, db, tracing
 from app.api import batch_routes
 
 EXAMPLES = (Path(__file__).resolve().parents[2] / "changes" / "2026-10-02-batch-monitoring-mvp"
@@ -38,7 +38,6 @@ def example(name: str, folder: str = "valid") -> dict:
 def _strict_app() -> FastAPI:
     app = FastAPI()
     app.include_router(batch_routes.router)
-    app.middleware("http")(main.strict_live_route_isolation)
     tracing.setup(app)
     return app
 
