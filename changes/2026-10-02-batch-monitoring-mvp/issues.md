@@ -128,6 +128,7 @@ remaining prototype-only code.
 | S2-08 | One run as a single trace, GCP job to score | Verification | Backend + platform | S1-07 | S |
 | S2-09 | Judge through the company LiteLLM proxy | Feature | Backend | S2-05 | M |
 | S2-10 | RAI accepts the local judge | Verification | RAI + backend | S2-09 | M |
+| S2-11 | Threat model for the batch MVP (R2) | Decision | Backend + security | S2-05 | S |
 | S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-07 | L |
 | S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 | M |
 | S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 | M |
@@ -1296,6 +1297,41 @@ only with a judge that RAI accepted (S4-03).
 **How to test**
 1. Run `backend/scripts/judge_check.py --set backend/tests/fixtures/judge_reference/` on the test host two times. Make sure that the results agree with the limits.
 2. Unit: test the agreement calculation of `judge_check.py` with a fake judge and a set of 4 records with known results.
+
+### S2-11 — Threat model for the batch MVP (R2)
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Decision | Backend + security | — | S2-05 | S |
+
+**What:** The batch MVP is risk tier R2 (decided 2026-10-07,
+[intent](intent.md), [ADR 0002](../../docs/adr/0002-batch-push-ingest.md)). The playbook
+requires a threat model and abuse cases for R2. A short, proportionate threat model is
+enough. Write it before real records reach the judge (S2-05). The due date is Wednesday
+14 October.
+
+Write `changes/2026-10-02-batch-monitoring-mvp/threat-model.md`. For each threat: what
+can happen, the effect, the control that exists, the gap, and an owner. Cover at least:
+
+| Threat | Where |
+|---|---|
+| Prompt injection: text in a record tries to change the judge's scores or its output format | S2-05, S2-09 |
+| A stolen or leaked API key writes false runs for one use case | S1-02, S2-01 |
+| A replay or a resend of an old run | S1-02 (duplicate and conflict), S1-05 (`stored_trace_id`) |
+| PII that the redaction misses (for example names) reaches the monitor, the judge or Langfuse | S1-03, S1-08, S3-05 |
+| A large or malformed body, or many requests (denial of service) | S1-02 (size limit), S1-06 (front door) |
+| The OTLP endpoint is used to send false spans | S1-06 (OTLP token) |
+| A secret (API key, judge key, Langfuse keys, database password) in logs, spans or git | S1-02, S1-05, S3-05 |
+| One wrong grade affects many use cases (a judge or prompt change) | S2-10 |
+
+**Acceptance criteria**
+- [ ] `threat-model.md` covers each threat in the table, with the control, the gap and an owner.
+- [ ] Each gap is accepted in writing, or it has an issue and a date.
+- [ ] Security reads the threat model. Their comments are in this issue.
+
+**How to test**
+1. Compare `threat-model.md` with the table. Make sure that no row is missing.
+2. For each "control exists" claim, link the test or the setting that proves it.
 
 ---
 
