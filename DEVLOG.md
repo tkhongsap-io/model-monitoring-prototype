@@ -67,6 +67,12 @@ depend on. The spec is
   S1-03 uses an `http://` URL on the test host only; S3-07 SSO cannot run on the test host
   (the long-lead fallback applies). Accepted risk, test host only: the API key and the OTLP
   token cross the VPC without TLS (Google encrypts VM-to-VM VPC traffic); S3-05 records it.
+- Done (project owner ran the commands; Claude checked read-only): the rule
+  `monitor-testhost-allow-http-jobs` (ingress `tcp:80` from `10.10.0.0/24`, tag
+  `monitor-frontdoor`) exists; the monitor VM has the tags `monitor-frontdoor` and `vm-test`,
+  no longer `https-server`, and no external IP. `test-internal-model` keeps `https-server`.
+  Not yet tested: the job-side `curl http://10.10.0.4/api/health`, which needs the S1-06
+  front door on port 80.
 
 ### 2026-10-08 — S1-11: database account scripts (run by the project owner)
 
