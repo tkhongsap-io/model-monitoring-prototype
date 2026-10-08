@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Reviewed 2026-10-04. Clarified 2026-10-07 after the first GCP example: `request_count`, sample selection, `retrieval_context`, image input. |
+| **Status** | Reviewed 2026-10-04. Clarified 2026-10-07 after the first GCP example: `request_count`, sample selection, `retrieval_context`, image input. **Changed 2026-10-08:** the five metrics apply only to the `generation_from_text` profile. All use cases get the core metrics and one profile: see [core metrics and profiles](../2026-10-08-batch-metric-profiles/core-metrics.md). The "Decision" below is replaced. The data rules (body fields, sample, PII placeholders) still apply. |
 | **Applies to** | All 10 GCP batch use cases that call Gemini |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [Summary](summary.md) · [Issues](issues.md) · [Monitoring contract v1.1](../../docs/MONITORING-CONTRACT.md) |

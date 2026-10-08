@@ -23,6 +23,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Batch MVP plan: the GCP use cases are graded with core metrics plus one profile for each
+  task type (`changes/2026-10-08-batch-metric-profiles/`), not with the five chatbot
+  metrics for all. The five LLM metrics stay for the generation profiles.
 - The draft run summary `batch-run/1` (S1-01) states its meanings more clearly for GCP
   job developers: `request_count` counts all requests (successful + failed), the sample
   contains only requests that Gemini answered or refused, `retrieval_context` holds any

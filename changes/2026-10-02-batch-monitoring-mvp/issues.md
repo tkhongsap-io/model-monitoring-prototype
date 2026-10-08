@@ -681,6 +681,12 @@ Security must approve these items:
 **What:** Make one table with one row for each of the 10 GCP use cases. Sprints 2, 3 and 4
 use this table to select the order of the use cases. The due date is Friday 9 October.
 
+**Added 2026-10-08:** each job developer also fills in the
+[use-case template](../2026-10-08-batch-metric-profiles/use-case-template.md) (task type,
+input, output format, labels later), one comment for each use case. The answers select the
+quality profile of each use case ([core metrics and profiles](../2026-10-08-batch-metric-profiles/core-metrics.md)).
+Sprint 2 cannot be planned again without these answers.
+
 | Column | Why we need it |
 |---|---|
 | Use-case ID | The registry and the API use this ID |
@@ -701,6 +707,7 @@ use this table to select the order of the use cases. The due date is Friday 9 Oc
 - [ ] Each use case has at least one October run date, or a booked controlled rerun.
 - [ ] Each GCP job has a known runtime and network range for the test host, and a known egress IP for AWS.
 - [ ] The order of the use cases for Sprints 2 to 4 is agreed.
+- [ ] Each use case has a filled use-case template, and RAI confirmed its profile.
 
 **How to test**
 1. Each owner confirms their row in the issue comments.
