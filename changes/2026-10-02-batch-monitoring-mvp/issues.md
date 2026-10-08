@@ -63,9 +63,14 @@ pull request first.
 | Component | Image or package | Version | Note |
 |---|---|---|---|
 | Python (backend) | `python:3.12.15-slim-bookworm` | 3.12.15 | Released 2026-10-01. Python 3.12 gets security fixes only, until 2028-10-31. |
-| PostgreSQL (monitor database: local stack and CI) | `postgres:18.6-bookworm` | 18.6 | Changed 2026-10-07: the same major and minor version as the Cloud SQL instance of the test host. |
-| PostgreSQL (monitor database: test host) | Cloud SQL for PostgreSQL | 18.6 | Decided 2026-10-06 (paid; GCP sandbox budget). Google manages the minor version. Record the version that the instance shows when it changes. |
-| PostgreSQL (Langfuse database) | `postgres:17.11-bookworm` | 17.11 | Released 2026-08-10. The Langfuse Compose file uses PostgreSQL 17. A separate database from the monitor. |
+| PostgreSQL (monitor database: local stack and CI) | `postgres:17.11-bookworm` | 17.11 | Changed 2026-10-08 (was 18.6): the same major version as the Cloud SQL instance of the test host. Newest 17.x image on Docker Hub, checked 2026-10-08. |
+| PostgreSQL (monitor database: test host) | Cloud SQL for PostgreSQL | 17 | Changed 2026-10-08 (the instance was 18.6). Paid; GCP sandbox budget (2026-10-06). Google manages the minor version. Record the version that the instance shows. |
+| PostgreSQL (Langfuse database) | `postgres:17.11-bookworm` | 17.11 | Released 2026-08-10. Langfuse v4: minimum 15, recommended 16; its CI tests 15 (unit and integration) and 17 (end-to-end and Docker build, the Compose default); 18 is not tested (checked at tag v4.50.0 on 2026-10-07). A separate database from the monitor. |
+
+**Rule for database versions (2026-10-08):** every database uses the same major version,
+**PostgreSQL 17**, in every environment (local stack, CI, test host, AWS). Minor versions
+can differ. Move data only to the same or a newer major version, never down. Change a
+major version only with a plan entry, in every environment together, dev first.
 | OTel Collector | `otel/opentelemetry-collector-contrib` | 0.161.0 | Newest image on Docker Hub. Release 0.162.0 (2026-09-29) has no Docker Hub image yet. |
 | Volume setup for the Collector (one-time `collector-init`) | `busybox` | 1.37.0 | Added 2026-10-07 (S1-06). Gives the `collector-data` volume to the Collector user (uid 10001). Checked on Docker Hub 2026-10-07. |
 | Langfuse web | `langfuse/langfuse` | 4.50.0 | Released 2026-10-02 |
@@ -213,7 +218,7 @@ them in Sprint 1, so that the answers arrive before the sprint that needs them.
 |---|---|---|---|
 | DNS name and certificate for the AWS production stack | Your team + network team | S4-01 (26 October) | Use the IP address and a private CA certificate |
 | Production AWS Kubernetes cluster, its owner and access | Platform | S4-01 (26 October) | Report the result as a pilot on the test AWS cluster. Do not report a production release. |
-| Amazon RDS for PostgreSQL (monitor 18, Langfuse 17) and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
+| Amazon RDS for PostgreSQL 17 (monitor and Langfuse, two instances) and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
 | Test AWS Kubernetes cluster (not production) and access | Your team | S3-06 (19 October) | Test the S3-06 files on a disposable local cluster (kind) only |
 | LiteLLM virtual keys for the judge (test host and AWS), the model alias, and a network path to the proxy (S1-12) | LiteLLM proxy owner + network team | S2-09 (12 October) | Do not deploy S2-09 to the test host. Test S2-05 and S2-09 on the local stack with a fake LiteLLM server. The Sprint 2 demo shows the trace without scores. |
 | A private DNS name for the test host under a company domain, in a Cloud DNS private zone (for example `monitor-test.<company domain>`). Google does not accept an IP address or a `.internal` name in an SSO redirect URI. The name does not have to be public. | Your team + network team | S3-07 (19 October) | No SSO on the test host. The dashboard and Langfuse keep only the firewall rules and the Langfuse accounts. S3-05 records the exception. |
@@ -482,7 +487,7 @@ IP. In Sprint 2, Langfuse comes on the same VM, with its own PostgreSQL containe
 
 | Item | Setting |
 |---|---|
-| Engine | Cloud SQL for PostgreSQL 18.6 (fixed-versions table). Google manages the minor version. |
+| Engine | Cloud SQL for PostgreSQL 17 (fixed-versions table; changed from 18.6 on 2026-10-08). Google manages the minor version. |
 | Size | 1 vCPU, 3.75 GiB memory, 100 GB SSD. Zonal, not high availability, because it is a test host. |
 | Network | **Private IP only**, in the VM's VPC (Private Services Access). No public IP and no authorized networks. |
 | Encryption | Allow only TLS connections. The backend uses `sslmode=verify-ca` in `DATABASE_URL` with the server CA file of the instance. |
@@ -1672,7 +1677,7 @@ on the production cluster. Use the versions in the fixed-versions table.
 
 | Part | Plan A (selected) | Plan B (fallback) |
 |---|---|---|
-| PostgreSQL (monitor 18, Langfuse 17) | Amazon RDS for PostgreSQL: one instance for the monitor (18) and one for Langfuse (17). Make sure that RDS offers PostgreSQL 18 when S3-06 starts. | Containers in the cluster, with our backups |
+| PostgreSQL 17 (monitor and Langfuse) | Amazon RDS for PostgreSQL 17: one instance for the monitor and one for Langfuse | Containers in the cluster, with our backups |
 | S3 storage for Langfuse | Amazon S3 | MinIO container in the cluster |
 | Langfuse, ClickHouse, Redis | Official Langfuse Helm chart | Official Langfuse Helm chart |
 | Monitor backend, Collector, front door, OAuth2 Proxy (S3-07) | Our own manifests | Our own manifests |

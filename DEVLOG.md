@@ -71,6 +71,23 @@ depend on. The spec is
 - Next for traceability: S1-05 part A (OTel in the GCP job), S1-04 and S1-06 (test host
   and Collector reachable from GCP), S1-07 (trace check tool).
 
+### 2026-10-08 — every database is PostgreSQL 17
+
+- Changed: the project owner changed the monitor's Cloud SQL instance on the test host
+  from PostgreSQL 18.6 to **17**. So every database is now PostgreSQL 17 in every
+  environment: the local stack and CI use `postgres:17.11-bookworm` (the newest 17.x image,
+  checked 2026-10-08), RDS is 17 on AWS, and Langfuse stays 17.11. The local volume path
+  is `/var/lib/postgresql/data` again (PostgreSQL 18 had changed the layout).
+  `issues.md` has the version rule: one major version everywhere, data only moves to the
+  same or a newer major version, a major change only with a plan entry. The Langfuse
+  facts (v4: minimum 15, recommended 16; CI tests 15 and 17, not 18) are in the
+  fixed-versions table. New test: the CI database image must equal the local stack image.
+- Evidence: `tests/test_compose_files.py` failed first (2 failed), then `test_compose_files.py`
+  and `test_docs.py` 15 passed. The Compose smoke test and the full suite on PostgreSQL
+  17.11 run in CI on the pull request.
+- Remaining: record the minor version that the Cloud SQL instance shows. A Mac stack kept
+  with `KEEP=1` needs `down -v` one time (see `deploy/compose/README.md`).
+
 ### 2026-10-08 — decision: core metrics for all use cases, one profile for each task type
 
 - Input: the second GCP body (fraud validation, 50 records, stripped with
