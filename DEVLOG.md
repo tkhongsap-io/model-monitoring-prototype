@@ -47,6 +47,36 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — S1-11: database account scripts (run by the project owner)
+
+- Found (read-only inspection as `postgres`): the database `monitor` belongs to
+  `cloudsqlsuperuser`; `monitor_app` (made with `gcloud`) is in `cloudsqlsuperuser` and has
+  `CREATEROLE` and `CREATEDB`; `postgres` has no ADMIN OPTION on that group, so it cannot
+  take `monitor_app` out. The backend could create tables only through that group.
+- Decided (project owner, option a): a new backend user `monitor_backend` made with SQL
+  (not in `cloudsqlsuperuser`) owns the database and the tables; a group `monitor_read`
+  with `monitor_readonly`, `dev_itthisak`, `dev_prakasit`; then `monitor_app` is deleted.
+  The automatic permission check of the coding tool blocked the run that handled the
+  admin password, so the project owner runs the phases with the commands in
+  `deploy/sql/s1-11/README.md`, and Claude checks each output.
+- Changed: `deploy/sql/s1-11/` (phases 0–6, rollback, README), `backend/tests/test_s1_11_scripts.py`
+  (no password in a file, scripts stop on errors and print no password), S1-11 in
+  `issues.md`. Evidence: the new tests, `test_docs.py` and `test_compose_files.py` 18 passed.
+- Run by the project owner on 2026-10-08, every output checked before the next phase:
+  phase 0 six files `600 root`; phase 1 database owner `monitor_backend`, `f | f`;
+  phase 2 `monitor_backend | 18` tables, `0` objects left for `monitor_app`; phase 3 five
+  roles, all without `CREATEROLE`/`CREATEDB`, only `monitor_read` without login; phase 4
+  `backend.env` user `monitor_backend`, readiness `ready`, database user `monitor_backend`;
+  phase 5 `monitor_backend` not in `cloudsqlsuperuser` (`f | f | f`), create and drop of a
+  table worked; `monitor_readonly`, `dev_itthisak`, `dev_prakasit` each read 1 run and got
+  "insert refused: OK" and "create refused: OK"; phase 6 `monitor_app` deleted
+  (`gcloud sql users delete`), temporary files and the backup deleted, four password files
+  left (`600 root`). Final check by Claude: Cloud SQL users `postgres`, `monitor_backend`,
+  `monitor_readonly`, `dev_itthisak`, `dev_prakasit`; readiness `ready`.
+- Remaining: Prakasit needs IAP SSH access to the VM to use `dev_prakasit`; S1-11 tests 4
+  (no reach from outside the VPC) and 5 (`sslmode=disable` refused) are covered by the
+  instance settings (no public IP, `ENCRYPTED_ONLY`) but were not run as tests.
+
 ### 2026-10-08 — S1-04: backend deployed on the GCP test host (inside the VM only)
 
 - Done with the project owner's approval, one step at a time: database `monitor` and user

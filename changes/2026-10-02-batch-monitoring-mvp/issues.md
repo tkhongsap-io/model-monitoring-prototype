@@ -773,15 +773,19 @@ The read API for the dashboard comes in S2-07.
 |---|---|---|---|---|
 | Infrastructure | Platform + backend | S1-04 | S1-02, S1-07 | S |
 
-**What:** Make database accounts in the Cloud SQL instance of the test host (S1-04). Use
-Cloud SQL built-in users. Do not use one shared administrator account.
+**What:** Make database accounts in the Cloud SQL instance of the test host (S1-04). Make
+them **with SQL as `postgres`**, not with `gcloud sql users create`: Cloud SQL puts every
+`gcloud`-made user in `cloudsqlsuperuser`, and `postgres` cannot take it out (found
+2026-10-08). Do not use one shared administrator account. Scripts and commands:
+`deploy/sql/s1-11/`.
 
 | Account | Type | Used by | Permissions |
 |---|---|---|---|
-| `monitor_app` | Bot | The backend service | Owns the monitor schema. Reads and writes the monitor tables. Runs the migrations when the backend starts, as the backend does now. |
-| `monitor_readonly` | Bot | The S1-07 tool and other checks | Reads the monitor tables only |
-| `dev_<name>` | Person, one for each developer | Developers | Read-only on the test host, because the test host has real redacted data. Full access only on the local stack. |
-| `postgres` (the Cloud SQL administrator user) | Person | Platform only | For emergencies and for making the other accounts. The backend and the tools do not use it. |
+| `monitor_backend` | Bot | The backend service | Owns the database `monitor` and its tables. Reads and writes. Runs the migrations when the backend starts. Not in `cloudsqlsuperuser`; no `CREATEROLE`, no `CREATEDB`. (Replaces `monitor_app`, which `gcloud` made on 2026-10-08.) |
+| `monitor_read` | Group, no login | — | `SELECT` on all tables and sequences, also on future tables |
+| `monitor_readonly` | Bot, in `monitor_read` | The S1-07 tool and other checks | Reads the monitor tables only |
+| `dev_itthisak`, `dev_prakasit` (`dev_<name>`) | Person, one for each developer, in `monitor_read` | Developers | Read-only on the test host, because the test host has real redacted data. Full access only on the local stack. |
+| `postgres` (the Cloud SQL administrator user) | Person | Platform only | For emergencies and for making the other accounts. The backend and the tools do not use it. Its password is in Secret Manager `sandbox-pg17-db`. |
 
 Rules:
 - Keep the passwords as host secrets. Do not put them in the repository or in chat.
@@ -791,12 +795,12 @@ Rules:
 
 **Acceptance criteria**
 - [ ] Each account in the table exists in Cloud SQL, with the given permissions.
-- [ ] The backend uses `monitor_app` in `DATABASE_URL`. It does not use the `postgres` user.
+- [ ] The backend uses `monitor_backend` in `DATABASE_URL`. It does not use the `postgres` user, and it is not in `cloudsqlsuperuser`.
 - [ ] A developer can connect through IAP SSH and the VM. A developer cannot reach the Cloud SQL instance from outside the VPC.
 - [ ] This issue lists the accounts and their owners. It contains no passwords.
 
 **How to test**
-1. Start the backend with `monitor_app`. Make sure that the migrations run and the API stores a run.
+1. Start the backend with `monitor_backend`. Make sure that the migrations run and the API stores a run, and that `monitor_backend` can create and drop a table (future migrations).
 2. Connect as `monitor_readonly`. Make sure that `SELECT` works and `INSERT` fails.
 3. Connect as a `dev_<name>` account on the test host. Make sure that `INSERT` fails.
 4. From a computer outside the VPC, try to connect to the Cloud SQL instance. Make sure that it cannot be reached (it has no public IP).
