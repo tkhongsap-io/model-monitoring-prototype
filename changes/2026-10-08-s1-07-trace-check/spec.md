@@ -100,6 +100,9 @@ The items, always in this order:
    - No row, and a `monitor.ingest` span has `outcome=conflict` → `missing`,
      detail `rejected: another body is stored for this run_id under trace <stored_trace_id>`
      (without the `under trace` part if the attribute is absent).
+   - No row, and a `monitor.ingest` span has `outcome=stored` → `missing`,
+     detail `monitor.ingest says stored, but no run row has this trace ID` (for example,
+     the tool reads another database).
    - No row, and a `monitor.ingest` span has another outcome → `missing`,
      detail `the backend did not store the run (outcome <outcome>)`.
    - Else → `missing`, no detail.
