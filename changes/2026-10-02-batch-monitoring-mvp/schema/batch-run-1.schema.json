@@ -41,7 +41,7 @@
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
     },
     "submitted_at": {
-      "description": "OPTIONAL. SOURCE: the time when the job submitted the batch to Gemini (for the Batch API: when the batch job was created). UTC, ISO 8601, with 'Z'. Not later than completed_at. The monitor calculates turnaround_s = completed_at - submitted_at. Omit the field if the job does not know the time; never send null.",
+      "description": "OPTIONAL. SOURCE (decided 2026-10-08): Batch API jobs send the createTime of the Gemini batch job resource; if one run gets the results of more than one batch job, the earliest createTime. Online jobs send the job clock immediately before the first Gemini request. UTC, ISO 8601, with 'Z'. Not later than completed_at. The monitor calculates turnaround_s = completed_at - submitted_at. Omit the field if the job does not know the time; never send null.",
       "type": "string",
       "format": "date-time",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"

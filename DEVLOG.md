@@ -66,8 +66,11 @@ depend on. The spec is
   "to fill in" for Sprint 2), `schema/README.md`, `core-metrics.md`,
   `use-case-template.md` (RTR example), `plan.md` (2026-10-08 metric-profile reason).
   No validation rule changes.
+- Decided (project owner, 2026-10-08): `submitted_at` is the earliest `createTime` of the
+  Gemini batch jobs of the run (Batch API jobs), or the job clock immediately before the
+  first Gemini request (online jobs). Recorded in the schema description and README.
 - Open questions from the GCP developer, waiting for a decision of the project owner:
-  `submitted_at` for a run with more than one batch job and for online jobs; Retention's
+  Retention's
   forced function-call arguments as `answer`; three more `finishReason` values for
   `refused`; the distinct-answer check. Also open: `model` when one run uses one model for
   each topic (`workflow-automation`); the PII list now includes name, surname and address.
