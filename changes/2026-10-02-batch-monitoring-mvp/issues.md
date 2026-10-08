@@ -176,6 +176,12 @@ only. GitHub issues are the tracker; this file is the source of their text.
 
 ## Sprint 1 — Oct 5–9: get data out of GCP
 
+**Focus (decided 2026-10-08): traceability first, with no records.** Each real run must
+arrive in `batch_runs` and have one trace from the GCP job to the backend in the Collector.
+The GCP job sends identity-only bodies (`records: []`, `records_reason:
+records_not_approved`). The record content and its fixes move to Sprint 2. See the
+decisions in the [plan](plan.md#decisions).
+
 **Two channels, one trace ID**
 
 | Channel | Carries | Path | If it fails |
@@ -243,6 +249,11 @@ The developer answers these questions in the schema or in the pull request:
 - Where can PII occur? The redaction in S1-03 must cover these locations.
 - When the job fails, what does it log now? Can it still send a run summary with `status: failed`?
 
+**Sprint 1 (decided 2026-10-08):** S1-01 closes with a real **identity-only** body from S1-03
+that `validate_run` accepts. The questions about the record fields (`question`,
+`retrieval_context`, `refused`, PII) and the review of the record fields by RAI and
+security move to Sprint 2, before `SEND_RECORDS` goes on.
+
 **Acceptance criteria**
 - [ ] The schema file and 4 examples are in the repository: a normal run, a partial failure, a Batch API run with `latency_s` set to `null`, and an identity-only run (S1-03). The examples use synthetic text only.
 - [ ] The schema accepts `records: []` with `records_reason: records_not_approved`. This is the identity-only mode.
@@ -250,7 +261,8 @@ The developer answers these questions in the schema or in the pull request:
 - [ ] Free text is allowed only in `question`, `answer`, `retrieval_context` and `tool_calls`. The schema has no customer ID field.
 - [ ] The body has no trace field. The trace ID goes in the `traceparent` HTTP header (S1-05).
 - [ ] The failure signals are agreed with the GCP developer. The job writes a log entry for its own team when the job fails and when a send to the monitor fails (never the key or the body). The monitor gets failures only from what the job sends: a body with `status: failed` when possible, and the OTel span of the send step with its error status (S1-05). The monitor team needs no access to GCP logs (decided 2026-10-07).
-- [ ] Backend, RAI and security (S1-08) reviewed the schema.
+- [ ] Backend, RAI and security (S1-08) reviewed the schema. In Sprint 1: the run fields only. The record fields: in Sprint 2.
+- [ ] A real identity-only body from S1-03 passes `validate_run` (Sprint 1).
 
 **How to test**
 1. Unit: `pytest` examines each example with the schema. Make sure that a wrong example (no `run_id`, a wrong type, an unknown field) fails.
@@ -405,6 +417,11 @@ approves (S1-08), the setting is off. Then the job sends only the run identity, 
 `records: []` and the reason `records_not_approved`. No text leaves GCP. With this mode, the
 team can test the send step, the API key, the retries and OTel from 6 October. When security
 approves, set `SEND_RECORDS` to on. No code change is necessary.
+
+**Sprint 1 (decided 2026-10-08):** `SEND_RECORDS` stays off for all of Sprint 1, also if
+security approves earlier. The steps 1 and 2 (sample and redaction) can wait for Sprint 2.
+The body still sends `sample` with the configured size, because the schema requires it.
+`request_count` counts all requests, successful and failed.
 
 The developer can build and unit test the step from Monday with the S1-01 schema and a fake
 server. Only the test from start to end waits for the API (S1-02) on the test host (S1-04).
@@ -647,22 +664,28 @@ the data leaves GCP. Security must tell us if other types of PII must also be re
 If security adds more types, the job must find them before it sends the data. Names are
 difficult to find automatically.
 
+**Sprint 1 (decided 2026-10-08):** Sprint 1 sends no records. For Sprint 1, security approves
+only the items marked **S1**. The other items must be approved before Sprint 2 sends
+records.
+
 Security must approve these items:
 
 | Item | Issue |
 |---|---|
+| **S1:** The run identity leaves GCP: the fields of `batch-run/1` without records (IDs, status, times, counts, model, sample size) | S1-01, S1-03 |
 | Redacted records leave GCP. They go to the monitor, to the local judge model through the company LiteLLM proxy, and to Langfuse. They do not go to an external LLM provider. | S1-01, S1-03, S1-12 |
 | The LiteLLM proxy logs: does the proxy store the judge prompts and answers? Where, and for how long? Does it send them to other tools? | S1-12 |
 | The list of PII types that the job replaces with placeholders | S1-03 |
 | The retention period for stored records | S1-02 |
-| An API key on a private VPC path in GCP (test host), and later on the internet with an IP allowlist (AWS, Sprint 4) | S1-02, S1-04, S4-01 |
-| The private CA certificate of the test host | S1-04 |
-| The OTLP endpoint that the GCP jobs reach through the front door | S1-06 |
+| **S1:** An API key on a private VPC path in GCP (test host), and later on the internet with an IP allowlist (AWS, Sprint 4) | S1-02, S1-04, S4-01 |
+| **S1:** The private CA certificate of the test host | S1-04 |
+| **S1:** The OTLP endpoint that the GCP jobs reach through the front door | S1-06 |
 | Real redacted data on the test host in GCP: on the VM and in the Cloud SQL instance (private IP only, TLS only, automatic backups for 7 days). On the test host, the records stay in GCP. Only the judge calls go to the LiteLLM proxy. | S1-04, S1-11, S1-12 |
 | Database accounts, and who can read real data | S1-11 |
 
 **Acceptance criteria**
-- [ ] Each item in the table is approved in writing, or blocked with an owner and a date.
+- [ ] Each **S1** item in the table is approved in writing, or blocked with an owner and a date (Sprint 1).
+- [ ] Each other item is approved in writing, or blocked with an owner and a date, before Sprint 2 sends records.
 - [ ] The list of PII types is written down.
 - [ ] The name of a security contact is in this issue.
 
@@ -731,8 +754,7 @@ The read API for the dashboard comes in S2-07.
 - [ ] The `batch_runs` table has the run one time only.
 - [ ] The job spans and the `monitor.ingest` span have the same trace ID in the Collector.
 - [ ] The job's `batch.send` span is an ancestor of `monitor.ingest`.
-- [ ] If records were sent, they contain placeholders and no raw PII.
-- [ ] If security did not approve records yet, the run is in identity-only mode. The result says "records not yet approved".
+- [ ] The run is in identity-only mode (decided 2026-10-08: Sprint 1 sends no records). The result says "records not yet approved".
 
 **How to test**
 1. Start the real run, or wait for the scheduled run.
@@ -1046,6 +1068,11 @@ Most other Langfuse read APIs can be up to 10 minutes behind, so the tool would 
 `otel_helper.py`. Add the token data and the attribute allowlist. Use the file in the first
 job. The other jobs get the file in S2-06, S3-01 and S4-03. Each job repository copies the
 file, because we have no package registry.
+
+**Backlog, not in October (decided 2026-10-08):** a reporter library for teams outside the
+GCP batch jobs: one Python file with one function `report_run()`, also usable as a
+command-line tool. It builds, samples, redacts and sends the run summary, and it never
+stops the job. This issue stays the OTel helper.
 
 | Function | Detail |
 |---|---|
