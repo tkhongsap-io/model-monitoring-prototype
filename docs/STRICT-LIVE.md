@@ -149,7 +149,8 @@ It is available in demo and strict live mode. It stores the run in `batch_runs`
 
 - Body: the S1-01 **draft** schema `batch-run/1`
   ([schema](../changes/2026-10-02-batch-monitoring-mvp/schema/README.md)). The backend
-  enforces it in `backend/app/batch_schema.py`.
+  enforces it in `backend/app/batch_schema.py`. The optional field `submitted_at` (added
+  2026-10-08) is accepted and kept in `payload`; it has no column yet.
 - Key: `Authorization: Bearer <key>`. Configure only the SHA-256 of each key in
   `BATCH_API_KEY_SHA256` as comma-separated `USE_CASE_ID:<64 hex>` entries. Two entries for
   one use case are allowed during a key rotation. If the setting is empty, every request

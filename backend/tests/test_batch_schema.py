@@ -197,6 +197,24 @@ def test_failed_run_rules():
     assert ("records_reason",) in locs(errors_for(body))
 
 
+def test_submitted_at_is_optional():
+    with_it = validate_run(raw(example("03-batch-api-null-latency.json")))
+    assert with_it.submitted_at == "2026-10-07T06:40:12Z"
+    assert validate_run(raw(example("01-completed-online.json"))).submitted_at is None
+
+
+@pytest.mark.parametrize("value", [
+    "2026-10-07T06:40:12+07:00",                    # not UTC
+    "2026-10-07 06:40:12Z",                         # no T
+    "2026-02-30T06:40:12Z",                         # not a real date
+    1728283212,                                     # not a string
+])
+def test_submitted_at_format(value):
+    body = example("03-batch-api-null-latency.json")
+    body["submitted_at"] = value
+    assert ("submitted_at",) in locs(errors_for(body))
+
+
 # ---- backend rules (schema README: JSON Schema cannot express them) --------------
 
 def test_failed_count_not_more_than_request_count():
@@ -215,6 +233,20 @@ def test_records_not_more_than_request_count():
     body = example("03-batch-api-null-latency.json")
     body["request_count"] = 1
     assert ("records",) in locs(errors_for(body))
+
+
+def test_submitted_at_not_later_than_completed_at():
+    body = example("03-batch-api-null-latency.json")
+    body["submitted_at"] = "2026-10-07T09:02:45Z"   # one second after completed_at
+    assert ("submitted_at",) in locs(errors_for(body))
+    body["submitted_at"] = body["completed_at"]     # the same time is allowed
+    validate_run(raw(body))
+
+
+def test_submitted_at_null_is_rejected():
+    body = example("03-batch-api-null-latency.json")
+    body["submitted_at"] = None
+    assert ("submitted_at",) in locs(errors_for(body))
 
 
 def test_record_id_unique_in_run():

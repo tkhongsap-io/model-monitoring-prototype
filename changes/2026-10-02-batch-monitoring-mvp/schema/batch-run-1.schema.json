@@ -40,6 +40,12 @@
       "format": "date-time",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
     },
+    "submitted_at": {
+      "description": "OPTIONAL. SOURCE: the time when the job submitted the batch to Gemini (for the Batch API: when the batch job was created). UTC, ISO 8601, with 'Z'. Not later than completed_at. The monitor calculates turnaround_s = completed_at - submitted_at. Omit the field if the job does not know the time; never send null.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
     "request_count": {
       "description": "SOURCE: GCP job developer to fill in. The number of ALL model requests in the run: the successful requests plus the failed requests. Count each request one time; do not count retries. Example: 243 successful and 106 failed gives request_count 349 and failed_count 106.",
       "type": "integer",

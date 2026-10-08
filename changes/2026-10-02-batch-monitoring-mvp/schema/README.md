@@ -45,6 +45,7 @@ Body
 ├─ use_case_id      registry ID
 ├─ run_id           stable per run (idempotency key with use_case_id)
 ├─ status           completed | partial | failed
+├─ submitted_at     optional; UTC, ends in Z; not later than completed_at
 ├─ completed_at     UTC, ends in Z
 ├─ request_count, failed_count
 ├─ model            Gemini model ID
@@ -107,11 +108,22 @@ The backend (S1-02) returns `400` for these:
 | Rule | Why |
 |---|---|
 | `failed_count` ≤ `request_count` | Counts must agree |
+| `submitted_at` is not later than `completed_at`; if the field is present, it is not `null` | Turnaround cannot be negative |
 | Number of records ≤ `sample.size` and ≤ `request_count` | The job sent more than it sampled |
 | `record_id` is unique in the run | The judge stores one result for each record |
 | `sample.size` is in the registry range of the use case (8 to 200) | Registry setting (S2-01) |
 | `use_case_id` is the use case of the API key | One key cannot write for another use case |
 | Total body size ≤ limit (proposed 10 MB) | Protect the API |
+
+## Added 2026-10-08: `submitted_at` (optional)
+
+The time when the job submitted the batch to Gemini. The core metric `turnaround_s`
+(`completed_at` − `submitted_at`) needs it; see
+[core metrics](../../2026-10-08-batch-metric-profiles/core-metrics.md). It replaces the time
+of each request, which the Gemini Batch API does not have. A job that does not send it is
+still valid, and `turnaround_s` is "Unknown". The backend accepts the field from this
+change on. **Send it only after this change is deployed to the test host**, because an
+older backend rejects unknown fields with `400`.
 
 ## Changes from the standard (please confirm)
 
