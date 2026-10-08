@@ -138,3 +138,24 @@ def test_ci_workflow_paths():
     assert workflow["permissions"] == {"contents": "read"}
     assert any(step.get("run") == "bash scripts/compose-smoke.sh" for step in job["steps"])
     assert "secrets." not in WORKFLOW.read_text(encoding="utf-8")
+
+
+def test_testhost_file_uses_registry_image_and_host_secrets():
+    host = _load("compose.testhost.yaml")["services"]
+    assert set(host) == {"backend"}                     # no database on the VM (Cloud SQL)
+    backend = host["backend"]
+    assert backend["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
+    assert "build" not in backend and "environment" not in backend
+    assert backend["env_file"] == ["/opt/model-monitor/backend.env"]
+    assert backend["ports"] == ["127.0.0.1:8000:8000"]   # no front door yet
+    assert backend["volumes"] == [
+        "/opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro"]
+
+
+def test_env_example_has_names_only():
+    text = (COMPOSE / "backend.env.example").read_text(encoding="utf-8")
+    values = dict(line.split("=", 1) for line in text.splitlines()
+                  if line and not line.startswith("#"))
+    assert set(values) == {"DATABASE_URL", "BATCH_API_KEY_SHA256"}
+    assert values["BATCH_API_KEY_SHA256"] == ""
+    assert "<password>" in values["DATABASE_URL"] and "sslmode=verify-ca" in values["DATABASE_URL"]

@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The backend runs on the GCP test host (S1-04): VM `ai-ml-monitoring-dev-env` with Docker
+  Compose (`deploy/compose/compose.testhost.yaml`, runbook `deploy/compose/TESTHOST.md`)
+  and Cloud SQL `sandbox-pg17-db` (PostgreSQL 17.11, private IP, TLS). It listens only
+  inside the VM until the front door exists.
 - `POST /api/batch/runs` accepts the optional field `submitted_at` (UTC; not later than
   `completed_at`) in `batch-run/1`, for the core metric `turnaround_s`. It is stored in the
   run payload.
