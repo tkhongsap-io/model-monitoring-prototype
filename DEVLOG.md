@@ -64,6 +64,38 @@ depend on. The spec is
   `issues.md`. Evidence: the new tests, `test_docs.py` and `test_compose_files.py` 18 passed.
 - Remaining: run the phases on the test host and record the results here.
 
+### 2026-10-08 — S1-04: backend deployed on the GCP test host (inside the VM only)
+
+- Done with the project owner's approval, one step at a time: database `monitor` and user
+  `monitor_app` on Cloud SQL `sandbox-pg17-db` (the password was made in the session,
+  written only to the VM's `/opt/model-monitor/backend.env` with mode 600, and never
+  printed or committed); the VM `ai-ml-monitoring-dev-env` started; Docker 29.8.2 and
+  Compose v5.6.0 installed; Docker pulls from Artifact Registry with the VM's service
+  account `model-monitoring-service` (`roles/artifactregistry.reader`); backend image
+  `dev/backend:7` (`a8f1872`) started with `compose.yaml` + `compose.testhost.yaml`.
+  New repo files: `deploy/compose/compose.testhost.yaml`, `backend.env.example`,
+  `TESTHOST.md`; two static tests.
+- Evidence on the VM: `/api/health` 200; `/api/version` `build_sha` `a8f1872`;
+  `/api/readiness` 503 only for "BATCH_API_KEY_SHA256 has no valid entry" (expected: no
+  key yet); database check from the container: server 17.11, user `monitor_app`, TLS on
+  (TLSv1.3), migrations 1–8. Repo: `test_compose_files.py` + `test_docs.py` 17 passed.
+- Found: Cloud SQL is 17.11 (the same minor as the local stack). The VM is `n4-highmem-4`
+  (4 vCPU, 32 GiB) with 100 GB, not the planned `e2-standard-8` with 200 GB; check it for
+  Langfuse in S2-03. The firewall rule `test-true-corp-ai-allow-https` allows 443 from
+  `0.0.0.0/0` for the tag `https-server`; the VM has no public IP, but S1-04 wants only the
+  job ranges. A Cloud SQL password must contain lower, upper, digit and a special
+  character (the first try failed on this).
+- First API key (later on 2026-10-08): use case `rtr-fraud-validation`. The key is in
+  Secret Manager `batch-api-key-rtr-fraud-validation` (version 1, `asia-southeast3` only);
+  only its SHA-256 is in `backend.env`. Checked by hash that the stored key is the same; the
+  key was never printed, and the temporary key files are deleted. After a backend restart:
+  `/api/readiness` 200 `ready` (1 key); `POST /api/batch/runs` 201 `created` for run
+  `deploy-check-20261008T065806Z`, stored `trace_id` = the sent `traceparent` trace ID.
+  That `deploy-check-` row stays in `batch_runs` (rows never change).
+- Remaining: give the GCP developer the secret name for S1-03 (the job reads it); S1-11 (`monitor_readonly`, remove `monitor_app`
+  from `cloudsqlsuperuser`); the firewall rule; the private DNS name, the certificate and
+  the front door (S1-06 test-host part); the VM service account has no logging roles yet.
+
 ### 2026-10-08 — decision: traceability first; Sprint 1 sends no records
 
 - Decisions (project owner, 2026-10-08), recorded in the `plan.md` decision table:

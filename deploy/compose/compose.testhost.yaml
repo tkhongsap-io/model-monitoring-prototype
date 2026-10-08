@@ -1,0 +1,17 @@
+# GCP test host settings (S1-04): VM ai-ml-monitoring-dev-env, Cloud SQL sandbox-pg17-db.
+# Never use this file on a laptop. On the VM, run from /opt/model-monitor/compose:
+#   docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
+# BACKEND_IMAGE comes from the .env file in that folder (an image name, not a secret).
+# Every secret comes from /opt/model-monitor/backend.env on the VM (chmod 600), never from
+# git. See deploy/compose/TESTHOST.md.
+services:
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set}
+    env_file:
+      - /opt/model-monitor/backend.env
+    volumes:
+      # Cloud SQL server CA for sslmode=verify-ca (a public certificate, not a secret)
+      - /opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro
+    ports:
+      # Only on the VM itself until the front door exists (S1-06 test-host part).
+      - "127.0.0.1:8000:8000"
