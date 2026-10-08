@@ -16,7 +16,7 @@ Until the front door exists (S1-06 test-host part), the backend listens only on
 |---|---|---|
 | `/opt/model-monitor/compose/` | `compose.yaml`, `compose.testhost.yaml`, `otel-collector.yaml` from this folder | 644 |
 | `/opt/model-monitor/compose/.env` | `BACKEND_IMAGE=<image>:<tag>` (not a secret) | 644 |
-| `/opt/model-monitor/backend.env` | `DATABASE_URL` and `BATCH_API_KEY_SHA256` (see `backend.env.example`) | **600** |
+| `/opt/model-monitor/backend.env` | `DATABASE_URL` (user `monitor_backend`) and `BATCH_API_KEY_SHA256` (see `backend.env.example`) | **600** |
 | `/opt/model-monitor/cloudsql-server-ca.pem` | The server CA of `sandbox-pg17-db` (public certificate) | 644 |
 
 Never put a password or an API key in git, in chat, or in a command that prints it.
@@ -25,9 +25,9 @@ Never put a password or an API key in git, in chat, or in a command that prints 
 
 1. Database and user (from a computer with `gcloud`):
    - `gcloud sql databases create monitor --instance sandbox-pg17-db`
-   - `gcloud sql users create monitor_app --instance sandbox-pg17-db --password <generated, not printed>`
-   - Note: a user made with `gcloud` is a member of `cloudsqlsuperuser`. S1-11 removes that
-     membership and adds `monitor_readonly` with SQL.
+   - Accounts: follow `deploy/sql/s1-11/README.md`. The backend user `monitor_backend` is made
+     with SQL, not with `gcloud sql users create`, because a `gcloud` user is a member of
+     `cloudsqlsuperuser` (S1-11).
 2. Server CA: `gcloud sql instances describe sandbox-pg17-db --format="value(serverCaCert.cert)" > cloudsql-server-ca.pem`
 3. Start the VM: `gcloud compute instances start ai-ml-monitoring-dev-env --zone asia-southeast3-c`
 4. Install Docker Engine and the Compose plugin on the VM (Debian 12), from Docker's apt
