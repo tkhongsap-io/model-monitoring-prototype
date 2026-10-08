@@ -63,6 +63,15 @@ def test_correct_body_and_key_201_one_row(client):
     assert stored[0]["status"] == "completed" and stored[0]["sample_size"] == 50
 
 
+def test_submitted_at_accepted_and_kept_in_payload(client):
+    body = example("03-batch-api-null-latency.json")
+    response = client.post(URL, json=body, headers={"Authorization": f"Bearer {KEY_07}"})
+    assert response.status_code == 201, response.text
+    stored = rows()
+    assert len(stored) == 1
+    assert json.loads(stored[0]["payload"])["submitted_at"] == "2026-10-07T06:40:12Z"
+
+
 def test_same_body_again_200_still_one_row(client):
     body = example("01-completed-online.json")
     first = client.post(URL, json=body, headers={**AUTH, "traceparent": TRACEPARENT})

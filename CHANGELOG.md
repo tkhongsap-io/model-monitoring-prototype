@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `POST /api/batch/runs` accepts the optional field `submitted_at` (UTC; not later than
+  `completed_at`) in `batch-run/1`, for the core metric `turnaround_s`. It is stored in the
+  run payload.
 - `scripts/strip_record_text.py` writes a copy of a GCP run summary without its free text
   (`question`, `answer`, `retrieval_context`, `tool_calls` output), so a real body can be
   shared for development. It prints only counts. `/data/` is ignored by git.
