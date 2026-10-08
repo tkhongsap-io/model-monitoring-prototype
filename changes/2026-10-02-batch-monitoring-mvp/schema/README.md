@@ -126,6 +126,13 @@ still valid, and `turnaround_s` is "Unknown". The backend accepts the field from
 change on. **Send it only after this change is deployed to the test host**, because an
 older backend rejects unknown fields with `400`.
 
+**Source of the value (decided by the project owner, 2026-10-08):**
+
+| Job type | `submitted_at` |
+|---|---|
+| Gemini Batch API | The `createTime` of the batch job resource. If one run gets the results of more than one batch job, the **earliest** `createTime`. The job does not use its own clock. |
+| Online calls | The job clock, immediately before the first Gemini request. If the job fails before the first request, omit the field. |
+
 ## Changes from the standard (please confirm)
 
 | Change | Reason |
