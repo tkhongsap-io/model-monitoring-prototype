@@ -476,8 +476,8 @@ IP. In Sprint 2, Langfuse comes on the same VM, with its own PostgreSQL containe
 
 | Item | Setting |
 |---|---|
-| Machine | `e2-standard-8` (8 vCPU, 32 GiB), the recommended size of the Sprint 2 prerequisites. It is large enough for Langfuse. Thus no resize is necessary in Sprint 2. |
-| Disk | 200 GiB `pd-balanced`. A daily snapshot schedule that keeps 7 snapshots. The snapshots hold the Langfuse data (S2-03) and the Collector files. The monitor data is in Cloud SQL, with its own backups. |
+| Machine | `n4-highmem-4` (4 vCPU, 32 GiB): the VM `ai-ml-monitoring-dev-env` that exists (the project owner kept it, 2026-10-08; the plan had `e2-standard-8`). The memory is enough for Langfuse; 4 vCPU is the Langfuse minimum (S2-03 checks it). |
+| Disk | 100 GB (the existing VM; the plan had 200 GiB). Langfuse recommends 100 GiB for its data alone, so S2-03 checks the free space and grows the disk if necessary (a disk can grow without a new VM). A daily snapshot schedule that keeps 7 snapshots. The snapshots hold the Langfuse data (S2-03) and the Collector files. The monitor data is in Cloud SQL, with its own backups. |
 | Image | Ubuntu 24.04 LTS, Shielded VM on |
 | Network | No external IP. Cloud NAT for outbound traffic only (Docker images, operating-system updates). |
 | Service account | A dedicated account with only the roles that the VM needs, for example log and metric writer. Do not use the default Compute Engine service account. |
@@ -903,7 +903,7 @@ Server size for the test host:
 | Memory | 24 GiB | 32 GiB | Langfuse alone needs at least 16 GiB. The monitor backend loads pandas, Evidently and NannyML. |
 | Disk | 150 GiB SSD | 200 GiB SSD | Langfuse recommends 100 GiB for its data. The monitor database, the logs and the Docker images need more. |
 | Operating system | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS | Docker Engine and Docker Compose v2 |
-| GCP machine type | `e2-standard-4` is too small for all services | `e2-standard-8` (8 vCPU, 32 GiB), used in S1-04 | — |
+| GCP machine type | `e2-standard-4` is too small for all services | `e2-standard-8` (8 vCPU, 32 GiB) | The test host is `n4-highmem-4` (4 vCPU, 32 GiB) with 100 GB, kept by the project owner on 2026-10-08. S2-03 checks CPU and disk. |
 
 Ports on the test host (VPC firewall rules, S1-04):
 
@@ -1037,7 +1037,7 @@ GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse p
 
 | Question | Owner |
 |---|---|
-| Is the test host VM large enough for Langfuse (CPU, memory, disk)? S1-04 uses `e2-standard-8` and 200 GiB. Examine the Langfuse self-hosting requirements. | Platform |
+| Is the test host VM large enough for Langfuse (CPU, memory, disk)? The VM is `n4-highmem-4` (4 vCPU, 32 GiB) with a 100 GB disk. 4 vCPU is the Langfuse minimum, and Langfuse recommends 100 GiB for its data alone: check the free space, and grow the disk before the install if necessary. Examine the Langfuse self-hosting requirements. | Platform |
 | Do the engineers reach port 3443 through the company network path to the VPC? If not, use an IAP tunnel: `gcloud compute start-iap-tunnel <vm> 3443`. | Network team |
 
 **Rules**

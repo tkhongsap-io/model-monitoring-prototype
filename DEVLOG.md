@@ -47,6 +47,20 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — S1-04: the test host keeps its VM size
+
+- Decided (project owner): the VM `ai-ml-monitoring-dev-env` stays `n4-highmem-4`
+  (4 vCPU, 32 GiB) with a 100 GB disk, not the planned `e2-standard-8` with 200 GiB.
+  `issues.md` S1-04, the Sprint 2 prerequisites and S2-03 match. Risk for S2-03: 4 vCPU is
+  the Langfuse minimum, and Langfuse recommends 100 GiB for its data alone, so S2-03 checks
+  the free space and grows the disk if necessary (no new VM needed).
+- S1-04 status (checked read-only): VM without external IP, backend and Collector running,
+  Cloud SQL private IP and TLS only, `verify-ca`, migrations, SSH through IAP only, secrets
+  only on the host. Open: the private DNS name (no Cloud DNS zone yet), the private CA
+  certificate, and 443 only from the job ranges. The 443 rule
+  `test-true-corp-ai-allow-https` (`0.0.0.0/0`, tag `https-server`) is shared with the VM
+  `test-internal-model`, so it is not changed: our VM will get its own tag and rule.
+
 ### 2026-10-08 — S1-11: database account scripts (run by the project owner)
 
 - Found (read-only inspection as `postgres`): the database `monitor` belongs to
