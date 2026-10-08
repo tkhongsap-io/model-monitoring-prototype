@@ -68,20 +68,21 @@
 
 ## Example: the fraud validation job (partly known)
 
-From the first two bodies (2026-10-07). The developer must confirm and complete it.
+From the first two bodies (2026-10-07) and the GCP answers on #3 (2026-10-08). The
+developer completes it on the S1-09 issue.
 
 | # | Answer |
 |---|---|
-| A4 | About 112 to 349 requests in one run |
-| A5 | Batch inference. To confirm: the body has `latency_s` values from 0.7 to 4.8 s. How are they measured? |
+| A4 | About 112 to 243 requests in one run |
+| A5 | **Online** calls. `latency_s` is the time of each SDK call, measured in the job. |
 | A7 | `gemini-2.5-flash` |
 | B1 | Images + a fixed prompt |
 | B2 | 3 |
 | B3 | No |
-| B4 | Yes. The system prompt is about 9,600 characters and is not sent. |
-| C1 | One label (to confirm) |
+| B4 | Yes. The system prompt is about 9,600 characters and is not sent. `question` is `Process These Images [IMAGE] [IMAGE] [IMAGE]`. |
+| C1 | Structured result: three check results in the form `x/3` and four sub-counts (not one label) |
 | C2 | Yes, fixed JSON |
-| C3, C4, C5, C6 | `unknown`: the developer gives the field names, the labels and the score field |
+| C3 | The developer gives the field names on the S1-09 issue |
 | D1 | To ask: are fraud cases confirmed later? |
 
 ## How the answers select the profile
@@ -100,7 +101,7 @@ RAI confirms the profile of each use case. The registry (S2-01) records it.
 
 | Use case | Owner | Mode | Input | Output | Profile | Text source | Free-text output | Confidence | Labels later | Reviewer |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Fraud validation (`LOCAL-TEST`) | ? | Batch | 3 images | Fixed JSON | `classification` (to confirm) | No | ? | ? | ? | ? |
+| Fraud validation (`rtr-fraud-validation`) | ? | Online | 3 images | Fixed JSON: 3 checks (`x/3`) + 4 sub-counts | `extraction` or `classification` (RAI decides) | No | ? | ? | ? | ? |
 | UC-02 | | | | | | | | | | |
 | UC-03 | | | | | | | | | | |
 | UC-04 | | | | | | | | | | |

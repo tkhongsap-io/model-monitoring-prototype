@@ -47,6 +47,33 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — S1-01: GCP answers recorded; corrections to the monitor's own notes
+
+- Input: three replies of the GCP job developer on issue #3 (2026-10-08), covering five
+  repositories: `rtr-fraud-validation`, `sentiment-voice-analysis` (3 pipelines),
+  `sentiment-batch-mnp`, `sentiment-batch-retention`, `workflow-automation`.
+- **Our mistakes, corrected:**
+  - `request_count`: the job always counted all requests. In the first example,
+    243 = 137 successful + 106 failed. The "349" in the 2026-10-07 entry, in
+    `schema/README.md` and in the schema description was wrong.
+  - `record_id` up to 126 with `request_count` 112 is correct: `record_id` is the input
+    row number, and rows without a request leave gaps.
+  - Not all jobs use the Batch API. `rtr-fraud-validation` and the `workflow-automation`
+    fact-check job call Gemini online; `p95_latency_s` is an extra metric for them.
+  - The RTR answer is not one label: three check results (`x/3`) and four sub-counts.
+- Changed: `batch-run-1.schema.json` (the sources of `run_id`, `status`, `completed_at`,
+  `request_count`, `failed_count` and `record_id` from the answers; 4 record fields stay
+  "to fill in" for Sprint 2), `schema/README.md`, `core-metrics.md`,
+  `use-case-template.md` (RTR example), `plan.md` (2026-10-08 metric-profile reason).
+  No validation rule changes.
+- Open questions from the GCP developer, waiting for a decision of the project owner:
+  `submitted_at` for a run with more than one batch job and for online jobs; Retention's
+  forced function-call arguments as `answer`; three more `finishReason` values for
+  `refused`; the distinct-answer check. Also open: `model` when one run uses one model for
+  each topic (`workflow-automation`); the PII list now includes name, surname and address.
+- S1-01 still needs: the security approval of the S1 item "run identity" (S1-08) and one
+  real identity-only body.
+
 ### 2026-10-08 — S1-04: test host updated to `backend:9`
 
 - Done (project owner, with the `TESTHOST.md` steps): `BACKEND_IMAGE` set to
