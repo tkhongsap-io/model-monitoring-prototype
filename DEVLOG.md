@@ -47,6 +47,22 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — `batch-run/1`: optional field `submitted_at`
+
+- Decision (project owner): add the optional field `submitted_at`, the time when the job
+  submitted the batch. The core metric `turnaround_s` = `completed_at` − `submitted_at`
+  replaces the time of each request, which the Gemini Batch API does not have.
+- Changed: `schema/batch-run-1.schema.json` (new property, UTC pattern), example
+  `03-batch-api-null-latency.json` sends it, `schema/README.md`, `backend/app/batch_schema.py`
+  (optional field; a real calendar time; rules: not `null` if present, not later than
+  `completed_at`), `docs/STRICT-LIVE.md`, `core-metrics.md`. No migration: the field stays
+  in `payload`; S2-05 adds a column when it calculates `turnaround_s`.
+- Evidence: `tests/test_batch_schema.py` + `tests/test_batch_runs_api.py` 89 passed
+  (new: optional, format, order, `null`, stored in `payload`); JSON Schema check with
+  `jsonschema` (throwaway environment): 5 valid pass, 3 invalid + 9 built cases fail.
+- Remaining: deploy to the test host before any job sends the field (an older backend
+  answers `400`).
+
 ### 2026-10-08 — every database is PostgreSQL 17
 
 - Changed: the project owner changed the monitor's Cloud SQL instance on the test host

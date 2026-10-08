@@ -63,6 +63,8 @@ class BatchRunV1(_Strict):
     run_id: Identifier
     status: Literal["completed", "partial", "failed"]
     completed_at: str = Field(pattern=_UTC_TIMESTAMP)
+    # optional: the time the job submitted the batch; turnaround = completed_at - submitted_at
+    submitted_at: str | None = Field(default=None, pattern=_UTC_TIMESTAMP)
     request_count: int = Field(ge=0)
     failed_count: int = Field(ge=0)
     model: str = Field(min_length=1, max_length=128)
@@ -70,9 +72,11 @@ class BatchRunV1(_Strict):
     records: list[Record] = Field(max_length=200)
     records_reason: Literal["records_not_approved", "job_failed"] | None = None
 
-    @field_validator("completed_at")
+    @field_validator("completed_at", "submitted_at")
     @classmethod
-    def _real_timestamp(cls, value: str) -> str:
+    def _real_timestamp(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
         try:  # the pattern passes 2026-13-40; the calendar does not
             datetime.fromisoformat(value)
         except ValueError:
@@ -89,6 +93,11 @@ class BatchRunV1(_Strict):
         n = len(self.records)
         if "records_reason" in self.model_fields_set and self.records_reason is None:
             err(("records_reason",), "must be omitted, not null")
+        if "submitted_at" in self.model_fields_set and self.submitted_at is None:
+            err(("submitted_at",), "must be omitted, not null")
+        if self.submitted_at is not None and (
+                datetime.fromisoformat(self.submitted_at) > datetime.fromisoformat(self.completed_at)):
+            err(("submitted_at",), "must not be later than completed_at")
         if self.failed_count > self.request_count:
             err(("failed_count",), "must not be more than request_count")
         if self.request_count == 0 and n:

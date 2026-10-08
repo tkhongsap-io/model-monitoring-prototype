@@ -104,12 +104,12 @@ The backend parses `answer` with this contract. `answer` stays a string in the b
 
 | Change | Why | Issue |
 |---|---|---|
-| New optional field `submitted_at` (UTC, ISO 8601): the time when the job submitted the batch | `turnaround_s` needs it. Optional, so that the jobs that do not send it are still valid. | S1-01, S1-02b |
+| New optional field `submitted_at` (UTC, ISO 8601): the time when the job submitted the batch. **Added 2026-10-08** to the schema and to `batch_schema.py`. | `turnaround_s` needs it. Optional, so that the jobs that do not send it are still valid. | S1-01, S1-02b |
 | `retrieval_context` stays `[]` for image input. The system prompt is not sent. `question` is a short instruction with one `[IMAGE]` for each image. | Already decided 2026-10-07 | S1-01 |
 | No other change | The core metrics and the profiles use the existing fields | — |
 
-The schema rejects unknown fields. Thus the backend must accept `submitted_at` **before** a job
-sends it (S1-02b).
+The schema rejects unknown fields. Thus a job sends `submitted_at` only after the backend
+with this change is deployed to the test host.
 
 ## 5. Effect on the plan
 
@@ -141,4 +141,3 @@ sends it (S1-02b).
 | The profile of each use case | RAI + use-case owner, from the template answers | S1-09 |
 | The baseline: 5 runs, and the limits of the label change | RAI | Before S2-05 starts |
 | A label source or a reviewer for accuracy, for each `classification` and `extraction` use case | RAI + use-case owner | After October |
-| `submitted_at` in `batch-run/1` | Backend + GCP developers | S1-01 |
