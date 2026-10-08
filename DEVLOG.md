@@ -47,6 +47,23 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — S1-11: database account scripts (run by the project owner)
+
+- Found (read-only inspection as `postgres`): the database `monitor` belongs to
+  `cloudsqlsuperuser`; `monitor_app` (made with `gcloud`) is in `cloudsqlsuperuser` and has
+  `CREATEROLE` and `CREATEDB`; `postgres` has no ADMIN OPTION on that group, so it cannot
+  take `monitor_app` out. The backend could create tables only through that group.
+- Decided (project owner, option a): a new backend user `monitor_backend` made with SQL
+  (not in `cloudsqlsuperuser`) owns the database and the tables; a group `monitor_read`
+  with `monitor_readonly`, `dev_itthisak`, `dev_prakasit`; then `monitor_app` is deleted.
+  The automatic permission check of the coding tool blocked the run that handled the
+  admin password, so the project owner runs the phases with the commands in
+  `deploy/sql/s1-11/README.md`, and Claude checks each output.
+- Changed: `deploy/sql/s1-11/` (phases 0–6, rollback, README), `backend/tests/test_s1_11_scripts.py`
+  (no password in a file, scripts stop on errors and print no password), S1-11 in
+  `issues.md`. Evidence: the new tests, `test_docs.py` and `test_compose_files.py` 18 passed.
+- Remaining: run the phases on the test host and record the results here.
+
 ### 2026-10-08 — decision: traceability first; Sprint 1 sends no records
 
 - Decisions (project owner, 2026-10-08), recorded in the `plan.md` decision table:
