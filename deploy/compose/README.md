@@ -1,7 +1,7 @@
 # Local stack: backend, PostgreSQL and OTel Collector
 
 The batch MVP stack on a laptop (S1-06): the backend (`backend/Dockerfile`), PostgreSQL
-18.6 and the OTel Collector 0.161.0. It runs on macOS (Apple Silicon or Intel) and Linux.
+17.11 and the OTel Collector 0.161.0. It runs on macOS (Apple Silicon or Intel) and Linux.
 
 ## Prerequisites
 
@@ -72,6 +72,17 @@ Stop it and remove the data:
 ```bash
 docker compose -f compose.yaml -f compose.local.yaml down -v
 ```
+
+## After the change from PostgreSQL 18 to 17 (2026-10-08)
+
+If you kept a stack running with `KEEP=1` before this change, remove its volume one time,
+because PostgreSQL 17 cannot read PostgreSQL 18 data:
+
+```bash
+docker compose -f compose.yaml -f compose.local.yaml down -v
+```
+
+The smoke test always removes its volume, so a normal smoke test run needs no step.
 
 ## If a port is in use
 

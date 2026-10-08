@@ -13,7 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `scripts/strip_record_text.py` writes a copy of a GCP run summary without its free text
   (`question`, `answer`, `retrieval_context`, `tool_calls` output), so a real body can be
   shared for development. It prints only counts. `/data/` is ignored by git.
-- A local Docker Compose stack (`deploy/compose/`): the backend, PostgreSQL 18.6 and the
+- A local Docker Compose stack (`deploy/compose/`): the backend, PostgreSQL 17.11 and the
   OTel Collector 0.161.0, with a smoke test (`scripts/compose-smoke.sh`) that runs in CI
   (`compose-smoke.yml`) and on macOS (S1-06).
 - A push to `dev` that changes `backend/` builds the backend image and pushes it to GCP
@@ -34,7 +34,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The backend serves only the batch MVP API: `POST /api/batch/runs`, `/api/health`,
   `/api/healthz`, `/api/readiness` and `/api/version`. Health is a liveness check (no
   database call); readiness checks only `DATABASE_URL` (PostgreSQL) and
-  `BATCH_API_KEY_SHA256`. CI uses PostgreSQL 18.6 (S1-13).
+  `BATCH_API_KEY_SHA256`. CI uses PostgreSQL 17.11 (S1-13; 18.6 until 2026-10-08).
 - `POST /api/batch/runs` continues the GCP job's trace with OpenTelemetry: a FastAPI
   server span and its child `monitor.ingest`, exported over OTLP/HTTP when
   `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The stored `trace_id` comes from the span. A

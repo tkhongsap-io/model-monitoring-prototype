@@ -52,7 +52,7 @@ DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.12/site-packages/sklearn/.dyl
 Linux wheels bundle `libgomp`, so CI needs nothing; on Replit `backend/run.sh` probes the
 Nix store for `libgomp.so.1`. The fast suite (`-m "not slow"`) never imports NannyML.
 
-CI runs the full backend suite, slow tests included, against PostgreSQL 18.6 in
+CI runs the full backend suite, slow tests included, against PostgreSQL 17.11 in
 `.github/workflows/backend-live.yml` and validates the batch MVP configuration
 (`config.batch_configuration_errors()`). Locally the suite uses SQLite under a temporary
 directory; no test needs a real producer, Langfuse, or a live Claude judge, and those
