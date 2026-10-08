@@ -47,6 +47,27 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — decision: core metrics for all use cases, one profile for each task type
+
+- Input: the second GCP body (fraud validation, 50 records, stripped with
+  `scripts/strip_record_text.py`; not committed) passed the JSON Schema and `validate_run`.
+  Its values and the developer's answers showed that the job is an image classifier: a
+  fixed prompt (the system prompt, about 9,600 characters, was in `question`), 3 images
+  (sent as fake `retrieval_context` items with text `[IMAGE]`), and a fixed JSON answer.
+  The project owner confirmed that all 10 GCP use cases are one-turn batch inference.
+- Decision (project owner, 2026-10-08): the chatbot metrics do not fit all use cases. Each
+  use case gets the core metrics (delivery, `turnaround_s`, `failure_rate`,
+  `volume_change`, `valid_output_rate`, `block_rate`) and one profile
+  (`classification`, `extraction`, `generation_from_text`, `generation_free`). The five
+  LLM metrics stay for the generation profiles only. `p95_latency_s` is not a core metric,
+  because batch inference has no time for each request.
+- Changed: new `changes/2026-10-08-batch-metric-profiles/` (`core-metrics.md`,
+  `use-case-template.md`); `llm-metrics-standard.md` status points to it; S1-09 in
+  `issues.md` uses the template. The plan effect is posted on issue #3.
+- Remaining: RAI approves the bands and the profiles; the job developers fill in the
+  template (S1-09); S2-01, S2-05, S2-07, S2-09, S2-10 and S4-04 are planned again from
+  the answers; `submitted_at` is added to `batch-run/1` (S1-01, S1-02b).
+
 ### 2026-10-07 — S1-01: schema clarifications after the first GCP example
 
 - Input: the GCP job developer sent one real body (fraud validation job, 8 records, text
