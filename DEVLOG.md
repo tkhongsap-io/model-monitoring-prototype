@@ -47,6 +47,33 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — S1-04: the test host keeps its VM size
+
+- Decided (project owner): the VM `ai-ml-monitoring-dev-env` stays `n4-highmem-4`
+  (4 vCPU, 32 GiB) with a 100 GB disk, not the planned `e2-standard-8` with 200 GiB.
+  `issues.md` S1-04, the Sprint 2 prerequisites and S2-03 match. Risk for S2-03: 4 vCPU is
+  the Langfuse minimum, and Langfuse recommends 100 GiB for its data alone, so S2-03 checks
+  the free space and grows the disk if necessary (no new VM needed).
+- S1-04 status (checked read-only): VM without external IP, backend and Collector running,
+  Cloud SQL private IP and TLS only, `verify-ca`, migrations, SSH through IAP only, secrets
+  only on the host. Open: the private DNS name (no Cloud DNS zone yet), the private CA
+  certificate, and 443 only from the job ranges. The 443 rule
+  `test-true-corp-ai-allow-https` (`0.0.0.0/0`, tag `https-server`) is shared with the VM
+  `test-internal-model`, so it is not changed: our VM will get its own tag and rule.
+- Decided (project owner): the batch jobs run in the same VPC `test-true-corp-ai` and call
+  the internal IP `10.10.0.4`. The test host gets no DNS name and no HTTPS; both come with
+  production (S4-01). The front door (S1-06) serves the job paths on port 80, open only to
+  the job subnet `10.10.0.0/24`; the staff ports become 8080 and 3000 (Sprint 2). Effects:
+  S1-03 uses an `http://` URL on the test host only; S3-07 SSO cannot run on the test host
+  (the long-lead fallback applies). Accepted risk, test host only: the API key and the OTLP
+  token cross the VPC without TLS (Google encrypts VM-to-VM VPC traffic); S3-05 records it.
+- Done (project owner ran the commands; Claude checked read-only): the rule
+  `monitor-testhost-allow-http-jobs` (ingress `tcp:80` from `10.10.0.0/24`, tag
+  `monitor-frontdoor`) exists; the monitor VM has the tags `monitor-frontdoor` and `vm-test`,
+  no longer `https-server`, and no external IP. `test-internal-model` keeps `https-server`.
+  Not yet tested: the job-side `curl http://10.10.0.4/api/health`, which needs the S1-06
+  front door on port 80.
+
 ### 2026-10-08 — S1-11: database account scripts (run by the project owner)
 
 - Found (read-only inspection as `postgres`): the database `monitor` belongs to
