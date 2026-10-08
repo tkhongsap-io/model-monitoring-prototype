@@ -23,7 +23,8 @@ def test_images_are_pinned():
     base, local = _load("compose.yaml"), _load("compose.local.yaml")
     assert base["services"]["collector"]["image"] == \
         "otel/opentelemetry-collector-contrib:0.161.0"
-    assert local["services"]["postgres"]["image"] == "postgres:18.6-bookworm"
+    # every database is PostgreSQL 17 (decided 2026-10-08: Cloud SQL is 17)
+    assert local["services"]["postgres"]["image"] == "postgres:17.11-bookworm"
     assert base["services"]["collector-init"]["image"] == "busybox:1.37.0"
     for doc in (base, local):
         for service in doc["services"].values():
@@ -54,7 +55,16 @@ def test_local_file_builds_backend_and_waits_for_postgres():
     expected = hashlib.sha256(LOCAL_KEY.encode()).hexdigest()
     assert env["BATCH_API_KEY_SHA256"] == f"GCP-UC-03:{expected}"
     assert "ports" not in local["postgres"]
-    assert local["postgres"]["volumes"] == ["pgdata:/var/lib/postgresql"]
+    # PostgreSQL 17 images keep the data in /var/lib/postgresql/data (18 changed it)
+    assert local["postgres"]["volumes"] == ["pgdata:/var/lib/postgresql/data"]
+
+
+def test_ci_database_is_the_local_stack_database():
+    ci = yaml.safe_load((ROOT / ".github" / "workflows" / "backend-live.yml")
+                        .read_text(encoding="utf-8"))
+    ci_image = ci["jobs"]["test-migrate-and-configure"]["services"]["postgres"]["image"]
+    local_image = _load("compose.local.yaml")["services"]["postgres"]["image"]
+    assert ci_image == local_image
 
 
 def test_published_ports_are_loopback_only():
