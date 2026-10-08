@@ -47,6 +47,30 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — decision: traceability first; Sprint 1 sends no records
+
+- Decisions (project owner, 2026-10-08), recorded in the `plan.md` decision table:
+  1. **Traceability first.** The scope stays the same: the receiving API plus OTel and
+     the Collector. Considered and rejected for now: API-only traceability without the
+     Collector (simpler, but no step times, no spans for jobs that send nothing, and no
+     token totals in Langfuse).
+  2. **Sprint 1 sends identity-only bodies.** `SEND_RECORDS` stays off for all of Sprint
+     1. The record fixes from the first GCP bodies (system prompt in `question`, fake
+     image items in `retrieval_context`) move to Sprint 2.
+  3. **S1-08 for Sprint 1** approves only the run identity, the API key path, the
+     certificate and the OTLP endpoint. The records, the PII list and the LiteLLM proxy
+     logs are approved before Sprint 2 sends records.
+  4. **Backlog:** a reporter library for teams outside the GCP batch jobs (one file, one
+     function `report_run()`, also a command-line tool). Not in October.
+- Changed: `plan.md` (decision table: the 2026-10-07 GCP-logs decision and the
+  2026-10-08 metric-profile decision are now in it too; the 2026-10-03 five-metric row is
+  marked as replaced), `issues.md` (Sprint 1 focus note; S1-01 closes with a real
+  identity-only body; S1-03 keeps `SEND_RECORDS` off; S1-08 items marked **S1**; S1-10
+  is identity-only; S2-04 notes the reporter backlog). The affected GitHub issues are
+  synced; a note for the GCP developer is on issue #3.
+- Next for traceability: S1-05 part A (OTel in the GCP job), S1-04 and S1-06 (test host
+  and Collector reachable from GCP), S1-07 (trace check tool).
+
 ### 2026-10-08 — `batch-run/1`: optional field `submitted_at`
 
 - Decision (project owner): add the optional field `submitted_at`, the time when the job
