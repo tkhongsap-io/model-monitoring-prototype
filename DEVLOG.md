@@ -47,6 +47,16 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — S1-04: test host updated to `backend:9`
+
+- Done (project owner, with the `TESTHOST.md` steps): `BACKEND_IMAGE` set to
+  `dev/backend:9`, then `pull` and `up -d --wait`. Evidence (Claude, read-only): the
+  container runs `backend:9` (healthy); `/api/version` `build_sha` `7a574c6`; readiness
+  `ready`, database ok, 1 API key. Learned: `pull` alone does not change the running
+  container; `up -d` does.
+- Fixed: `TESTHOST.md` and `backend.env.example` still named `monitor_app` (deleted in
+  S1-11); they now name `monitor_backend`.
+
 ### 2026-10-08 — S1-04: the test host keeps its VM size
 
 - Decided (project owner): the VM `ai-ml-monitoring-dev-env` stays `n4-highmem-4`
