@@ -60,6 +60,13 @@ depend on. The spec is
   certificate, and 443 only from the job ranges. The 443 rule
   `test-true-corp-ai-allow-https` (`0.0.0.0/0`, tag `https-server`) is shared with the VM
   `test-internal-model`, so it is not changed: our VM will get its own tag and rule.
+- Decided (project owner): the batch jobs run in the same VPC `test-true-corp-ai` and call
+  the internal IP `10.10.0.4`. The test host gets no DNS name and no HTTPS; both come with
+  production (S4-01). The front door (S1-06) serves the job paths on port 80, open only to
+  the job subnet `10.10.0.0/24`; the staff ports become 8080 and 3000 (Sprint 2). Effects:
+  S1-03 uses an `http://` URL on the test host only; S3-07 SSO cannot run on the test host
+  (the long-lead fallback applies). Accepted risk, test host only: the API key and the OTLP
+  token cross the VPC without TLS (Google encrypts VM-to-VM VPC traffic); S3-05 records it.
 
 ### 2026-10-08 — S1-11: database account scripts (run by the project owner)
 

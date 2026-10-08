@@ -20,7 +20,7 @@ trace ID?
 |---|---|---|
 | LLM judge | The judge is a local model through the company LiteLLM proxy. Claude and the Anthropic API are not used. There is no second provider. The backend calls the proxy with `httpx`, which it already uses. The `anthropic` package is removed. | New: S1-12, S2-09, S2-10. Changed: S1-08, S1-09, Sprint 2 prerequisites, S2-05, S2-07, S3-04, S3-05, S4-01, S4-03, S4-04, S4-05 |
 | SSO login | Staff log in with Google Workspace SSO. OAuth2 Proxy protects the dashboard. Langfuse uses its own SSO, with no password login. Later, the company changes to Microsoft Entra ID. This change is a change of settings only. | New: S3-07. Changed: S1-06, Sprint 2 prerequisites, S2-03, S3-04, S3-05, S3-06, S4-01, S4-05 |
-| Front door path | On port 443, the front door sends only `/api/batch/runs` and `/api/health` to the backend, not all of `/api/*`. Thus nobody can read the dashboard API around the SSO. | S1-06 |
+| Front door path | On port 443 (port 80 on the test host), the front door sends only `/api/batch/runs` and `/api/health` to the backend, not all of `/api/*`. Thus nobody can read the dashboard API around the SSO. | S1-06 |
 | Test host in GCP | The test host for Sprints 1 to 3 is one Compute Engine VM in GCP, with the same Docker Compose stack. The GCP jobs reach it on a private VPC path. The VM has no public IP. The API key stays, so the test uses the same method as production. The Sprint 3 Kubernetes test stays on the test AWS cluster, and production stays on AWS. | Changed: S1-02, S1-04, S1-06, S1-08, S1-09, S1-11, S1-12, Sprint 2 prerequisites, S2-03, S2-06, S3-05, S3-06, S3-07, S4-01, S4-02 |
 
 **Review focus.** These five failure modes are the most likely to cause problems. Each one
@@ -28,7 +28,7 @@ has a test in the issue that owns it.
 
 | Failure mode | Expected behavior | Test in |
 |---|---|---|
-| A person reads the dashboard data through port 443 and avoids the SSO | Port 443 gives `404` for `/api/live/*` | S1-06, S3-07 |
+| A person reads the dashboard data through port 443 and avoids the SSO | Port 443 (port 80 on the test host) gives `404` for `/api/live/*` | S1-06, S3-07 |
 | The proxy owner changes the model behind the LiteLLM alias without notice | Each score records the model name that the proxy returns. S4-04 compares it with the model that RAI accepted. | S2-09, S2-10, S4-04 |
 | The local model returns text that is not valid JSON, or values outside 0 to 1 | The answer is a judge failure. No score is stored. The heuristic judge is never used in strict live mode. | S2-09 |
 | The LiteLLM proxy refuses calls (`429`) when many runs arrive together | The backend sends no more calls at the same time than the setting allows. It tries again after `429`. | S2-09, S3-04 |
@@ -221,7 +221,7 @@ them in Sprint 1, so that the answers arrive before the sprint that needs them.
 | Amazon RDS for PostgreSQL 17 (monitor and Langfuse, two instances) and Amazon S3 (plan A, S3-06) | Platform + AWS team | 21 October | Use plan B: PostgreSQL and MinIO in the cluster |
 | Test AWS Kubernetes cluster (not production) and access | Your team | S3-06 (19 October) | Test the S3-06 files on a disposable local cluster (kind) only |
 | LiteLLM virtual keys for the judge (test host and AWS), the model alias, and a network path to the proxy (S1-12) | LiteLLM proxy owner + network team | S2-09 (12 October) | Do not deploy S2-09 to the test host. Test S2-05 and S2-09 on the local stack with a fake LiteLLM server. The Sprint 2 demo shows the trace without scores. |
-| A private DNS name for the test host under a company domain, in a Cloud DNS private zone (for example `monitor-test.<company domain>`). Google does not accept an IP address or a `.internal` name in an SSO redirect URI. The name does not have to be public. | Your team + network team | S3-07 (19 October) | No SSO on the test host. The dashboard and Langfuse keep only the firewall rules and the Langfuse accounts. S3-05 records the exception. |
+| ~~A private DNS name for the test host under a company domain~~ **Not requested (decided 2026-10-08):** the test host uses its internal IP and plain HTTP; the DNS name and HTTPS come with production (S4-01). Google does not accept an IP address in an SSO redirect URI. | Your team | — | The fallback applies now: no SSO on the test host. The dashboard and Langfuse keep only the firewall rules and the Langfuse accounts. S3-05 records the exception. |
 | Two Google OAuth clients of type "Internal" (dashboard and Langfuse), with the redirect URIs of the test host and AWS | Google Workspace administrator + platform | S3-07 (19 October) | The same as the DNS name |
 
 **Paired tests this sprint**
@@ -295,8 +295,8 @@ test on GCP proves the method that production uses. Three layers protect the req
 | Layer | Test host (GCP, Sprints 1 to 3) | Production (AWS, Sprint 4) | Owner |
 |---|---|---|---|
 | API key | `Authorization: Bearer <key>`. A random key of at least 32 bytes for this use case. The GCP job reads it from Secret Manager. The backend stores only its SHA-256 hash and compares in constant time. | The same | Backend + GCP developer |
-| Encryption | HTTPS only, with a private CA certificate for the private DNS name (S1-04) | HTTPS only (S4-01) | Platform |
-| Network | Private VPC path. A VPC firewall rule allows port 443 only from the network ranges of the GCP jobs. The VM has no public IP. (S1-04) | The AWS security rules allow only the egress IPs of the GCP jobs, for example Cloud NAT static IPs (S4-01) | Your team |
+| Encryption | Plain HTTP to the internal IP, inside the VPC (decided 2026-10-08, S1-04). Google encrypts VM-to-VM traffic in a VPC network, but the application layer has no TLS. Accepted for the test host only. | HTTPS only (S4-01) | Platform |
+| Network | Private VPC path: the jobs run in the same VPC as the VM. A VPC firewall rule allows port 80 only from the job subnet. The VM has no public IP. (S1-04) | The AWS security rules allow only the egress IPs of the GCP jobs, for example Cloud NAT static IPs (S4-01) | Your team |
 
 Other options:
 
@@ -440,7 +440,7 @@ server. Only the test from start to end waits for the API (S1-02) on the test ho
 - [ ] The sample size follows the setting. A run that is smaller than the sample sends all its requests.
 - [ ] The body contains no raw phone number, email address or national ID number.
 - [ ] When `SEND_RECORDS` is off, the body has `records: []` and the reason `records_not_approved`. The default is off.
-- [ ] The job verifies the HTTPS certificate. With a private CA (S1-04), the job trusts that CA file. It never turns the verification off.
+- [ ] The monitor URL is a setting. On the test host it is `http://10.10.0.4` (S1-04, decided 2026-10-08). On production (S4-01) the job uses HTTPS and verifies the certificate. It never turns the verification off.
 
 **How to test**
 1. Unit (GCP repository): make sure that the body agrees with the S1-01 schema, that synthetic PII becomes placeholders, and that the sample size is correct. Make sure that the sender tries again after a fake `503`, stops after `400`, and logs each failure.
@@ -465,10 +465,10 @@ IP. In Sprint 2, Langfuse comes on the same VM, with its own PostgreSQL containe
 | Question | Why it is important | Owner |
 |---|---|---|
 | Which GCP project and billing account hold the VM? | The owner of the cost and of the access | Your team |
-| How does the VM network connect to the job projects: the same VPC, Shared VPC, or VPC peering? | The private path from the jobs to the VM | Network team |
+| How does the VM network connect to the job projects: the same VPC, Shared VPC, or VPC peering? | The private path from the jobs to the VM. **Answer (2026-10-08):** the jobs use the same VPC `test-true-corp-ai` and the internal IP of the VM. | Network team |
 | Where does each job run: Cloud Run jobs, GKE, Compute Engine, Vertex AI or Dataflow? | Cloud Run and serverless jobs need Direct VPC egress or a Serverless VPC Access connector to reach an internal IP. Record the runtime of each job in S1-09. | GCP developer |
-| What are the network ranges of the jobs? | The VPC firewall rule for port 443 (S1-02, S1-06) | Network team |
-| Which private DNS name does the VM get? | A Cloud DNS private zone that the job VPC can see. Use a name under a company domain, because SSO needs it later (S3-07). | Your team |
+| What are the network ranges of the jobs? | The VPC firewall rule for the job port (S1-02, S1-06). **Answer (2026-10-08):** the VPC has one subnet, `test-subnet` `10.10.0.0/24`. | Network team |
+| Which private DNS name does the VM get? | **Answer (2026-10-08):** none on the test host. The jobs use the internal IP `10.10.0.4`. The DNS name and HTTPS come with production (S4-01). Without a DNS name, SSO does not work on the test host (S3-07 fallback). | Your team |
 | Can the VM reach the company LiteLLM proxy? | The judge (S1-12, S2-09) | Network team |
 | How do the staff reach the VPC from the office: the company VPN or Interconnect to GCP? | The dashboard and Langfuse from Sprint 2 (Sprint 2 prerequisites) | Network team |
 
@@ -478,7 +478,7 @@ IP. In Sprint 2, Langfuse comes on the same VM, with its own PostgreSQL containe
 |---|---|
 | Machine | `n4-highmem-4` (4 vCPU, 32 GiB): the VM `ai-ml-monitoring-dev-env` that exists (the project owner kept it, 2026-10-08; the plan had `e2-standard-8`). The memory is enough for Langfuse; 4 vCPU is the Langfuse minimum (S2-03 checks it). |
 | Disk | 100 GB (the existing VM; the plan had 200 GiB). Langfuse recommends 100 GiB for its data alone, so S2-03 checks the free space and grows the disk if necessary (a disk can grow without a new VM). A daily snapshot schedule that keeps 7 snapshots. The snapshots hold the Langfuse data (S2-03) and the Collector files. The monitor data is in Cloud SQL, with its own backups. |
-| Image | Ubuntu 24.04 LTS, Shielded VM on |
+| Image | Debian 12 (the existing VM; the plan had Ubuntu 24.04 LTS), Shielded VM on |
 | Network | No external IP. Cloud NAT for outbound traffic only (Docker images, operating-system updates). |
 | Service account | A dedicated account with only the roles that the VM needs, for example log and metric writer. Do not use the default Compute Engine service account. |
 | SSH | Only through IAP: `gcloud compute ssh <vm> --tunnel-through-iap`. The firewall allows port 22 only from the IAP range `35.235.240.0/20`. |
@@ -499,18 +499,26 @@ IP. In Sprint 2, Langfuse comes on the same VM, with its own PostgreSQL containe
 
 | Port | From | For |
 |---|---|---|
-| 443 | The network ranges of the GCP jobs | The API and the Collector (S1-06) |
-| 8443, 3443 | The staff network ranges (from Sprint 2) | The dashboard and Langfuse |
+| 80 | The job subnet `10.10.0.0/24`, through a dedicated rule with a dedicated target tag | The API and the Collector, through the front door (S1-06) |
+| 8080, 3000 | The staff network ranges (from Sprint 2) | The dashboard and Langfuse, plain HTTP on the test host (S2-03) |
 | 22 | `35.235.240.0/20` (IAP) | SSH for platform and developers (S1-11) |
 | All other ports | — | Refused. The database ports on the VM (Langfuse, from Sprint 2) are never open. |
 
 The VPC firewall rules do not protect the Cloud SQL private IP. Cloud SQL is protected by
 the private IP only, TLS only, and the database accounts (S1-11).
 
-**Certificate.** The name is private. Thus a public CA cannot sign it. Make a private CA
-and a certificate for the private DNS name. Replace the certificate before it expires. The
-job trusts the CA file (S1-03). The verification stays on. Google Certificate Authority
-Service is a paid service. Do not use it without a plan entry. Plain HTTP is not allowed.
+The VPC rule `test-true-corp-ai-allow-https` (port 443 from `0.0.0.0/0`, tag `https-server`)
+is shared with another VM. Do not change that rule. Remove only the tag `https-server` from
+the monitor VM.
+
+**No DNS name and no HTTPS on the test host (decided 2026-10-08).** The jobs run in the same
+VPC and call `http://10.10.0.4`. The DNS name and HTTPS come with production (S4-01). The
+plan had a private DNS name and a private CA certificate here.
+
+Accepted risk, test host only: the API key and the OTLP token go over the VPC without TLS.
+Google encrypts VM-to-VM traffic in a VPC network, so the remaining risk is another workload
+in the job subnet that reads or replays a key. The keys are test-host keys; production uses
+other keys. S3-05 records this exception.
 
 **Acceptance criteria**
 - [ ] The answers to the prerequisites are in this issue.
@@ -518,17 +526,16 @@ Service is a paid service. Do not use it without a plan entry. Plain HTTP is not
 - [ ] The monitor backend and the Collector run on the VM.
 - [ ] The Cloud SQL instance has the settings in the table. It has no public IP. It accepts only TLS connections.
 - [ ] The backend connects to Cloud SQL over the private IP with `sslmode=verify-ca`. The migrations run when the backend starts.
-- [ ] The private DNS name resolves from the job VPC to the internal IP of the VM.
-- [ ] The API uses HTTPS with the private CA certificate. Plain HTTP is refused.
-- [ ] Only the network ranges of the jobs can reach port 443. The database ports on the VM are closed.
+- [ ] ~~The private DNS name resolves from the job VPC~~ and ~~the API uses HTTPS~~: moved to production (S4-01), decided 2026-10-08.
+- [ ] Only the job subnet can reach port 80. The VM does not have the tag `https-server`. The database ports on the VM are closed.
 - [ ] SSH works only through IAP.
 - [ ] The API key and the other secrets are host secrets. They are not in the repository.
 
 **How to test**
-1. From the GCP dev project, on the job runtime: `curl --cacert <ca-file> https://<private-dns-name>/api/health` returns `200`.
+1. From the GCP dev project, on the job runtime: `curl http://10.10.0.4/api/health` returns `200` (after the S1-06 front door).
 2. From a network range that is not in the firewall rule: the connection is refused or times out.
 3. `POST /api/batch/runs` without a key returns `401`.
-4. `gcloud compute instances describe <vm>` shows no external IP. The private DNS name does not resolve from the internet.
+4. `gcloud compute instances describe <vm>` shows no external IP.
 5. `gcloud compute ssh <vm> --tunnel-through-iap` works. SSH to the internal IP from outside the VPC does not work.
 6. `gcloud sql instances describe <instance>` shows no public IP (`ipv4Enabled: false`) and the TLS-only setting. On the VM, `GET /api/readiness` shows `database.ok: true`.
 7. On the VM, `psql "host=<private-ip> sslmode=disable ..."` is refused. With `sslmode=verify-ca` it works.
@@ -591,23 +598,23 @@ Collector:
 
 | Path | Goes to | Who calls it | Protection |
 |---|---|---|---|
-| `https://<host>/api/batch/runs` and `https://<host>/api/health` | Backend | GCP job | API key, VPC firewall rule |
-| `https://<host>/otlp/*` | Collector | GCP job | OTLP token, VPC firewall rule |
-| Other paths on port 443, for example `/api/live/*` | Nothing. The front door returns `404`. | — | The dashboard data is not available to GCP (S3-07) |
+| `http://<host>/api/batch/runs` and `http://<host>/api/health` | Backend | GCP job | API key, VPC firewall rule |
+| `http://<host>/otlp/*` | Collector | GCP job | OTLP token, VPC firewall rule |
+| Other paths on port 80, for example `/api/live/*` | Nothing. The front door returns `404`. | — | The dashboard data is not available to GCP (S3-07) |
 | Docker network inside the VM | Collector | Backend | Not open outside the VM |
 
-`<host>` is the private DNS name of the VM (S1-04). The VPC firewall opens port 443 only
-for the network ranges of the GCP jobs. The front door has one certificate (S1-04). From
-Sprint 2, the same front door also serves the staff: the dashboard on port 8443 and Langfuse
-on port 3443, for the staff network ranges only (Sprint 2 prerequisites). From Sprint 3,
-the staff also log in with SSO (S3-07).
+`<host>` is the internal IP of the VM, `10.10.0.4`. The test host has no DNS name and no
+TLS (S1-04, decided 2026-10-08); production uses HTTPS (S4-01). The VPC firewall opens
+port 80 only for the job subnet. From Sprint 2, the same front door also serves the staff:
+the dashboard on port 8080 and Langfuse on port 3000, for the staff network ranges only
+(Sprint 2 prerequisites). SSO is not possible on the test host without a DNS name (S3-07).
 
 **Acceptance criteria**
 - [ ] `docker compose up` starts the Collector with a health check.
 - [ ] The Collector image has the version from the fixed-versions table. It does not use `latest`.
 - [ ] Spans that come in on OTLP/HTTP appear in the file output.
-- [ ] On the test host, the front door is the only entry. It has no public IP. Port 443 accepts only the network ranges of the GCP jobs.
-- [ ] On port 443, `GET /api/live/portfolio` returns `404`. Only `/api/batch/runs`, `/api/health` and `/otlp/*` reach a service.
+- [ ] On the test host, the front door is the only entry. It has no public IP. Port 80 accepts only the job subnet.
+- [ ] On port 80, `GET /api/live/portfolio` returns `404`. Only `/api/batch/runs`, `/api/health` and `/otlp/*` reach a service.
 - [ ] `/otlp/*` rejects a request without the correct OTLP token. The OTLP token is different from the API key.
 - [ ] The GCP job reads the OTLP token from Secret Manager and sends it with `OTEL_EXPORTER_OTLP_HEADERS`.
 - [ ] The Collector configuration is in the repository. It contains no secrets.
@@ -615,10 +622,10 @@ the staff also log in with SSO (S3-07).
 
 **How to test**
 1. Local: send test spans with `telemetrygen traces --otlp-http`. Make sure that the file output contains them.
-2. Test host, from the GCP dev project: send test spans to `https://<host>/otlp/v1/traces` with the token. Make sure that the file output contains them.
+2. Test host, from the GCP dev project: send test spans to `http://10.10.0.4/otlp/v1/traces` with the token. Make sure that the file output contains them.
 3. Send spans without the token. Make sure that they are rejected.
 4. Send a request from a network range that is not in the firewall rule. Make sure that the connection is refused or times out.
-5. From the GCP dev project: `curl --cacert <ca-file> https://<host>/api/live/portfolio`. Make sure that the result is `404`.
+5. From the GCP dev project: `curl http://10.10.0.4/api/live/portfolio`. Make sure that the result is `404`.
 6. Paired with S1-05: see the test steps in S1-05.
 
 ### S1-07 — Trace check tool
@@ -683,7 +690,7 @@ Security must approve these items:
 | The list of PII types that the job replaces with placeholders | S1-03 |
 | The retention period for stored records | S1-02 |
 | **S1:** An API key on a private VPC path in GCP (test host), and later on the internet with an IP allowlist (AWS, Sprint 4) | S1-02, S1-04, S4-01 |
-| **S1:** The private CA certificate of the test host | S1-04 |
+| **S1:** Plain HTTP inside the VPC on the test host, with no DNS name and no TLS (decided 2026-10-08). Production uses HTTPS. | S1-04 |
 | **S1:** The OTLP endpoint that the GCP jobs reach through the front door | S1-06 |
 | Real redacted data on the test host in GCP: on the VM and in the Cloud SQL instance (private IP only, TLS only, automatic backups for 7 days). On the test host, the records stay in GCP. Only the judge calls go to the LiteLLM proxy. | S1-04, S1-11, S1-12 |
 | Database accounts, and who can read real data | S1-11 |
@@ -892,7 +899,7 @@ Accepted effects: the current dashboard cannot load `/api/live/*` data until S2-
 | Question | Answer | Effect |
 |---|---|---|
 | Is the test host large enough for Langfuse? | S1-04 makes the VM with the recommended size below | See the server size below |
-| How do the engineers and the RAI team open the dashboard and Langfuse? | The test host is a VM in GCP with no public IP (S1-04). The staff use the company network path to the GCP VPC (VPN or Interconnect), and the private DNS name of the VM. | See the ports below. The private CA certificate contains the private DNS name. Set the Langfuse URL setting to this name. SSO (S3-07) uses the same name. |
+| How do the engineers and the RAI team open the dashboard and Langfuse? | The test host is a VM in GCP with no public IP (S1-04). The staff use the company network path to the GCP VPC (VPN or Interconnect), and the internal IP of the VM. | See the ports below. Plain HTTP on the test host (S1-04, decided 2026-10-08). Set the Langfuse URL setting to `http://10.10.0.4:3000`. No SSO on the test host (S3-07). |
 | Can the test host call the company LiteLLM proxy? | Answer from S1-12 | The judge is a local model behind the proxy (S2-09). There is no second judge provider. RAI accepts the judge before its scores count for the release (S2-10). |
 
 Server size for the test host:
@@ -909,9 +916,9 @@ Ports on the test host (VPC firewall rules, S1-04):
 
 | Port | Service | Who connects | Allowed sources |
 |---|---|---|---|
-| 443 | Front door: `/api/batch/runs`, `/api/health` and `/otlp/*` | GCP jobs | The network ranges of the GCP jobs |
-| 8443 | Monitor dashboard | RAI team, engineers | The staff network ranges. From S3-07, also Google SSO. |
-| 3443 | Langfuse UI | Engineers only | The staff network ranges. From S3-07, also Google SSO, with no password login. |
+| 80 | Front door: `/api/batch/runs`, `/api/health` and `/otlp/*` | GCP jobs | The job subnet `10.10.0.0/24` |
+| 8080 | Monitor dashboard | RAI team, engineers | The staff network ranges. No SSO on the test host (no DNS name, S3-07). |
+| 3000 | Langfuse UI | Engineers only | The staff network ranges. Langfuse accounts; no SSO on the test host. |
 | 22 | SSH | Platform, developers | IAP only (`35.235.240.0/20`) |
 | None | Langfuse PostgreSQL, ClickHouse, Redis, MinIO (on the VM) | — | Closed. Developers use IAP SSH (S1-11). |
 | 5432 on the Cloud SQL private IP | Monitor database (Cloud SQL) | The backend and developers, from the VM | Private IP only, TLS only (S1-04, S1-11) |
@@ -1038,7 +1045,7 @@ GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse p
 | Question | Owner |
 |---|---|
 | Is the test host VM large enough for Langfuse (CPU, memory, disk)? The VM is `n4-highmem-4` (4 vCPU, 32 GiB) with a 100 GB disk. 4 vCPU is the Langfuse minimum, and Langfuse recommends 100 GiB for its data alone: check the free space, and grow the disk before the install if necessary. Examine the Langfuse self-hosting requirements. | Platform |
-| Do the engineers reach port 3443 through the company network path to the VPC? If not, use an IAP tunnel: `gcloud compute start-iap-tunnel <vm> 3443`. | Network team |
+| Do the engineers reach port 3000 (Langfuse on the test host) through the company network path to the VPC? If not, use an IAP tunnel: `gcloud compute start-iap-tunnel <vm> 3000`. | Network team |
 
 **Rules**
 - Langfuse uses its own PostgreSQL container (`postgres:17.11-bookworm`) and account on the VM (decided 2026-10-06). It does not use the Cloud SQL monitor database (S1-04, S1-11).
@@ -1255,7 +1262,7 @@ of the chatbot uses now. The frontend code does not change.
 
 - On the test host and on AWS, the three prototype use cases are not configured. `LIVE_CHURN_URL`, `LIVE_CHATBOT_URL` and `LIVE_NBA_URL` are not set. Thus they do not appear on the dashboard.
 - The dashboard is for the RAI team. It has no Langfuse link, because Langfuse is for engineers. The API returns `trace_id`, so an engineer can find the trace in Langfuse.
-- The dashboard uses port 8443 (Sprint 2 prerequisites).
+- The dashboard uses port 8080 on the test host (Sprint 2 prerequisites).
 
 **Acceptance criteria**
 - [ ] On the test host, the portfolio shows only the GCP use cases.
@@ -1269,7 +1276,7 @@ of the chatbot uses now. The frontend code does not change.
 1. API tests for each state: scored, each "Unknown" reason, stale, identity-only.
 2. Search all API responses for the text in the S1-01 examples. Make sure that the text is not found.
 3. Run the pnpm checks. `build:live` and `check:strict-live` run in CI on Linux.
-4. Paired with S2-06: open the dashboard on port 8443. Make sure that the onboarded use cases show the correct freshness and grades.
+4. Paired with S2-06: open the dashboard on port 8080. Make sure that the onboarded use cases show the correct freshness and grades.
 
 ### S2-08 — One run as a single trace, GCP job to score
 
@@ -1821,6 +1828,10 @@ Write the runbook `docs/runbooks/sso-entra-id.md`:
 **Risk:** If the DNS name for the test host does not exist by 19 October, Google SSO cannot
 work on the test host. Then use the fallback of the long-lead request. SSO must still work on
 AWS (S4-01).
+
+**Decided 2026-10-08:** the test host has no DNS name and no HTTPS (S1-04). Thus the fallback
+applies: build and test SSO on the local stack and on AWS (S4-01), not on the test host. The
+test-host steps above do not apply.
 
 ---
 
