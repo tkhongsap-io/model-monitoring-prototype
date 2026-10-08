@@ -68,8 +68,14 @@ depend on. The spec is
   `0.0.0.0/0` for the tag `https-server`; the VM has no public IP, but S1-04 wants only the
   job ranges. A Cloud SQL password must contain lower, upper, digit and a special
   character (the first try failed on this).
-- Remaining: the first API key (Secret Manager, the hash in `backend.env`) when the
-  project owner gives the use case ID; S1-11 (`monitor_readonly`, remove `monitor_app`
+- First API key (later on 2026-10-08): use case `rtr-fraud-validation`. The key is in
+  Secret Manager `batch-api-key-rtr-fraud-validation` (version 1, `asia-southeast3` only);
+  only its SHA-256 is in `backend.env`. Checked by hash that the stored key is the same; the
+  key was never printed, and the temporary key files are deleted. After a backend restart:
+  `/api/readiness` 200 `ready` (1 key); `POST /api/batch/runs` 201 `created` for run
+  `deploy-check-20261008T065806Z`, stored `trace_id` = the sent `traceparent` trace ID.
+  That `deploy-check-` row stays in `batch_runs` (rows never change).
+- Remaining: give the GCP developer the secret name for S1-03 (the job reads it); S1-11 (`monitor_readonly`, remove `monitor_app`
   from `cloudsqlsuperuser`); the firewall rule; the private DNS name, the certificate and
   the front door (S1-06 test-host part); the VM service account has no logging roles yet.
 
