@@ -27,15 +27,15 @@
       "$ref": "#/$defs/identifier"
     },
     "run_id": {
-      "description": "SOURCE: GCP job developer to fill in (for example the Cloud Run execution name, the Workflows execution ID, or <job>-<business date>). A stable ID of this run: a retry of the send, or a rerun of the same run, sends the same ID. A new run sends a new ID.",
+      "description": "SOURCE (GCP answer 2026-10-08): <project name>-<UTC start time of the execution>, for example rtr-fraud-validation-20261008T093000Z. The job makes it one time at the start of the execution. A retry of the send uses the same ID. A new execution, also for the same business date, is a new run with a new ID. For a Batch API job, the run is the execution that gets the results and publishes them.",
       "$ref": "#/$defs/identifier"
     },
     "status": {
-      "description": "SOURCE: GCP job developer to fill in. 'completed': the job published all its results. 'partial': the job published, but some requests gave no usable output. 'failed': the job did not publish.",
+      "description": "SOURCE (GCP answer 2026-10-08): 'completed': the job published, and failed_count is 0. 'partial': the job published, and failed_count is more than 0 (the failed rows show their error to the users). 'failed': the job did not publish, because the job code caught an error before or during the publish step.",
       "enum": ["completed", "partial", "failed"]
     },
     "completed_at": {
-      "description": "SOURCE: GCP job developer to fill in. The time when the job published the results, or the time when the job failed. UTC, ISO 8601, with 'Z'.",
+      "description": "SOURCE: the job clock in UTC, taken immediately after the publish step ends (for example after FraudValidationPipeline._publish() in rtr-fraud-validation), or when the job code catches the failure. UTC, ISO 8601, with 'Z'.",
       "type": "string",
       "format": "date-time",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
@@ -47,12 +47,12 @@
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
     },
     "request_count": {
-      "description": "SOURCE: GCP job developer to fill in. The number of ALL model requests in the run: the successful requests plus the failed requests. Count each request one time; do not count retries. Example: 243 successful and 106 failed gives request_count 349 and failed_count 106.",
+      "description": "SOURCE (GCP answer 2026-10-08): the number of ALL Gemini requests in the run, successful and failed. Each request is counted one time, also if the job retries it. An input row that makes no request (for example no photo) is not counted. Example: 137 successful and 106 failed gives request_count 243 and failed_count 106. If the job fails before the first request, request_count is 0.",
       "type": "integer",
       "minimum": 0
     },
     "failed_count": {
-      "description": "SOURCE: GCP job developer to fill in. The number of requests that gave no usable output (error, timeout, empty or unparsable response). A part of request_count, so never more than request_count. A safety block is not a failure: it is a record with refused=true.",
+      "description": "SOURCE (GCP answer 2026-10-08): the number of requests with no usable output: an API error, an empty response, an output that does not parse or does not agree with the output schema, an error row or a failed job from the Gemini Batch API, or a system error. A part of request_count, so never more than request_count. A safety block is not a failure: it is a record with refused=true.",
       "type": "integer",
       "minimum": 0
     },
@@ -159,7 +159,7 @@
       "required": ["record_id", "question", "answer", "retrieval_context", "refused", "latency_s"],
       "properties": {
         "record_id": {
-          "description": "SOURCE: GCP job developer to fill in. The ID of the request inside the run, for example the row number or the Batch API request key. Unique in the run. Never a customer ID, account number or phone number.",
+          "description": "SOURCE (GCP answer 2026-10-08): the row number of the input, for example req-000047 for row 47. Unique in the run. It is not a request counter: rows that make no request leave gaps, so an ID can be larger than request_count. Never a customer ID, account number or phone number.",
           "$ref": "#/$defs/identifier"
         },
         "question": {

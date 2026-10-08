@@ -72,11 +72,12 @@ Body
 
 The first real body from a GCP job (a fraud validation job, `request_count` 243,
 `failed_count` 106, 8 records) agreed with the field shape. Its values showed these
-misunderstandings. The schema descriptions now state each rule.
+points. The schema descriptions now state each rule.
 
 | Topic | Rule |
 |---|---|
-| `request_count` | **All** requests sent to Gemini: successful + failed, each request one time, no retries. `failed_count` is a part of it. The job sent 243 (successful only) and 106 (failed); the correct values are `request_count: 349`, `failed_count: 106`. With the wrong meaning, a run with more failures than successes fails the rule `failed_count` ≤ `request_count`. |
+| `request_count` | **All** requests sent to Gemini: successful + failed, each request one time, no retries. `failed_count` is a part of it. **Correction 2026-10-08:** the job already counted this way. In the first example, 243 = 137 successful + 106 failed. An earlier version of this README said "349", which was a mistake of the monitor team. |
+| `record_id` | The row number of the input (`req-<row>`), not a request counter. Rows that make no request (no photo, fewer than 3 photos, a storage error) leave gaps, so an ID can be larger than `request_count`. This is correct. |
 | Sample | Sample only from the requests that Gemini answered or refused. Never include a failed request. In an online job, every sampled record then has a `latency_s`. |
 | `sample.size` | The `SAMPLE_SIZE` setting (confirmed), not `len(records)` |
 | `retrieval_context` | Any input text that the answer must agree with: a document, a transaction, a complaint, OCR text, retrieved chunks. Not only for document retrieval. |

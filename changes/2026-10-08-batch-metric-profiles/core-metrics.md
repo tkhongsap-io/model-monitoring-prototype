@@ -12,10 +12,13 @@
 The standard used the five metrics of the prototype chatbot (`AICT-L02`) for all 10 GCP use
 cases. The first real GCP job showed that this does not fit:
 
-- All 10 use cases are **batch inference with one turn**: one prompt in, one answer out.
-- The first job is a **fraud classifier**: a fixed prompt, 3 images, and a fixed JSON
-  answer. It has no source text, so the judge cannot check `groundedness` or
-  `hallucination_rate`. The judge also cannot see the images.
+- All the use cases have **one turn**: one prompt in, one answer out. Most of them use the
+  Gemini Batch API. Two call Gemini **online**: `rtr-fraud-validation` and the
+  `workflow-automation` fact-check job (GCP answer, 2026-10-08).
+- The first job is a **fraud check on images**: a fixed prompt, 3 images, and a fixed JSON
+  answer with three check results (`x/3`) and four sub-counts, not one label. It has no
+  source text, so the judge cannot check `groundedness` or `hallucination_rate`. The judge
+  also cannot see the images.
 
 The type of task decides which metrics work, not the number of turns. Thus each use case
 gets the **core metrics** (section 1) and **one quality profile** for its task type
@@ -38,9 +41,10 @@ also in identity-only mode (`records: []`), before security approves the records
 All the bands are **proposals**. RAI approves them. A use case can change a band in the
 registry, with RAI approval. For example, a fraud classifier can expect more safety blocks.
 
-**`p95_latency_s` is not a core metric.** All 10 jobs use batch inference, and the Gemini
-Batch API has no time for each request. `turnaround_s` replaces it. If a job calls Gemini
-online, `p95_latency_s` can be an extra metric for that use case.
+**`p95_latency_s` is not a core metric.** Most jobs use the Gemini Batch API, which has no
+time for each request. `turnaround_s` replaces it for them. The jobs that call Gemini online
+(`rtr-fraud-validation` and the `workflow-automation` fact-check job) measure the time of
+each call, so `p95_latency_s` is an extra metric for them.
 
 ### When a core metric is "Unknown"
 
