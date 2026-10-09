@@ -333,6 +333,19 @@ def migrate_engine(bind) -> list[int]:
     return applied_now
 
 
+def driver_url(url: str) -> str:
+    """Select psycopg v3 for postgres:// and postgresql:// URLs.
+
+    Replit/managed providers commonly emit postgres:// or postgresql://; deployments must
+    not depend on legacy psycopg2. Used by engine() and by scripts/check_trace.py (S1-07).
+    """
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 def engine():
     global _engine
     if _engine is None:
@@ -340,12 +353,7 @@ def engine():
         if not url:
             config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
             url = f"sqlite:///{config.DB_PATH}"
-        # Replit/managed providers commonly emit postgres:// or postgresql://.  Select
-        # psycopg v3 explicitly so deployments do not depend on legacy psycopg2.
-        if url.startswith("postgres://"):
-            url = "postgresql+psycopg://" + url[len("postgres://"):]
-        elif url.startswith("postgresql://"):
-            url = "postgresql+psycopg://" + url[len("postgresql://"):]
+        url = driver_url(url)
         kwargs: dict[str, Any] = {"future": True, "pool_pre_ping": True}
         if url.startswith("sqlite:"):
             kwargs["connect_args"] = {"check_same_thread": False}
