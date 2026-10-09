@@ -10,7 +10,7 @@
 
 ## Goal
 
-By **Friday 30 October**, the **10 GCP batch use cases** send each completed run to the
+By **Friday 30 October**, the **7 GCP batch use cases** send each completed run to the
 monitor. The backend grades each run with the five LLM metrics of the prototype. The RAI
 team sees the status, the freshness and the grade of each use case on the dashboard.
 Engineers see one trace for each run in Langfuse. The stack runs on the **production AWS
@@ -58,8 +58,8 @@ ready, we report the result as a pilot, with each blocker. We do not report a re
 |---|---|---|---|---|---|
 | **1** | 5 to 9 October | Can we get data out of GCP? | 1 | Test host: Compute Engine VM in GCP (Docker Compose) and Cloud SQL | One real run arrives. The backend span has the trace ID of the job. |
 | **2** | 12 to 16 October | Can the jobs use the same path, with grades and traces? | 4 | Test host | One run is one trace in Langfuse, from the GCP job to the scores. Its grade is on the dashboard. |
-| **3** | 19 to 23 October | What happens when something fails? | 8 | Test host, and the test AWS cluster | The drills pass. The stack runs on the test AWS cluster. |
-| **4** | 26 to 30 October | Does it work in production? | 10 | Production AWS cluster | The 10-row evidence checklist is signed |
+| **3** | 19 to 23 October | What happens when something fails? | 7 | Test host, and the test AWS cluster | The drills pass. The stack runs on the test AWS cluster. |
+| **4** | 26 to 30 October | Does it work in production? | 7 | Production AWS cluster | The 7-row evidence checklist is signed |
 
 ## Dates and requests from other teams
 
@@ -70,7 +70,7 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 | Test host VM and Cloud SQL instance in GCP, with the private VPC path from the first job (S1-04) | Platform + network team | Tue 6 October | Replay a saved real body into the local stack |
 | JSON body v1 | GCP job developer + backend | Wed 7 October | The Sprint 1 demo moves |
 | Security approval of the records, the PII list and the data flow | Security | Thu 8 October | Identity-only mode. A use case cannot pass the release without records. |
-| Inventory of the 10 use cases and their October run dates | PM + owners | Fri 9 October | Sprint 2 cannot select the jobs |
+| Inventory of the 7 use cases and their October run dates | PM + owners | Fri 9 October | Sprint 2 cannot select the jobs |
 | LiteLLM proxy access: URL, virtual keys, model alias, log policy (S1-12) | LiteLLM proxy owner | Fri 9 October | S2-09 is tested only on the local stack. No scores on the test host. |
 | Langfuse SDK v4 and the OTel packages approved | Backend + project owner | Mon 12 October | The tracing work waits |
 | Task description of the first use case | RAI | Wed 14 October | The judge metrics are "Unknown" |
@@ -94,13 +94,13 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 | S1-06 | Minimal Collector and front door | Platform | M |
 | S1-07 | Trace check tool | Backend | S |
 | S1-08 | Security approval for the Sprint 1 data flow | Security | S |
-| S1-09 | Inventory of the 10 use cases | PM + owners | M |
+| S1-09 | Inventory of the 7 use cases | PM + owners | M |
 | S1-10 | First real run from start to end | Backend + GCP job developer | S |
 | S1-11 | Database accounts | Platform + backend | S |
 | S1-12 | Access to the company LiteLLM proxy for the judge | Backend + LiteLLM proxy owner | S |
 
 **Done when:** the JSON body v1 is agreed, the API is merged with tests, one real run
-arrived from a real GCP job with one trace, the inventory has 10 rows with run dates, and
+arrived from a real GCP job with one trace, the inventory has 7 rows with run dates, and
 the test host can call the LiteLLM proxy.
 
 ## Sprint 2 — 12 to 16 October: same path for many jobs, with grades and traces
@@ -122,11 +122,11 @@ the test host can call the LiteLLM proxy.
 with its scores from the LiteLLM judge, and RAI decided on the judge. The Sprint 2 prerequisites (server size, ports, judge access) are in
 [issues.md](issues.md).
 
-## Sprint 3 — 19 to 23 October: 8 use cases, and stronger
+## Sprint 3 — 19 to 23 October: 7 use cases, and stronger
 
 | Issue | Title | Owner | Size |
 |---|---|---|---|
-| S3-01 | Onboard 8 use cases | Job developers + backend + platform | L |
+| S3-01 | Onboard 7 use cases | Job developers + backend + platform | L |
 | S3-02 | Delivery lane: missed-run and failed-job alerts | Backend | M |
 | S3-03 | Collector hardening | Platform | M |
 | S3-04 | Failure and recovery drills | Backend + platform | M |
@@ -143,13 +143,13 @@ security review pass, and the stack runs on the test AWS cluster.
 |---|---|---|---|
 | S4-01 | Deploy to the production AWS cluster | Platform | L |
 | S4-02 | Change every GCP job to send to AWS | Job developers + platform | M |
-| S4-03 | Finish all 10 use cases | Job developers + backend + platform | L |
-| S4-04 | 10-row evidence checklist | Backend + RAI | M |
+| S4-03 | Finish all 7 use cases | Job developers + backend + platform | L |
+| S4-04 | 7-row evidence checklist | Backend + RAI | M |
 | S4-05 | Operations drills and runbooks on AWS | Platform + operations | M |
 | S4-06 | Release sign-off | RAI + platform owners | S |
 | S4-07 | Remove the prototype-only code (after S4-06, or in the first week of November) | Backend | M |
 
-**Done when:** all 10 use cases pass on the production cluster and the AWS drills pass. If
+**Done when:** all 7 use cases pass on the production cluster and the AWS drills pass. If
 not, publish the result as a pilot, with each blocker.
 
 ## Rules for each issue

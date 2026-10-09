@@ -53,15 +53,18 @@ depend on. The spec is
   `workflow-automation` included. The other 3 use cases run on NotebookLM and Gemini
   Enterprise, with no job code for the send step.
 - Decided (user): network ranges (network team, S1-04) and egress IPs (S2-06 step 3, for
-  S4-01) leave the inventory; the table keeps only the runtime. A Cloud Run job starts
-  the Gemini batch, so it needs VPC egress before onboarding; the developer confirms the
-  runtime of all 7 jobs. The GCP
+  S4-01) leave the inventory; the table keeps only the runtime. All 7 jobs are Cloud Run
+  jobs, so each needs VPC egress before onboarding. Prakasit Issanapong runs a controlled
+  rerun on request when a job has no real run in time. The GCP
   developer selects the order in Sprint 2 planning. The RAI profile confirmation and the
   developer's 4 open questions move to the time before `SEND_RECORDS` goes on.
-- Changed: `issues.md` (S1-09 and "Changes on 2026-10-09"). No code change.
-- Remaining before #11 can close: a named owner for each row, October run dates, the
-  runtime line, each owner confirms their row, and the project owner accepts the October
-  goal of 7. After that, S4-03, S4-04 and S4-05 change from 10 to 7.
+- Decided (project owner): the October goal is 7 use cases. Sprint 3 (S3-01) onboards the
+  last 3, to 7; S4-03, S4-04 and S4-05 use 7.
+- Changed: `issues.md` (S1-09, S3-01, S4-03 to S4-05, "Changes on 2026-10-09"),
+  `plan.md`, `summary.md`, `intent.md`. No code change. Not changed: the after-October
+  judge texts (`llm-metrics-standard.md`, S1-12) that estimate the load for 10 use cases.
+- Remaining before #11 can close: a named owner for each row, and each owner confirms
+  their row.
 
 ### 2026-10-09 — The MVP is identity-only for all of October; risk tier R1
 

@@ -13,7 +13,7 @@
 
 ## Problem
 
-The RAI team must know if the LLM output of 10 GCP batch use cases is good enough. The
+The RAI team must know if the LLM output of 7 GCP batch use cases is good enough. The
 prototype monitor pulls telemetry from three demo models and cannot see the GCP jobs.
 
 ## Outcome
@@ -53,7 +53,7 @@ Measured with `handbook/risk-tiers.md` of `tkhongsap-ai-engineering-playbook@5ba
 | Influences a consequential decision about a person | It grades models, not people | No |
 | Is exposed to untrusted content that can influence instructions or tools | The LLM judge reads customer text (prompt injection can change a score) | Yes |
 | Works without timely human review | The RAI team reviews the dashboard | No |
-| One failure can affect many users or systems | One monitor grades 10 use cases, but only advises | Partly |
+| One failure can affect many users or systems | One monitor grades 7 use cases, but only advises | Partly |
 | Has no reliable rollback or correction path | Stored runs never change; code rolls back | No |
 
 Result: **R2**. The prototype (three demo models, synthetic data) stays R1.

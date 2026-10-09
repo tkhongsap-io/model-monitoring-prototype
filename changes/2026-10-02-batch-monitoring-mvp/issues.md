@@ -27,7 +27,7 @@ status, the times and one trace for each run. No customer text reaches the monit
 | Judge | No judge in October | Moved after October: S1-12, S2-09, S2-10 |
 | Security | The approval covers only the run identity and the spans, before S4-02 (AWS). The retention review has no record text. | Changed: S1-08, S3-05 |
 | Risk tier | **R1** (was R2): no personal data and no untrusted content reach the monitor. R2 comes back before `SEND_RECORDS` goes on. | Changed: S2-11 (recommended, not required) |
-| Use-case scope | 7 GCP jobs, not 10. The other 3 run on NotebookLM and Gemini Enterprise and have no job code. Network ranges, egress IPs, the order and the RAI profile confirmation leave the inventory. The project owner must accept the October goal of 7. | Changed: S1-09. To change after the project owner accepts: S4-03, S4-04, S4-05 |
+| Use-case scope | 7 GCP jobs, not 10. The other 3 run on NotebookLM and Gemini Enterprise and have no job code. Network ranges, egress IPs, the order and the RAI profile confirmation leave the inventory. The project owner accepted the October goal of 7. All jobs are Cloud Run jobs. | Changed: S1-09, S3-01 (onboards the last 3, to 7), S4-03, S4-04, S4-05 |
 
 The review-focus rows about the LiteLLM judge below apply after October.
 
@@ -155,7 +155,7 @@ remaining prototype-only code.
 | S2-09 | ~~Judge through the company LiteLLM proxy~~ (after October) | Feature | Backend | S2-05 | M |
 | S2-10 | ~~RAI accepts the local judge~~ (after October) | Verification | RAI + backend | S2-09 | M |
 | S2-11 | Threat model for the batch MVP (recommended; MVP is R1) | Decision | Backend + security | S2-05 | S |
-| S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-07 | L |
+| S3-01 | Onboard 7 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-07 | L |
 | S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 | M |
 | S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 | M |
 | S3-04 | Failure and recovery drills | Verification | Backend + platform | S1-07 | M |
@@ -164,8 +164,8 @@ remaining prototype-only code.
 | S3-07 | SSO login for the dashboard and Langfuse (Google now, Entra ID later) | Infrastructure | Platform; backend reviews | S3-05, S3-04 | M |
 | S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 | L |
 | S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 | M |
-| S4-03 | Finish all 10 use cases | Feature | Job developers + backend + platform | S4-04 | L |
-| S4-04 | 10-row evidence checklist | Verification | Backend + RAI | S1-07 (trace check tool) | M |
+| S4-03 | Finish all 7 use cases | Feature | Job developers + backend + platform | S4-04 | L |
+| S4-04 | 7-row evidence checklist | Verification | Backend + RAI | S1-07 (trace check tool) | M |
 | S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S1-07 (trace check tool) | M |
 | S4-06 | Release sign-off | Decision | RAI + platform owners | — | S |
 | S4-07 | Remove the prototype-only code | Feature | Backend | Full test suite | M |
@@ -767,8 +767,12 @@ Sprint 2 cannot be planned again without these answers.
   `sentiment-qa`, `sentiment-telesale`, `tax-invoice-extraction`, `sentiment-batch-mnp`,
   `sentiment-batch-retention` and `workflow-automation`. The other 3 use cases run on
   NotebookLM and Gemini Enterprise. They have no job code for the send step, so they are out
-  of scope until monitoring is possible there. The project owner must accept the change of
-  the October goal (see Risk).
+  of scope until monitoring is possible there. The project owner accepted the October goal
+  of 7 on 2026-10-09. S3-01, S4-03, S4-04 and S4-05 now use 7.
+- **Runtime:** all 7 jobs are Cloud Run jobs (confirmed 2026-10-09). Each job needs VPC
+  egress before onboarding (S2-06).
+- **Controlled reruns:** if a job has no real run in time, Prakasit Issanapong runs a
+  controlled rerun on request. A rerun is a real run of the job code on real input.
 - **Network range and egress IP** are not in this table. The network team gives the network
   ranges for the test-host firewall (S1-04). S2-06 step 3 records the egress IP of each job
   when it is onboarded, for S4-01. This table records only the runtime of each job.
@@ -782,10 +786,10 @@ Sprint 2 cannot be planned again without these answers.
 
 **Acceptance criteria**
 - [ ] The table has the 7 use cases above. Each row has a named owner and a named developer.
-- [ ] Each use case has at least one October run date, or a booked controlled rerun.
-- [ ] Each GCP job has a known runtime (for example "Cloud Run job"). Serverless runtimes need VPC egress before onboarding (S2-06).
-- [ ] Each use case has a filled use-case template.
-- [ ] The project owner accepted the October goal of 7 use cases.
+- [ ] Each use case has at least one October run date from its schedule, or a controlled rerun on request.
+- [x] Each GCP job has a known runtime: all 7 are Cloud Run jobs.
+- [x] Each use case has a filled use-case template.
+- [x] The project owner accepted the October goal of 7 use cases.
 
 **How to test**
 1. Each owner confirms their row in the issue comments.
@@ -1571,13 +1575,13 @@ can happen, the effect, the control that exists, the gap, and an owner. Cover at
 | S3-07 SSO | S3-05 security review | Only the staff on the allowlist open the dashboard. Langfuse has no password login. Nobody reads the dashboard API around the SSO. | Local stack (mock OIDC server), then test host |
 | S3-07 SSO | S3-04 drills | An SSO outage stops the logins, but not the ingest or the evaluation | Test host |
 
-### S3-01 — Onboard 8 use cases, including split submit and harvest
+### S3-01 — Onboard 7 use cases, including split submit and harvest
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Feature | Job developers + backend + platform | S2-04, S2-06 | S1-07 | L |
 
-**What:** Onboard 4 more use cases, to a total of 8. Use the seven steps in S2-06 for each
+**What:** Onboard the 3 last use cases, to a total of 7 (8 until 2026-10-09, S1-09). Use the seven steps in S2-06 for each
 job. Include the difficult jobs from the S1-09 table.
 
 **Jobs with separate submit and harvest.** In some jobs, one run of the code submits the
@@ -1930,7 +1934,7 @@ test-host steps above do not apply.
 | Feature | Tested with | The test proves | Environment |
 |---|---|---|---|
 | S4-02 jobs switched to AWS | S4-01 AWS stack | Real runs and spans from GCP arrive in the AWS monitor and in Langfuse | Production AWS cluster |
-| S4-03 all 10 use cases | S4-04 evidence checklist | Each use case has a real run with its five metrics graded, and the same trace ID in the monitor and in Langfuse | Production AWS cluster |
+| S4-03 all 7 use cases | S4-04 evidence checklist | Each use case has a real run with its five metrics graded, and the same trace ID in the monitor and in Langfuse | Production AWS cluster |
 
 ### S4-01 — Deploy the stack to the production AWS cluster
 
@@ -1944,7 +1948,7 @@ The installation on the test AWS cluster in Sprint 3 is the model for this insta
 1. Select plan A (RDS and S3) or plan B (in the cluster), from the S3-06 decision.
 2. Replace the test-host front door with the AWS load balancer and ingress. Keep the same paths: `/api/batch/runs`, `/api/health` and `/otlp/*` for GCP, and the dashboard and Langfuse behind SSO for the staff (S3-07).
 3. Use the DNS name and the certificate from the long-lead requests. If they are not available, use the IP address and a private CA certificate. Without a DNS name, Google SSO does not work. Then the dashboard has only the IP allowlist, and the release result records this exception.
-4. Allow the egress IPs of all 10 GCP jobs (S1-09) in the AWS security rules. The S3-06 test already proved this path for one job.
+4. Allow the egress IPs of all 7 GCP jobs (S1-09) in the AWS security rules. The S3-06 test already proved this path for one job.
 5. Allow a network path from the cluster to the company LiteLLM proxy. Use the AWS virtual key from S1-12.
 6. Add the AWS redirect URIs to the two Google OAuth clients (S3-07).
 7. Do not configure the prototype use cases.
@@ -1994,13 +1998,13 @@ problem, a job can go back to the test host with its old settings.
 1. After the next run of each job, run `scripts/check_trace.py <trace_id>` on AWS. Make sure that all the items are "found".
 2. Send a request with a removed test-host key to AWS. Make sure that it is refused.
 
-### S4-03 — Finish all 10 use cases
+### S4-03 — Finish all 7 use cases
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Feature | Job developers + backend + platform | S4-02 | S4-04 | L |
 
-**What:** Onboard the last use cases with the S2-06 steps. Get a real run for each use case,
+**What:** All 7 use cases are onboarded in S3-01. Get a real run on production for each use case,
 on its schedule or as an agreed controlled rerun. Use the S1-09 run dates. If a job does not
 run before 30 October, book a controlled rerun now.
 
@@ -2017,13 +2021,13 @@ A use case in identity-only mode does **not** pass. Thus the security approval o
 records is a release blocker.
 
 **Acceptance criteria**
-- [ ] Each of the 10 use cases passes, or is listed as blocked with the reason, an owner and the next step.
+- [ ] Each of the 7 use cases passes, or is listed as blocked with the reason, an owner and the next step.
 - [ ] No test data, configuration-only entry or identity-only run counts as a pass.
 
 **How to test**
 1. The S4-04 checklist examines each use case.
 
-### S4-04 — 10-row evidence checklist
+### S4-04 — 7-row evidence checklist
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
@@ -2048,13 +2052,13 @@ are not in the October checklist.
 - the result: pass, or blocked with the reason (S4-03).
 
 **Acceptance criteria**
-- [ ] The table has 10 rows. All the columns are filled in.
+- [ ] The table has 7 rows. All the columns are filled in.
 - [ ] The trace ID and the score IDs are the same in the monitor and in Langfuse.
 - [ ] The judge identity of each row is the identity that RAI accepted in S2-10. If the model behind the alias changed, the row is blocked until RAI accepts the new model.
 - [ ] RAI accepts what the dashboard shows, including each "Unknown".
 
 **How to test**
-1. Run `scripts/check_trace.py` for all 10 trace IDs. Attach the output.
+1. Run `scripts/check_trace.py` for all 7 trace IDs. Attach the output.
 
 ### S4-05 — Operations drills and runbooks on AWS
 
@@ -2093,7 +2097,7 @@ alert webhook goes to this person or team.
 with the reason" (S4-03).
 
 **Acceptance criteria**
-- [ ] The release is approved only if all 10 use cases pass and the AWS drills pass.
+- [ ] The release is approved only if all 7 use cases pass and the AWS drills pass.
 - [ ] If not, publish the result as a pilot, with each open blocker, its owner and its next step.
 - [ ] The result says clearly if it is a production release or a pilot on the test AWS cluster.
 
