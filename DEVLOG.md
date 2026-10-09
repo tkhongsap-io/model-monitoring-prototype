@@ -47,6 +47,60 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-08 — S1-07: trace check tool
+
+- Built: shared `db.driver_url`; pure checks and rendering in `backend/app/trace_check.py`;
+  the read-only command `backend/scripts/check_trace.py`; the `trace-check` service in
+  the three Compose files; `check-trace.sh`, `make-check-env.sh`, `check.env.example`;
+  `scripts/compose-smoke.sh` uses the wrapper. Added driver, logic and command tests,
+  extended the Compose static tests, and updated the local/test-host runbooks, S1-07
+  issue design and CHANGELOG.
+- Decisions from the accepted intent: approach B, a one-shot Compose service with a
+  read-only span mount and `CHECK_DATABASE_URL`; one SSH command from the laptop:
+  `gcloud compute ssh ai-ml-monitoring-dev-env --zone asia-southeast3-c --tunnel-through-iap --command "sudo bash /opt/model-monitor/compose/check-trace.sh <trace_id> --backend-only"`.
+  The smoke test uses `--backend-only --wait 30`. A duplicate counts as found only when
+  its stored row exists; a conflict is missing with the stored trace ID when present.
+- Evidence, from `backend/`: `.venv\Scripts\python.exe -m pytest tests/test_db_driver_url.py -q -m "not slow"`
+  → 2 passed, 1 warning in 0.48s; `.venv\Scripts\python.exe -m pytest tests/test_trace_check.py -q`
+  → 10 passed, 1 warning in 0.53s;
+  `.venv\Scripts\python.exe -m pytest tests/test_check_trace_script.py tests/test_trace_check.py -q`
+  → 30 passed in 3.92s; `.venv\Scripts\python.exe -m pytest tests/test_compose_files.py -q`
+  → 15 passed, 1 warning in 0.61s; `.venv\Scripts\python.exe -m pytest -q -m "not slow"`
+  → 376 passed, 9 deselected, 1 warning in 40.52s. Tasks 1–4 each had the planned
+  failing test run before implementation. Task 5 has no failing-test step in the plan;
+  its pre-edit docs/Compose baseline was 20 passed, 1 warning in 8.54s.
+- Evidence after documentation: `.venv\Scripts\python.exe -m pytest tests/test_docs.py tests/test_compose_files.py -q`
+  → 20 passed, 1 warning in 7.76s.
+- Final fast-suite verification: `.venv\Scripts\python.exe -m pytest -q -m "not slow"`
+  → 376 passed, 9 deselected, 1 warning in 38.51s. The preceding post-doc run had
+  1 failed, 375 passed, 9 deselected, 1 warning in 40.20s in the existing
+  `test_alerts_route_lists_filters_and_redacts` ordering assertion. Its isolated rerun
+  (`.venv\Scripts\python.exe -m pytest tests/test_alert_routes.py::test_alerts_route_lists_filters_and_redacts -q`)
+  passed: 1 passed, 1 warning in 2.31s. Equal opened_at timestamps sort by random IDs,
+  which appears to explain the intermittent failure; unrelated code was left unchanged.
+- Deviations: the command-test fixture needs the existing required `batch_run_id`.
+  The command now counts malformed empty OTLP objects, handles errors while reading
+  the span file and prints one-line usage errors, as required by the spec; five added
+  regression cases failed before the fixes. The setup script's missing-file diagnostic
+  is on a separate line with a generic message because the planned static test rejects
+  `PW_FILE` on any echo line. The referenced superpowers skills are unavailable, so
+  the task sequence was executed directly. No commits or git-index writes.
+- Test environment: the initial fast run produced 169 passed, 9 deselected, 3 warnings,
+  174 errors in 98.24s because pytest's temp/cache directories were inaccessible.
+  Successful temporary-file tests use `PYTEST_ADDOPTS` to disable caching and select
+  a fresh temp directory, plus a temporary `sitecustomize.py` outside the repository
+  through `PYTHONPATH` to preserve inherited permissions for mode-700 mkdir calls.
+  No installed package or repository test infrastructure was changed.
+- Review (Claude, 2026-10-09; Codex was stopped by the project owner after Task 5 and
+  resumed by review only): code checked against the spec; one fix, a read error in the
+  middle of the span file now says "cannot be read", not "not found". Outside the Codex
+  sandbox: the S1-07, Compose and docs tests 52 passed; the fast suite 376 passed,
+  9 deselected. The intermittent `test_alerts_route_lists_filters_and_redacts` ordering
+  failure that Codex saw did not occur; it is not related to S1-07.
+- Not yet run: the CI smoke test (on the pull request) and the test-host check (after
+  the next image). Docker and bash are unavailable here; no shell script, bash syntax
+  check or Compose stack was run. Shell file bytes were checked for LF endings.
+
 ### 2026-10-08 — S1-01: GCP answers recorded; corrections to the monitor's own notes
 
 - Input: three replies of the GCP job developer on issue #3 (2026-10-08), covering five

@@ -73,6 +73,19 @@ Stop it and remove the data:
 docker compose -f compose.yaml -f compose.local.yaml down -v
 ```
 
+## Check a trace (S1-07)
+
+After starting the stack with `up`, run from the repository root:
+
+```bash
+bash deploy/compose/check-trace.sh <trace_id> --backend-only
+```
+
+Use `--wait SECONDS` to wait for spans to arrive. Without `--backend-only`, the tool
+also checks the GCP `batch.run` span and the ancestor link to `batch.send`.
+Exit 0: all checked items found; 1: an item is missing; 2: usage or setup error.
+The smoke test uses this tool with `--backend-only --wait 30`.
+
 ## After the change from PostgreSQL 18 to 17 (2026-10-08)
 
 If you kept a stack running with `KEEP=1` before this change, remove its volume one time,

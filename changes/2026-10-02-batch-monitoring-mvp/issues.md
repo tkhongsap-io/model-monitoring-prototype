@@ -634,6 +634,8 @@ the dashboard on port 8080 and Langfuse on port 3000, for the staff network rang
 |---|---|---|---|---|
 | Feature | Backend | S1-02, S1-05 part B, S1-06, S1-11 | S1-05 + S1-06 | S |
 
+**Design (2026-10-08):** changes/2026-10-08-s1-07-trace-check/ (Compose service trace-check, wrapper deploy/compose/check-trace.sh, --backend-only, --wait). A conflict (409) is reported as missing with the stored trace ID.
+
 **What:** Write the script `scripts/check_trace.py <trace_id>`. The script shows the result
 for each item:
 
