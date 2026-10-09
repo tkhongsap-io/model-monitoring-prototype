@@ -47,6 +47,22 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-09 — The MVP is identity-only for all of October; risk tier R1
+
+- Decided (project owner): the jobs send `records: []` for the whole MVP; the focus is
+  traceability. The monitor grades runs with the core metrics from the body
+  (`failure_rate`, `volume_change`, `turnaround_s`) and the delivery lane.
+- Moved after October: S1-12 (LiteLLM access), S2-09 (judge), S2-10 (RAI accepts the
+  judge), the record and profile metrics. Smaller: S2-05 (core metrics only, size M),
+  S2-07, S2-08, S3-05, S4-04. S1-08 covers only the run identity and the spans, needed
+  before S4-02 (AWS), not on the test host.
+- Risk tier: R1 (was R2), measured again with the playbook rules: no personal data and no
+  judge on untrusted content. R2 comes back before `SEND_RECORDS` goes on. S2-11 is now
+  recommended, not required.
+- Changed: `issues.md` ("Changes on 2026-10-09" and a dated note in each affected issue),
+  `intent.md`, `core-metrics.md` status, `CLAUDE.md` risk line. No code change: the schema
+  keeps the record fields, and `SEND_RECORDS` stays off.
+
 ### 2026-10-08 — S1-07: trace check tool
 
 - Built: shared `db.driver_url`; pure checks and rendering in `backend/app/trace_check.py`;

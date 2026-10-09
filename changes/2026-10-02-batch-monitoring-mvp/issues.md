@@ -14,6 +14,22 @@ trace ID through all the locations. Thus each paired test ends with the same que
 did the data of this run arrive in the monitor database and in Langfuse with the same
 trace ID?
 
+## Changes on 2026-10-09: identity-only for the whole MVP
+
+The project owner decided that the MVP sends `records: []` (identity-only) for all of
+October. The focus is traceability. The monitor gets the run identity, the counts, the
+status, the times and one trace for each run. No customer text reaches the monitor.
+
+| Change | Decision | Issues |
+|---|---|---|
+| Records | `SEND_RECORDS` stays off in all jobs until after October. The record fields stay in the schema. | S1-01, S1-03 (no change) |
+| Grading | The core metrics from the body only: `failure_rate`, `volume_change`, `turnaround_s`, and the delivery lane. The record and profile metrics are "Unknown" with `records_not_approved`. | Changed: S2-05, S2-07, S2-08, S4-04 |
+| Judge | No judge in October | Moved after October: S1-12, S2-09, S2-10 |
+| Security | The approval covers only the run identity and the spans, before S4-02 (AWS). The retention review has no record text. | Changed: S1-08, S3-05 |
+| Risk tier | **R1** (was R2): no personal data and no untrusted content reach the monitor. R2 comes back before `SEND_RECORDS` goes on. | Changed: S2-11 (recommended, not required) |
+
+The review-focus rows about the LiteLLM judge below apply after October.
+
 ## Changes on 2026-10-05
 
 | Change | Decision | Issues |
@@ -125,19 +141,19 @@ remaining prototype-only code.
 | S1-09 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — | M |
 | S1-10 | First real run end to end | Verification | Backend + GCP job developer | S1-07 (trace check tool) | S |
 | S1-11 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-02, S1-07 | S |
-| S1-12 | Access to the company LiteLLM proxy for the judge | Discovery | Backend + LiteLLM proxy owner | S2-09 | S |
+| S1-12 | ~~Access to the company LiteLLM proxy for the judge~~ (after October) | Discovery | Backend + LiteLLM proxy owner | S2-09 | S |
 | S1-13 | Serve only the batch MVP API | Feature | Backend | S1-06 | M |
 | S2-01 | Source registry: YAML settings and API key hashes | Feature | Backend + platform | S2-06 | M |
 | S2-02 | Langfuse SDK v4 in the backend, and package approval | Decision + Feature | Backend + project owner | S2-05 | M |
 | S2-03 | Collector exports to self-hosted Langfuse | Infrastructure | Platform | S2-04, S2-05 | L |
 | S2-04 | OTel helper file for the GCP jobs | Feature | GCP job developer; backend reviews | S2-03 | M |
-| S2-05 | Batch evaluator with the five LLM metrics | Feature | Backend + RAI | S2-03 | L |
+| S2-05 | Batch evaluator with the core metrics (identity-only) | Feature | Backend + RAI | S2-03 | M |
 | S2-06 | Onboard 4 use cases | Feature | Job developers + backend + platform | S2-01, S1-07 | L |
 | S2-07 | Dashboard shows the GCP use cases with the current UI | Feature | Backend | S2-06 | M |
-| S2-08 | One run as a single trace, GCP job to score | Verification | Backend + platform | S1-07 | S |
-| S2-09 | Judge through the company LiteLLM proxy | Feature | Backend | S2-05 | M |
-| S2-10 | RAI accepts the local judge | Verification | RAI + backend | S2-09 | M |
-| S2-11 | Threat model for the batch MVP (R2) | Decision | Backend + security | S2-05 | S |
+| S2-08 | One run as a single trace, GCP job to the graded run | Verification | Backend + platform | S1-07 | S |
+| S2-09 | ~~Judge through the company LiteLLM proxy~~ (after October) | Feature | Backend | S2-05 | M |
+| S2-10 | ~~RAI accepts the local judge~~ (after October) | Verification | RAI + backend | S2-09 | M |
+| S2-11 | Threat model for the batch MVP (recommended; MVP is R1) | Decision | Backend + security | S2-05 | S |
 | S3-01 | Onboard 8 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-07 | L |
 | S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 | M |
 | S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 | M |
@@ -667,6 +683,12 @@ product.
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Decision | Security + platform | S1-01 | — | S |
+**Changed 2026-10-09 (identity-only MVP):** the MVP sends `records: []` for all of October. No customer text leaves a
+GCP job. The approval now covers only the run identity (IDs, counts, status, times, model
+name) and the OTel spans. It is not needed on the test host, because the data stays in the
+same GCP VPC. It is needed **before S4-02**, when the data first goes from GCP to AWS. The
+record content needs a new approval before `SEND_RECORDS` goes on (after October).
+
 
 **What:** Get written approval for all the data that Sprint 1 sends between the clouds.
 
@@ -820,6 +842,9 @@ Rules:
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Discovery | Backend + LiteLLM proxy owner | — | S2-09 | S |
+**Moved after October (decided 2026-10-09):** the MVP sends no records, so there is no judge (S2-09). This
+issue starts again before `SEND_RECORDS` goes on.
+
 
 **What:** The judge is a local model behind the company LiteLLM proxy (decided
 2026-10-05). Another team owns the proxy. Get the answers below from the proxy owner, and
@@ -1121,6 +1146,25 @@ stops the job. This issue stays the OTel helper.
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Feature | Backend + RAI | S2-01, S2-02, S2-03, S2-09, task description (Wed 14 October) | S2-03 | L |
+**Changed 2026-10-09 (identity-only MVP):** the MVP sends no records. The evaluator grades each stored run with the
+**core metrics from the body only**: `failure_rate`, `volume_change` and `turnaround_s`
+([core metrics](../2026-10-08-batch-metric-profiles/core-metrics.md), section 1).
+`p95_latency_s`, `valid_output_rate`, `block_rate`, the profile metrics and the five LLM
+metrics are "Unknown" with `records_not_approved` and are not in the rollup. There is no
+judge (S2-09 and S2-10 move after October), no task description and no
+`batch_record_judgments`. Size: M. Depends on: S2-01, S2-02, S2-03; RAI approves the core
+bands before the work starts.
+
+New acceptance criteria for October (they replace the criteria below that need records or
+the judge):
+- [ ] The worker grades each new run one time with `failure_rate`, `volume_change` and `turnaround_s`. The `POST` request does not wait.
+- [ ] `batch_evaluations` stores the metrics, the bands version and the run ID. The stored run never changes.
+- [ ] Each "Unknown" condition of the core metrics gives its reason: `no_requests`, `no_baseline`, `not_reported`, `records_not_approved`.
+- [ ] Langfuse shows the run metrics as scores on the trace, with a stable `score_id`. A Langfuse failure does not change the grade.
+- [ ] The chatbot (`AICT-L02`) tests pass.
+
+The text below stays for the record lane after October.
+
 
 **What:** Grade each stored run with the LLM lane of the prototype. Map the records to the
 v1.1 `Trace` shape. Use the judge client of S2-09 (the company LiteLLM proxy) and the
@@ -1244,6 +1288,10 @@ For each job, do these steps:
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Feature | Backend | S2-01, S2-05 | S2-06 | M |
+**Changed 2026-10-09 (identity-only MVP):** the dashboard shows the delivery and reliability lanes (the core
+metrics of S2-05) and the trace ID of each run. The record and judge columns show
+"Unknown — records not approved" or are hidden.
+
 
 **Decision (2026-10-03):** The dashboard shows only the GCP batch use cases. The UI does not
 change. The dashboard shows no record text.
@@ -1285,6 +1333,9 @@ of the chatbot uses now. The frontend code does not change.
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Verification | Backend + platform | S2-03, S2-04, S2-05, S2-07 | S1-07 | S |
+**Changed 2026-10-09 (identity-only MVP):** the trace goes from the GCP job to the stored run and its core-metric
+grade (`monitor.ingest` and the run scores of S2-05). There are no judge or record scores.
+
 
 **What:** This is the Sprint 2 demo. Show one real run as one trace in Langfuse, from the
 GCP job to the scores. Show the same run with its grade on the dashboard.
@@ -1304,6 +1355,9 @@ GCP job to the scores. Show the same run with its grade on the dashboard.
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Feature | Backend | To build: none (use a fake server). To test on the test host: S1-12. | S2-05 | M |
+**Moved after October (decided 2026-10-09):** the MVP sends `records: []`, so there is no text to judge. This
+issue starts again before `SEND_RECORDS` goes on. It needs S1-12 first.
+
 
 **What:** Replace the Claude call in `backend/app/adapters/llm_eval/live_http.py`
 (`_judge_claude`, which uses `anthropic.Anthropic().messages.parse`) with a call to the
@@ -1418,6 +1472,9 @@ number. It never contains the key, the prompt or the answer text.
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Verification | RAI + backend | S1-12, S2-09 | S2-09 on the test host | M |
+**Moved after October (decided 2026-10-09):** there is no judge in the MVP (S2-09). This issue starts again
+with S2-09.
+
 
 **What:** There are no Claude scores to compare with. Thus RAI compares the local judge
 with labels from people. The due date is Friday 16 October. A use case passes the release
@@ -1445,6 +1502,12 @@ only with a judge that RAI accepted (S4-03).
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Decision | Backend + security | — | S2-05 | S |
+**Changed 2026-10-09 (identity-only MVP):** the MVP is now **R1** (intent, 2026-10-09): no customer text and no
+judge. The threat model is recommended, not required. If it is done, it covers the API key,
+the OTLP token, plain HTTP inside the VPC on the test host, and the AWS path. Prompt
+injection into the judge is out of scope until the records come back. The tier goes back to
+R2 before `SEND_RECORDS` goes on.
+
 
 **What:** The batch MVP is risk tier R2 (decided 2026-10-07,
 [intent](intent.md), [ADR 0002](../../docs/adr/0002-batch-push-ingest.md)). The playbook
@@ -1645,6 +1708,10 @@ nothing is duplicated. Do the drills on the test host.
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Verification | Security + platform + source owners | S3-01, S3-03, S3-07 | S3-03, S3-07 | M |
+**Changed 2026-10-09 (identity-only MVP):** no record text is stored, so there is no record retention to review.
+The leak scan still runs on the stored bodies and on the span file and Langfuse traces: it
+must find no free text and no PII.
+
 
 **What:** A script searches the stored data for items that must not be there. Security also
 examines the access.
@@ -1942,6 +2009,10 @@ records is a release blocker.
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Verification | Backend + RAI | S4-03 | S1-07 (trace check tool) | M |
+**Changed 2026-10-09 (identity-only MVP):** each row shows the core metrics graded (`failure_rate`,
+`volume_change`, `turnaround_s`) and one trace, not the five LLM metrics. The judge columns
+are not in the October checklist.
+
 
 **What:** Make one table with one row for each use case. Each row contains:
 - the use case,
