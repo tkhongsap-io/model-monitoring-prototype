@@ -9,3 +9,5 @@
 *.toml text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+*.conf text eol=lf
+*.example text eol=lf
