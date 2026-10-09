@@ -609,6 +609,8 @@ port 80 only for the job subnet. From Sprint 2, the same front door also serves 
 the dashboard on port 8080 and Langfuse on port 3000, for the staff network ranges only
 (Sprint 2 prerequisites). SSO is not possible on the test host without a DNS name (S3-07).
 
+**Design (2026-10-09):** changes/2026-10-09-s1-06-nginx/. nginx is a standalone Compose project (deploy/nginx, one conf.d file for each app, external network edge). The Collector checks the OTLP token (bearertokenauth on the receiver otlp/external, port 4319); nginx routes paths only.
+
 **Acceptance criteria**
 - [ ] `docker compose up` starts the Collector with a health check.
 - [ ] The Collector image has the version from the fixed-versions table. It does not use `latest`.
