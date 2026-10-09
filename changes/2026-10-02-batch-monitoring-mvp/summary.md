@@ -9,7 +9,7 @@
 
 ## What we build
 
-By Friday 30 October, the RAI team sees each completed run of the **10 GCP batch use
+By Friday 30 October, the RAI team sees each completed run of the **7 GCP batch use
 cases** on one dashboard: the status, the freshness and the grade of the five LLM metrics,
 or "Unknown" with a reason. Engineers see one trace for each run in Langfuse. The stack runs
 on the production AWS Kubernetes cluster.
@@ -151,15 +151,15 @@ Why the run summary is not sent with OTel:
 |---|---|---|---|---|---|
 | **1** | 5 to 9 October | Test host VM in GCP on a private VPC path, JSON body v1, receiving API, GCP send step, identity-only mode | OTel in the first job and in the backend. Collector with file output. | 1 | One real run arrives, with one trace |
 | **2** | 12 to 16 October | YAML registry, five-metric evaluator, LiteLLM judge and its acceptance by RAI, dashboard with the GCP use cases | Self-hosted Langfuse, SDK v4 in the backend, OTel helper file | 4 | One trace from the GCP job to the scores. The grade is on the dashboard. |
-| **3** | 19 to 23 October | 8 use cases, delivery alerts, SSO login, security review | Collector hardening, drills, Kubernetes files on the test AWS cluster | 8 | The drills pass. The stack runs on the test AWS cluster. |
-| **4** | 26 to 30 October | All 10 use cases send to AWS | Production cluster | 10 | The 10-row evidence checklist is signed |
+| **3** | 19 to 23 October | 7 use cases, delivery alerts, SSO login, security review | Collector hardening, drills, Kubernetes files on the test AWS cluster | 7 | The drills pass. The stack runs on the test AWS cluster. |
+| **4** | 26 to 30 October | All 7 use cases send to AWS | Production cluster | 7 | The 7-row evidence checklist is signed |
 
 ## Open items
 
 | Item | Owner | Needed by |
 |---|---|---|
 | Security approval of the records, the PII list and the data flow | Security | 8 October |
-| Inventory of the 10 use cases and their run dates | PM + owners | 9 October |
+| Inventory of the 7 use cases and their run dates | PM + owners | 9 October |
 | LiteLLM proxy access: URL, virtual keys, model alias, log policy (S1-12) | LiteLLM proxy owner | 9 October |
 | RAI accepts the local judge (S2-10) | RAI | 16 October |
 | Private DNS name for the test host (GCP) and two Google OAuth clients, for SSO (long-lead) | Your team, Google Workspace administrator | 19 October |

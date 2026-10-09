@@ -47,6 +47,28 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-09 — S1-09: inventory scope is 7 use cases
+
+- The GCP developer posted 7 use-case templates in #11 and confirmed the scope: 7 jobs,
+  `workflow-automation` included. The other 3 use cases run on NotebookLM and Gemini
+  Enterprise, with no job code for the send step.
+- Decided (user): network ranges (network team, S1-04) and egress IPs (S2-06 step 3, for
+  S4-01) leave the inventory; the table keeps only the runtime. All 7 jobs are Cloud Run
+  jobs, so each needs VPC egress before onboarding. Prakasit Issanapong runs a controlled
+  rerun on request when a job has no real run in time. The GCP
+  developer selects the order in Sprint 2 planning. The RAI profile confirmation and the
+  developer's 4 open questions move to the time before `SEND_RECORDS` goes on.
+- Decided (project owner): the October goal is 7 use cases. Sprint 3 (S3-01) onboards the
+  last 3, to 7; S4-03, S4-04 and S4-05 use 7.
+- Changed: `issues.md` (S1-09, S3-01, S4-03 to S4-05, "Changes on 2026-10-09"),
+  `plan.md`, `summary.md`, `intent.md`. No code change. Not changed: the after-October
+  judge texts (`llm-metrics-standard.md`, S1-12) that estimate the load for 10 use cases.
+- Decided (user): Prakasit Issanapong is the owner contact for all 7 rows and confirms
+  them. Risk: the developer also confirms that each run is real (S1-10, S4-03, S4-04), so
+  that confirmation is not independent.
+- Remaining before #11 can close: Prakasit's confirmation comment on #11. All the
+  acceptance criteria are met in the plan.
+
 ### 2026-10-09 — The MVP is identity-only for all of October; risk tier R1
 
 - Decided (project owner): the jobs send `records: []` for the whole MVP; the focus is
