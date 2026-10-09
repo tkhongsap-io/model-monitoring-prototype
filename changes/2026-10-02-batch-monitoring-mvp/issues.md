@@ -772,7 +772,12 @@ Sprint 2 cannot be planned again without these answers.
 - **Runtime:** all 7 jobs are Cloud Run jobs (confirmed 2026-10-09). Each job needs VPC
   egress before onboarding (S2-06).
 - **Controlled reruns:** if a job has no real run in time, Prakasit Issanapong runs a
-  controlled rerun on request. A rerun is a real run of the job code on real input.
+  controlled rerun on request. A rerun is a real run of the job code on real input. From the
+  schedules, only `workflow-automation` (day 1 of each month) has no October run after
+  9 October, so it needs a rerun.
+- **Owner contact:** Prakasit Issanapong is the contact for all 7 owner teams. He confirms
+  the rows and that each run is real (S1-10, S4-03, S4-04). Thus the developer and the
+  confirmer are the same person; the confirmation is not independent.
 - **Network range and egress IP** are not in this table. The network team gives the network
   ranges for the test-host firewall (S1-04). S2-06 step 3 records the egress IP of each job
   when it is onboarded, for S4-01. This table records only the runtime of each job.
@@ -785,14 +790,14 @@ Sprint 2 cannot be planned again without these answers.
   because `records` is empty. They stay open until records are approved.
 
 **Acceptance criteria**
-- [ ] The table has the 7 use cases above. Each row has a named owner and a named developer.
-- [ ] Each use case has at least one October run date from its schedule, or a controlled rerun on request.
+- [x] The table has the 7 use cases above. Each row has a named owner (the team, contact Prakasit Issanapong) and a named developer.
+- [x] Each use case has at least one October run date from its schedule, or a controlled rerun on request.
 - [x] Each GCP job has a known runtime: all 7 are Cloud Run jobs.
 - [x] Each use case has a filled use-case template.
 - [x] The project owner accepted the October goal of 7 use cases.
 
 **How to test**
-1. Each owner confirms their row in the issue comments.
+1. Prakasit Issanapong, the owner contact, confirms the 7 rows in the issue comments.
 2. Platform reads the runtimes and plans VPC egress for each serverless job (S2-06).
 
 **Risk:** The team examined only 6 pipelines in 4 repositories. If the table has fewer
