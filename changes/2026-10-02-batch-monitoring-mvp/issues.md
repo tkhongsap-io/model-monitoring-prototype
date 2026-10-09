@@ -27,6 +27,7 @@ status, the times and one trace for each run. No customer text reaches the monit
 | Judge | No judge in October | Moved after October: S1-12, S2-09, S2-10 |
 | Security | The approval covers only the run identity and the spans, before S4-02 (AWS). The retention review has no record text. | Changed: S1-08, S3-05 |
 | Risk tier | **R1** (was R2): no personal data and no untrusted content reach the monitor. R2 comes back before `SEND_RECORDS` goes on. | Changed: S2-11 (recommended, not required) |
+| Use-case scope | 7 GCP jobs, not 10. The other 3 run on NotebookLM and Gemini Enterprise and have no job code. Network ranges, egress IPs, the order and the RAI profile confirmation leave the inventory. The project owner must accept the October goal of 7. | Changed: S1-09. To change after the project owner accepts: S4-03, S4-04, S4-05 |
 
 The review-focus rows about the LiteLLM judge below apply after October.
 
@@ -138,7 +139,7 @@ remaining prototype-only code.
 | S1-06 | Minimal OTel Collector and front door (local stack and test host) | Infrastructure | Platform | S1-05 | M |
 | S1-07 | Trace check tool | Feature | Backend | S1-05 + S1-06 | S |
 | S1-08 | Security approval for the Sprint 1 data flow | Decision | Security + platform | — | S |
-| S1-09 | Inventory of the 10 use cases and October run dates | Discovery | PM + source owners | — | M |
+| S1-09 | Inventory of the 7 use cases and October run dates | Discovery | PM + source owners | — | M |
 | S1-10 | First real run end to end | Verification | Backend + GCP job developer | S1-07 (trace check tool) | S |
 | S1-11 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-02, S1-07 | S |
 | S1-12 | ~~Access to the company LiteLLM proxy for the judge~~ (after October) | Discovery | Backend + LiteLLM proxy owner | S2-09 | S |
@@ -731,14 +732,14 @@ Security must approve these items:
 3. Compare the S1-03 placeholder list with the approved PII types.
 4. If the approval is not complete by 8 October, the job does not send records. All five metrics show "Unknown".
 
-### S1-09 — Inventory of the 10 use cases and October run dates
+### S1-09 — Inventory of the 7 use cases and October run dates
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Discovery | PM + source owners | — | — | M |
 
-**What:** Make one table with one row for each of the 10 GCP use cases. Sprints 2, 3 and 4
-use this table to select the order of the use cases. The due date is Friday 9 October.
+**What:** Make one table with one row for each GCP use case (7 since 2026-10-09). Sprints 2,
+3 and 4 use this table to onboard the use cases. The due date is Friday 9 October.
 
 **Added 2026-10-08:** each job developer also fills in the
 [use-case template](../2026-10-08-batch-metric-profiles/use-case-template.md) (task type,
@@ -761,16 +762,34 @@ Sprint 2 cannot be planned again without these answers.
 | Data sensitivity | Security uses this for the approval (S1-08) |
 | Owner of the task description | The person who writes the task description for the judge, with RAI |
 
+**Changed 2026-10-09:**
+- **Scope: 7 use cases, not 10.** The GCP developer confirmed 7 jobs: `rtr-fraud-validation`,
+  `sentiment-qa`, `sentiment-telesale`, `tax-invoice-extraction`, `sentiment-batch-mnp`,
+  `sentiment-batch-retention` and `workflow-automation`. The other 3 use cases run on
+  NotebookLM and Gemini Enterprise. They have no job code for the send step, so they are out
+  of scope until monitoring is possible there. The project owner must accept the change of
+  the October goal (see Risk).
+- **Network range and egress IP** are not in this table. The network team gives the network
+  ranges for the test-host firewall (S1-04). S2-06 step 3 records the egress IP of each job
+  when it is onboarded, for S4-01. This table records only the runtime of each job.
+- **Order of the use cases:** the GCP developer selects it in Sprint 2 planning.
+- **RAI confirms the profile:** moved after October. The MVP is identity-only, so all the
+  profile metrics are "Unknown" with `records_not_approved`. The confirmation is necessary
+  before `SEND_RECORDS` goes on.
+- **Open questions of the developer** (placeholders for audio and documents, `question` for
+  long instructions, the function-call answer of retention): not necessary in October,
+  because `records` is empty. They stay open until records are approved.
+
 **Acceptance criteria**
-- [ ] The table has exactly 10 rows. Each row has a named owner and a named developer.
+- [ ] The table has the 7 use cases above. Each row has a named owner and a named developer.
 - [ ] Each use case has at least one October run date, or a booked controlled rerun.
-- [ ] Each GCP job has a known runtime and network range for the test host, and a known egress IP for AWS.
-- [ ] The order of the use cases for Sprints 2 to 4 is agreed.
-- [ ] Each use case has a filled use-case template, and RAI confirmed its profile.
+- [ ] Each GCP job has a known runtime (for example "Cloud Run job"). Serverless runtimes need VPC egress before onboarding (S2-06).
+- [ ] Each use case has a filled use-case template.
+- [ ] The project owner accepted the October goal of 7 use cases.
 
 **How to test**
 1. Each owner confirms their row in the issue comments.
-2. Platform adds the network ranges to the firewall plan of the test host (S1-04), and the egress IPs to the AWS plan (S4-01).
+2. Platform reads the runtimes and plans VPC egress for each serverless job (S2-06).
 
 **Risk:** The team examined only 6 pipelines in 4 repositories. If the table has fewer
 than 10 real jobs on 9 October, change the October goal and tell the project owner.

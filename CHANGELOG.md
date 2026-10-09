@@ -36,6 +36,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Batch MVP plan, S1-09: the inventory has 7 GCP use cases, not 10. The other 3 run on
+  NotebookLM and Gemini Enterprise and have no job code. Network ranges, egress IPs, the
+  order of the use cases and the RAI profile confirmation are no longer in the inventory.
+  The project owner must accept the October goal of 7.
 - Batch MVP plan: the GCP use cases are graded with core metrics plus one profile for each
   task type (`changes/2026-10-08-batch-metric-profiles/`), not with the five chatbot
   metrics for all. The five LLM metrics stay for the generation profiles.
