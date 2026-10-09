@@ -24,6 +24,10 @@ services:
       collector:
         condition: service_started
     restart: unless-stopped
+    networks:
+      default: {}
+      edge:
+        aliases: [model-monitor-backend]
 
   # One-time step: a new named volume belongs to root, and the Collector runs as uid 10001.
   # This gives the volume to that user, then stops. (The distroless Collector image has no
@@ -47,6 +51,10 @@ services:
     # No Docker health check: the image has no shell. A Collector problem never stops
     # the backend (S1-05); the smoke test checks the span file instead.
     restart: unless-stopped
+    networks:
+      default: {}
+      edge:
+        aliases: [model-monitor-collector]
 
   # S1-07 trace check tool: a one-shot service, never started by `up` (profile tools).
   # Run it with deploy/compose/check-trace.sh. It reads the span file read-only and the
@@ -60,3 +68,7 @@ services:
 
 volumes:
   collector-data:
+
+networks:
+  edge:
+    external: true          # made once: docker network create edge (see deploy/nginx/README.md)

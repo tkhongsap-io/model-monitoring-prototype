@@ -30,6 +30,8 @@ services:
       - "127.0.0.1:8000:8000"
 
   collector:
+    environment:
+      OTLP_TOKEN: local-dev-otlp-token-not-a-secret   # local test value, not a secret
     ports:
       - "127.0.0.1:4318:4318"
 
