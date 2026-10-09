@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Trace check tool (S1-07): `deploy/compose/check-trace.sh <trace_id> [--backend-only]
+  [--wait SECONDS]` shows if the run row, the `monitor.ingest` span, the GCP `batch.run`
+  span and the link to `batch.send` exist for one trace. Exit 0, 1 or 2. It uses the
+  read-only database user and runs on the local stack and the test host. The CI smoke test
+  uses it.
+
 - The backend runs on the GCP test host (S1-04): VM `ai-ml-monitoring-dev-env` with Docker
   Compose (`deploy/compose/compose.testhost.yaml`, runbook `deploy/compose/TESTHOST.md`)
   and Cloud SQL `sandbox-pg17-db` (PostgreSQL 17.11, private IP, TLS). It listens only

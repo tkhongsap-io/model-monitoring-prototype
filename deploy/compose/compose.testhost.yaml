@@ -15,3 +15,11 @@ services:
     ports:
       # Only on the VM itself until the front door exists (S1-06 test-host part).
       - "127.0.0.1:8000:8000"
+
+  trace-check:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set}
+    env_file:
+      # CHECK_DATABASE_URL with monitor_readonly (S1-11); made by make-check-env.sh, mode 600
+      - /opt/model-monitor/check.env
+    volumes:
+      - /opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro

@@ -33,7 +33,7 @@ def test_images_are_pinned():
 
 def test_base_file_has_no_local_settings():
     base = _load("compose.yaml")["services"]
-    assert set(base) == {"backend", "collector", "collector-init"}
+    assert set(base) == {"backend", "collector", "collector-init", "trace-check"}
     for service in base.values():
         assert "build" not in service and "ports" not in service
     backend = base["backend"]
@@ -116,8 +116,10 @@ def test_smoke_script_cleans_up_and_fails_fast():
     assert "trap cleanup EXIT" in text and "down -v" in text
     assert 'KEEP:-0' in text
     assert "--wait" in text and "/api/readiness" in text
-    assert "monitor.ingest" in text and "docker compose" in text and " cp " in text
-    assert "collector:/data/spans.jsonl" in text and "/tmp/spans.jsonl" not in text
+    assert "docker compose" in text and "/tmp/spans.jsonl" not in text
+    # the span check is the S1-07 tool, not an inline copy
+    assert 'check-trace.sh" "$TRACE_ID" --backend-only --wait 30' in text
+    assert " cp " not in text and "resourceSpans" not in text
     assert "SMOKE PASS" in text and "SMOKE FAIL" in text
     # the key is sent only in the Authorization header, never echoed
     key_lines = [line for line in text.splitlines() if "KEY" in line and "echo" in line]
@@ -142,7 +144,7 @@ def test_ci_workflow_paths():
 
 def test_testhost_file_uses_registry_image_and_host_secrets():
     host = _load("compose.testhost.yaml")["services"]
-    assert set(host) == {"backend"}                     # no database on the VM (Cloud SQL)
+    assert set(host) == {"backend", "trace-check"}      # no database on the VM (Cloud SQL)
     backend = host["backend"]
     assert backend["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
     assert "build" not in backend and "environment" not in backend
@@ -159,3 +161,52 @@ def test_env_example_has_names_only():
     assert set(values) == {"DATABASE_URL", "BATCH_API_KEY_SHA256"}
     assert values["BATCH_API_KEY_SHA256"] == ""
     assert "<password>" in values["DATABASE_URL"] and "sslmode=verify-ca" in values["DATABASE_URL"]
+
+
+def test_trace_check_service_is_a_read_only_tool():
+    base = _load("compose.yaml")["services"]["trace-check"]
+    assert base["profiles"] == ["tools"]
+    assert base["entrypoint"] == ["python", "scripts/check_trace.py"]
+    assert base["volumes"] == ["collector-data:/otel:ro"]
+    assert base["restart"] == "no"
+    for key in ("ports", "depends_on", "environment", "build"):
+        assert key not in base
+    local = _load("compose.local.yaml")["services"]["trace-check"]
+    assert local["image"] == "model-monitor-backend:local"
+    assert local["environment"] == {
+        "CHECK_DATABASE_URL": "postgresql://monitor:monitor@postgres:5432/monitor"}
+    assert "DATABASE_URL" not in local["environment"]
+    host = _load("compose.testhost.yaml")["services"]["trace-check"]
+    assert host["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
+    assert host["env_file"] == ["/opt/model-monitor/check.env"]
+    assert host["volumes"] == [
+        "/opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro"]
+    assert "environment" not in host and "ports" not in host
+
+
+def test_check_env_example_has_names_only():
+    text = (COMPOSE / "check.env.example").read_text(encoding="utf-8")
+    values = dict(line.split("=", 1) for line in text.splitlines()
+                  if line and not line.startswith("#"))
+    assert set(values) == {"CHECK_DATABASE_URL"}
+    url = values["CHECK_DATABASE_URL"]
+    assert url.startswith("postgresql://monitor_readonly:<password>@")
+    assert "sslmode=verify-ca" in url
+
+
+def test_trace_check_shell_scripts():
+    wrapper = (COMPOSE / "check-trace.sh").read_text(encoding="utf-8")
+    setup = (COMPOSE / "make-check-env.sh").read_text(encoding="utf-8")
+    for text in (wrapper, setup):
+        assert text.startswith("#!/usr/bin/env bash\n")
+        assert "set -euo pipefail" in text and "\r\n" not in text
+    assert "/opt/model-monitor/check.env" in wrapper
+    assert "compose.testhost.yaml" in wrapper and "compose.local.yaml" in wrapper
+    assert "--profile tools run --rm -T --no-deps trace-check" in wrapper
+    assert '"$@"' in wrapper
+    assert "/opt/model-monitor/secrets/monitor-readonly.password" in setup
+    assert "monitor_readonly" in setup and "10.188.112.8" in setup
+    assert "umask 077" in setup and "chmod 600" in setup
+    for line in setup.splitlines():
+        if "echo" in line:
+            assert "PW" not in line and "password)" not in line, line
