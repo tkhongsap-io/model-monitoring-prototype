@@ -1,0 +1,6 @@
+# GCP test host (S1-06): host port 80. The VPC rule monitor-testhost-allow-http-jobs allows
+# only the job subnet 10.10.0.0/24. Plain HTTP inside the VPC (decided 2026-10-08).
+services:
+  nginx:
+    ports:
+      - "80:8080"
