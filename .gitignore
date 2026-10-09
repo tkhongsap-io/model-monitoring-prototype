@@ -71,3 +71,6 @@ __pycache__/
 
 # Raw run summaries from GCP jobs: may contain customer data. Never commit.
 /data/
+
+# PowerPoint files (the issue deck is built locally by build_issues_pptx.py)
+*.pptx

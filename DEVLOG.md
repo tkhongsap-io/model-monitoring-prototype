@@ -47,6 +47,33 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-09 — batch MVP plan: AI governance document track
+
+- Changed: added the 8 gates of the company AI governance process to
+  `changes/2026-10-02-batch-monitoring-mvp/issues.md` as a document track that runs in
+  parallel with the development. The text follows the identity-only MVP (no customer text,
+  no judge in October, 7 use cases). New Governance issues: S2-12 (gate 1, VRO), S2-13
+  (gate 2, Risk Screening), S2-14 (gate 3, DPO documents), S3-08 (gate 4, AF Slide and
+  Security Assessment; it also sets gate 5 "In Development"), S3-09 (gate 6, security
+  review), S4-08 (gate 7, RAI Deployment Checklist). S4-06 is also gate 8. Hard stops: S4-01
+  now depends on S3-09, S4-02 on S4-08, and S4-06 on S4-08. S1-13 and S2-11 were added to
+  "Overview by phase", which did not list them. 47 issues in 19 workstreams.
+- Added: `build_issues_pptx.py`. It builds `model_monitoring_issues.pptx` from `issues.md`
+  in the team task template (`ai_task_template.pptx`, put in the change folder locally).
+  Slide 1 has the issues that are not coding tasks, by phase. Slide 2 has the coding tasks
+  (type Feature), by sprint. Each table fits one slide. PowerPoint files are not committed
+  (`*.pptx` in `.gitignore`). The script does not use the removed `build_issues_xlsx.py`.
+- Evidence: `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`). The deck was built (28 and 19 rows), passed
+  the pptx validator against the template, and was rendered with LibreOffice and examined.
+  A second build gave the same text.
+- Posted: the six Governance issues as #73 (S2-12) to #78 (S4-08), with the sprint label
+  and the new label `type: governance`. They are not on the portfolio project board
+  (project owner's choice).
+- Remaining:
+  - Open decision for the AI Transformation Lead (S2-13, by 14 October): accept the
+    parallel order, and the test-host evidence for gate 7.
+  - The changed S4-01, S4-02 and S4-06 are not updated on GitHub yet.
+
 ### 2026-10-09 — Test host: nginx front door, OTLP token and `backend:11` deployed
 
 - Done (project owner, with the `TESTHOST.md` steps; Claude checked each output): secret
