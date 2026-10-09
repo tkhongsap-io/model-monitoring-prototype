@@ -1,0 +1,5 @@
+# Laptop and CI (S1-06): the front door only on the loopback address.
+services:
+  nginx:
+    ports:
+      - "127.0.0.1:8080:8080"

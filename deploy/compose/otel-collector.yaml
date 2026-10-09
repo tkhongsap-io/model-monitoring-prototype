@@ -1,16 +1,27 @@
 # OTel Collector for the batch MVP (S1-06). Receives OTLP/HTTP and writes the spans to
 # the log and to /data/spans.jsonl in the container (read it with `docker compose cp`).
 # The file output is temporary: S2-03 adds the export to Langfuse. S3-03 adds the memory
-# limit and the attribute filter. This file contains no credential.
+# limit and the attribute filter. The OTLP token comes from the environment (OTLP_TOKEN);
+# this file contains no credential.
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
+  # The OTLP token of the GCP jobs (S1-06). Only the external receiver uses it.
+  bearertokenauth:
+    scheme: Bearer
+    token: ${env:OTLP_TOKEN}
 
 receivers:
-  otlp:
+  otlp:                        # internal: the backend, inside the Docker network
     protocols:
       http:
         endpoint: 0.0.0.0:4318
+  otlp/external:               # GCP jobs, only through nginx (/otlp/*); never published
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4319
+        auth:
+          authenticator: bearertokenauth
 
 processors:
   batch: {}
@@ -22,9 +33,9 @@ exporters:
     path: /data/spans.jsonl
 
 service:
-  extensions: [health_check]
+  extensions: [health_check, bearertokenauth]
   pipelines:
     traces:
-      receivers: [otlp]
+      receivers: [otlp, otlp/external]
       processors: [batch]
       exporters: [debug, file]

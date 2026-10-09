@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- nginx front door (S1-06): a standalone Compose project (`deploy/nginx`) that serves only
+  `/api/batch/runs`, `/api/health` and `/otlp/*` (port 80 on the test host). The Collector
+  accepts GCP spans only with the OTLP token (`bearertokenauth`, receiver `otlp/external`).
+  The CI smoke test runs through nginx and checks a full fake-job trace.
+
 - Trace check tool (S1-07): `deploy/compose/check-trace.sh <trace_id> [--backend-only]
   [--wait SECONDS]` shows if the run row, the `monitor.ingest` span, the GCP `batch.run`
   span and the link to `batch.send` exist for one trace. Exit 0, 1 or 2. It uses the

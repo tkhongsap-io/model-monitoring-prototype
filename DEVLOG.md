@@ -47,6 +47,30 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-09 — S1-06: nginx front door and the OTLP token
+
+- Built (Codex from `changes/2026-10-09-s1-06-nginx/plan.md`, reviewed by Claude): the
+  standalone Compose project `deploy/nginx/` (`nginxinc/nginx-unprivileged:1.28.0-alpine`,
+  one `conf.d` file for each app, external network `edge`, request-time DNS); the backend
+  and the Collector join `edge` as `model-monitor-backend` / `model-monitor-collector`; the
+  Collector receiver `otlp/external` (4319, never published) checks the OTLP token with
+  `bearertokenauth`; `collector.env.example`, `make-collector-env.sh`; the smoke test runs
+  through nginx (routes, `401` without the token, a full fake-job trace, all four trace
+  check items); the workflow also runs for `deploy/nginx/**`; TESTHOST runbook (12 steps).
+- Decisions (`intent.md`): the Collector checks the token, so it moves to AWS with the
+  Collector (S4-01); nginx routes paths only; apps are separated by port (no DNS).
+- Evidence (Windows, outside the Codex sandbox): fast suite 388 passed, 9 deselected;
+  nginx + Compose + docs tests 32 passed. Codex's own fast run had 193 setup errors only
+  from the sandbox temp folder. One deviation: the old smoke-test assertion against
+  `resourceSpans` was removed, because the fake job spans need it.
+- Not yet run: the CI smoke test (on the pull request) and the test-host deploy (the
+  project owner runs the token steps in `TESTHOST.md`).
+
+### 2026-10-09 — S1-01 closed: a real identity-only body passes
+
+- The GCP job developer sent the body of a real RTR run
+  (`rtr-fraud-validation-20261009T031440Z`, 125 requests, 0 failed, `records: []`,
+  `submitted_at` set). `validate_run` accepted it. Evidence and criteria on #3; #3 closed.
 ### 2026-10-09 — S1-09: inventory scope is 7 use cases
 
 - The GCP developer posted 7 use-case templates in #11 and confirmed the scope: 7 jobs,

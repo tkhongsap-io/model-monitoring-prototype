@@ -13,8 +13,14 @@ services:
       # Cloud SQL server CA for sslmode=verify-ca (a public certificate, not a secret)
       - /opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro
     ports:
-      # Only on the VM itself until the front door exists (S1-06 test-host part).
+      # For operators inside the VM. The GCP jobs use nginx on port 80 (deploy/nginx).
       - "127.0.0.1:8000:8000"
+
+  collector:
+    env_file:
+      # OTLP_TOKEN of the GCP jobs (S1-06); made by make-collector-env.sh, mode 600
+      - path: /opt/model-monitor/collector.env
+        required: true
 
   trace-check:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set}

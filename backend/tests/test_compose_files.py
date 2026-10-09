@@ -88,15 +88,22 @@ def test_collector_writes_to_a_volume_that_its_user_owns():
     assert "collector-data" in base["volumes"]
 
 
-def test_collector_config_writes_spans_to_the_volume_without_secrets():
+def test_collector_config_has_internal_and_token_receivers():
     text = (COMPOSE / "otel-collector.yaml").read_text(encoding="utf-8")
     config = yaml.safe_load(text)
-    assert config["receivers"]["otlp"]["protocols"] == {"http": {"endpoint": "0.0.0.0:4318"}}
+    receivers = config["receivers"]
+    assert receivers["otlp"]["protocols"] == {"http": {"endpoint": "0.0.0.0:4318"}}
+    external = receivers["otlp/external"]["protocols"]["http"]
+    assert external == {"endpoint": "0.0.0.0:4319",
+                        "auth": {"authenticator": "bearertokenauth"}}
+    assert config["extensions"]["bearertokenauth"] == {
+        "scheme": "Bearer", "token": "${env:OTLP_TOKEN}"}
+    assert config["service"]["extensions"] == ["health_check", "bearertokenauth"]
     assert config["exporters"]["file"]["path"] == "/data/spans.jsonl"
     traces = config["service"]["pipelines"]["traces"]
-    assert traces == {"receivers": ["otlp"], "processors": ["batch"],
+    assert traces == {"receivers": ["otlp", "otlp/external"], "processors": ["batch"],
                       "exporters": ["debug", "file"]}
-    for word in ("password", "token", "secret", "authorization"):
+    for word in ("password", "secret", "authorization", "local-dev-otlp-token"):
         assert word not in text.lower()
 
 
@@ -118,19 +125,30 @@ def test_smoke_script_cleans_up_and_fails_fast():
     assert "--wait" in text and "/api/readiness" in text
     assert "docker compose" in text and "/tmp/spans.jsonl" not in text
     # the span check is the S1-07 tool, not an inline copy
-    assert 'check-trace.sh" "$TRACE_ID" --backend-only --wait 30' in text
-    assert " cp " not in text and "resourceSpans" not in text
+    # the full trace through nginx: all four trace check items (S1-06 + S1-05 + S1-07)
+    assert 'check-trace.sh" "$TRACE_ID" --wait 30' in text
+    assert "--backend-only" not in text
+    assert "docker network create edge" in text and "docker network rm edge" in text
+    assert "deploy/nginx/compose.yaml" in text and "deploy/nginx/compose.local.yaml" in text
+    assert 'FRONT="http://127.0.0.1:8080"' in text
+    for path in ("/api/live/portfolio", "/api/readiness", "/api/healthx", "/otlp/v1/traces"):
+        assert path in text
+    assert "Bearer wrong-token" in text and '"401"' in text and '"404"' in text
+    assert '"$FRONT/api/batch/runs"' in text
+    assert "batch.run" in text and "batch.send" in text
+    assert " cp " not in text
     assert "SMOKE PASS" in text and "SMOKE FAIL" in text
-    # the key is sent only in the Authorization header, never echoed
-    key_lines = [line for line in text.splitlines() if "KEY" in line and "echo" in line]
-    assert key_lines == []
+    # the key and the token are sent only in headers, never echoed
+    secret_lines = [line for line in text.splitlines()
+                    if ("KEY" in line or "OTLP_TOKEN" in line) and "echo" in line]
+    assert secret_lines == []
     assert "\r\n" not in text                       # LF line endings for bash
 
 
 def test_ci_workflow_paths():
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     triggers = workflow[True]                       # PyYAML reads the key `on` as True
-    paths = {"deploy/compose/**", "backend/**", "scripts/compose-smoke.sh",
+    paths = {"deploy/compose/**", "deploy/nginx/**", "backend/**", "scripts/compose-smoke.sh",
              ".github/workflows/compose-smoke.yml"}
     assert set(triggers["pull_request"]["paths"]) == paths
     assert set(triggers["push"]["paths"]) == paths
@@ -144,12 +162,12 @@ def test_ci_workflow_paths():
 
 def test_testhost_file_uses_registry_image_and_host_secrets():
     host = _load("compose.testhost.yaml")["services"]
-    assert set(host) == {"backend", "trace-check"}      # no database on the VM (Cloud SQL)
+    assert set(host) == {"backend", "collector", "trace-check"}   # no database on the VM
     backend = host["backend"]
     assert backend["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
     assert "build" not in backend and "environment" not in backend
     assert backend["env_file"] == ["/opt/model-monitor/backend.env"]
-    assert backend["ports"] == ["127.0.0.1:8000:8000"]   # no front door yet
+    assert backend["ports"] == ["127.0.0.1:8000:8000"]   # for operators in the VM; jobs use nginx
     assert backend["volumes"] == [
         "/opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro"]
 
@@ -210,3 +228,53 @@ def test_trace_check_shell_scripts():
     for line in setup.splitlines():
         if "echo" in line:
             assert "PW" not in line and "password)" not in line, line
+
+
+def test_backend_and_collector_join_edge_with_aliases():
+    base = _load("compose.yaml")
+    services = base["services"]
+    assert services["backend"]["networks"] == {
+        "default": {}, "edge": {"aliases": ["model-monitor-backend"]}}
+    assert services["collector"]["networks"] == {
+        "default": {}, "edge": {"aliases": ["model-monitor-collector"]}}
+    for name in ("collector-init", "trace-check"):
+        assert "networks" not in services[name]
+    assert base["networks"] == {"edge": {"external": True}}
+
+
+def test_port_4319_is_never_published():
+    for path in COMPOSE.glob("compose*.yaml"):
+        services = yaml.safe_load(path.read_text(encoding="utf-8"))["services"]
+        for service in services.values():
+            assert not any("4319" in str(port) for port in service.get("ports", [])), path.name
+
+
+def test_local_collector_uses_the_local_test_token():
+    local = _load("compose.local.yaml")["services"]["collector"]
+    assert local["environment"] == {"OTLP_TOKEN": "local-dev-otlp-token-not-a-secret"}
+
+
+def test_testhost_collector_requires_the_env_file():
+    host = _load("compose.testhost.yaml")["services"]["collector"]
+    assert host["env_file"] == [{"path": "/opt/model-monitor/collector.env", "required": True}]
+    assert "environment" not in host
+
+
+def test_collector_env_example_has_names_only():
+    text = (COMPOSE / "collector.env.example").read_text(encoding="utf-8")
+    values = dict(line.split("=", 1) for line in text.splitlines()
+                  if line and not line.startswith("#"))
+    assert values == {"OTLP_TOKEN": ""}
+
+
+def test_make_collector_env_refuses_short_tokens():
+    text = (COMPOSE / "make-collector-env.sh").read_text(encoding="utf-8")
+    assert text.startswith("#!/usr/bin/env bash\n")
+    assert "set -euo pipefail" in text and "\r\n" not in text
+    assert "umask 077" in text and "chmod 600" in text
+    assert "/opt/model-monitor/collector.env" in text
+    assert '${#TOKEN}' in text and "-lt 32" in text
+    assert "printf 'OTLP_TOKEN=%s\\n'" in text
+    for line in text.splitlines():
+        if "echo" in line:
+            assert "TOKEN" not in line.replace("OTLP_TOKEN", ""), line
