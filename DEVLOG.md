@@ -47,6 +47,22 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-09 — Test host: nginx front door, OTLP token and `backend:11` deployed
+
+- Done (project owner, with the `TESTHOST.md` steps; Claude checked each output): secret
+  `otlp-token` made in Secret Manager (the value was never printed); network `edge`;
+  `/opt/model-monitor/collector.env` and `/opt/model-monitor/check.env` (both 600 root);
+  `BACKEND_IMAGE` `dev/backend:11`; nginx in `/opt/nginx`.
+- Evidence on the VM: `http://10.10.0.4/api/health` 200, `/api/live/portfolio` 404,
+  `/otlp/v1/traces` without the token 401; the trace check tool with a random ID gives
+  `RESULT: MISSING (0 of 2 found)`, exit 1. Read-only check (Claude): `backend:11`
+  healthy with `build_sha` `1bd523a`, nginx healthy, the Collector up.
+- S1-07 (#9) closed: the test-host check above plus the CI smoke test of #71 (all four
+  items found for a fake-job trace through nginx).
+- Not yet done: the job side (Prakasit): `secretAccessor` on `otlp-token`, the OTLP
+  settings, `curl http://10.10.0.4/api/health` from the job runtime (closes the S1-04
+  test), then the first real run (S1-02a, S1-03, S1-05, S1-10).
+
 ### 2026-10-09 — S1-06: nginx front door and the OTLP token
 
 - Built (Codex from `changes/2026-10-09-s1-06-nginx/plan.md`, reviewed by Claude): the
