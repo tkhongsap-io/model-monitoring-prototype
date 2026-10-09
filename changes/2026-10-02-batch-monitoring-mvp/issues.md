@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-05 |
-| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. |
+| **Date** | 2026-10-09 |
+| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08). |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
@@ -13,6 +13,44 @@ is proven by a real sender. One shared tool, the trace check tool (S1-07), follo
 trace ID through all the locations. Thus each paired test ends with the same question:
 did the data of this run arrive in the monitor database and in Langfuse with the same
 trace ID?
+
+## Changes on 2026-10-09: AI governance document track
+
+The company AI governance process has 8 gates. At each gate, the business owner submits
+documents, a reviewer says "Yes" or "No (revise and resubmit)", and the AI Governance
+Platform shows a status. The development does not stop for the gates. The documents run in
+parallel with the sprints, and each gate uses the evidence of the development issues.
+
+The governed project is this batch monitoring MVP. In October it is identity-only: no
+customer text reaches the monitor, and there is no judge. Each of the 7 monitored use cases
+keeps its own governance record. The monitor does not replace it. Before `SEND_RECORDS`
+goes on or the judge starts (after October), gates 3, 6 and 7 must examine the change again.
+
+| Gate | Documents | Reviewer | Platform status | Issue | Decision due |
+|---|---|---|---|---|---|
+| 1. VRO screening | VRO Template | VRO | Create project record and notify AI Transformation | S2-12 | Tue 13 Oct |
+| 2. AI Transformation review (pre-implementation) | Risk Screening | AI Transformation Lead | Under Review (AI Transformation) | S2-13 | Wed 14 Oct |
+| 3. Data privacy review | Pre-RAI Intake, Data Privacy Checklist, BRD, SOW (vendor), DPA (vendor) | DPO | Under Review (DPO) | S2-14 | Fri 16 Oct |
+| 4. IT solution architecture review | AF Slide, Security Assessment | IT Solution Architect | Under Review (IT Architecture) | S3-08 | Wed 21 Oct |
+| 5. Implementation | No document. The development issues are this gate (develop and configure, test and UAT). | — | In Development | S3-08 sets the status | Wed 21 Oct |
+| 6. Security review | Security Assessment (with the evidence) | Security Compliance | Under Review (Security Team) | S3-09 | Fri 23 Oct |
+| 7. RAI deployment checklist (post-implementation) | RAI Deployment Checklist | AI Transformation Lead | Approved for Deployment | S4-08 | Tue 27 Oct |
+| 8. Deploy to production | No review. Go live, monitor and improve. | — | In Production | S4-06 sets the status | Fri 30 Oct |
+
+**Rules for the parallel track**
+
+- Draft the documents early. Submit each document on the day that the gate before it says "Yes".
+- During gates 1 to 4, the development continues on the local stack and the test host only.
+- Hard stops: S4-01 does not install production before gate 6 says "Yes". S4-02 does not send production runs before gate 7 says "Yes". S4-06 does not approve a production release before gate 7 says "Yes".
+- If a reviewer says "No", the issue owner revises and resubmits in 2 working days or less.
+- If a "No" asks for a design change, the project owner stops the affected development issues and changes this plan the same day.
+- Each gate issue records the reviewer name, the decision, the date and the link to the document. Documents contain no customer data.
+
+**Open decision (ask in S2-13, by 14 October):** Does the AI Transformation Lead accept
+this parallel order? The diagram of the process puts gates 1 to 4 before the
+implementation. Also, does gate 7 accept the evidence from the test host, with the
+production evidence (S4-04) after the go-live? If the answer to either question is "no",
+the production release moves after 30 October, and S4-06 reports a pilot.
 
 ## Changes on 2026-10-09: identity-only for the whole MVP
 
@@ -55,7 +93,7 @@ has a test in the issue that owns it.
 
 | Field | Meaning |
 |---|---|
-| Type | Feature, Infrastructure, Decision, Discovery or Verification |
+| Type | Feature, Infrastructure, Decision, Discovery, Verification or Governance (a document for a gate of the AI governance process) |
 | Depends on | The issues that must be complete or decided first |
 | Tested with | The partner issue that proves that this issue works from start to end |
 | Size | Approximate work: S (less than 1 day), M (1 to 3 days), L (3 to 5 days) |
@@ -155,6 +193,9 @@ remaining prototype-only code.
 | S2-09 | ~~Judge through the company LiteLLM proxy~~ (after October) | Feature | Backend | S2-05 | M |
 | S2-10 | ~~RAI accepts the local judge~~ (after October) | Verification | RAI + backend | S2-09 | M |
 | S2-11 | Threat model for the batch MVP (recommended; MVP is R1) | Decision | Backend + security | S2-05 | S |
+| S2-12 | Governance gate 1: VRO Template and VRO review | Governance | Project owner. Reviewer: VRO. | — | S |
+| S2-13 | Governance gate 2: Risk Screening and AI Transformation review (pre-implementation) | Governance | Project owner. Reviewer: AI Transformation Lead. | — | S |
+| S2-14 | Governance gate 3: privacy documents and DPO review | Governance | Project owner + security. Reviewer: DPO. | — | M |
 | S3-01 | Onboard 7 use cases, including split submit and harvest | Feature | Job developers + backend + platform | S1-07 | L |
 | S3-02 | Delivery lane: missed-run and failed-job alerts | Feature | Backend | S3-04 | M |
 | S3-03 | Collector hardening: attribute filter, memory limit, disk queue | Infrastructure | Platform | S3-04, S3-05 | M |
@@ -162,6 +203,8 @@ remaining prototype-only code.
 | S3-05 | Security and retention review with leak scan | Verification | Security + platform + source owners | S3-03 | M |
 | S3-06 | Kubernetes deployment files: Langfuse Helm chart and our manifests | Infrastructure | Platform | S4-01 | L |
 | S3-07 | SSO login for the dashboard and Langfuse (Google now, Entra ID later) | Infrastructure | Platform; backend reviews | S3-05, S3-04 | M |
+| S3-08 | Governance gate 4: AF Slide, Security Assessment and IT solution architecture review | Governance | Project owner + platform. Reviewer: IT Solution Architect. | — | M |
+| S3-09 | Governance gate 6: Security Assessment with evidence and security review | Governance | Project owner + platform. Reviewer: Security Compliance. | — | S |
 | S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 | L |
 | S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 | M |
 | S4-03 | Finish all 7 use cases | Feature | Job developers + backend + platform | S4-04 | L |
@@ -169,21 +212,23 @@ remaining prototype-only code.
 | S4-05 | Operations drills and runbooks on AWS | Verification | Platform + operations | S1-07 (trace check tool) | M |
 | S4-06 | Release sign-off | Decision | RAI + platform owners | — | S |
 | S4-07 | Remove the prototype-only code | Feature | Backend | Full test suite | M |
+| S4-08 | Governance gate 7: RAI Deployment Checklist and AI Transformation review (post-implementation) | Governance | Project owner + RAI. Reviewer: AI Transformation Lead. | — | M |
 
 ## Overview by phase
 
-For the overall view, the issues are in 16 workstreams. Each issue is in one workstream
+For the overall view, the issues are in 19 workstreams. Each issue is in one workstream
 only. GitHub issues are the tracker; this file is the source of their text.
 
 | Phase | Workstream | Issues | PIC |
 |---|---|---|---|
-| Define | Security approval and use-case inventory | S1-08, S1-09 | Security + PM |
+| Define | Security approval, threat model and use-case inventory | S1-08, S1-09, S2-11 | Security + PM |
 | Define | Package approval and LiteLLM proxy access | S1-12, S2-02 | Backend + project owner |
+| Define | Governance gates 1 to 3: VRO, AI Transformation (pre-implementation), DPO | S2-12, S2-13, S2-14 | Project owner |
 | Prepare | Test host, front door and database accounts | S1-04, S1-06, S1-11 | Platform |
 | Prepare | Self-hosted Langfuse and Collector hardening | S2-03, S3-03 | Platform |
 | Prepare | SSO login (Google now, Entra ID later) | S3-07 | Platform |
 | Prepare | Kubernetes files and production AWS cluster | S3-06, S4-01 | Platform |
-| Build | JSON body, receiving API and GCP send step | S1-01, S1-02, S1-02a, S1-02b, S1-02c, S1-03 | GCP job developer + backend |
+| Build | JSON body, receiving API and GCP send step | S1-01, S1-02, S1-02a, S1-02b, S1-02c, S1-03, S1-13 | GCP job developer + backend |
 | Build | OpenTelemetry tracing and trace check tool | S1-05, S1-07, S2-04 | GCP job developer + backend |
 | Build | Registry, evaluator and LiteLLM judge | S2-01, S2-05, S2-09 | Backend |
 | Build | Dashboard and delivery alerts | S2-07, S3-02 | Backend |
@@ -191,7 +236,9 @@ only. GitHub issues are the tracker; this file is the source of their text.
 | Validate | Sprint demos: first real run, one trace to the scores | S1-10, S2-08 | Backend + platform |
 | Validate | RAI accepts the local judge | S2-10 | RAI + backend |
 | Validate | Drills and security review | S3-04, S3-05, S4-05 | Platform + security |
+| Validate | Governance gates 4 and 6: IT architecture and security review | S3-08, S3-09 | Project owner + platform |
 | Conclude | Evidence checklist and release sign-off | S4-04, S4-06 | RAI + platform owners |
+| Conclude | Governance gate 7: RAI Deployment Checklist | S4-08 | Project owner + RAI |
 | Conclude | Remove the prototype-only code | S4-07 | Backend |
 
 ---
@@ -1568,6 +1615,89 @@ can happen, the effect, the control that exists, the gap, and an owner. Cover at
 1. Compare `threat-model.md` with the table. Make sure that no row is missing.
 2. For each "control exists" claim, link the test or the setting that proves it.
 
+### S2-12 — Governance gate 1: VRO Template and VRO review
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | Project owner. Reviewer: VRO. | — | — | S |
+
+**What:** Fill in the VRO Template for the batch monitoring MVP and submit it on Monday 12
+October. The VRO examines if the project can register as an AI project. After a "Yes", the
+AI Governance Platform makes the project record and tells AI Transformation. See the rules
+for the parallel track in "Changes on 2026-10-09: AI governance document track".
+
+| Template item | Source |
+|---|---|
+| Purpose, users and scope | [Plan](plan.md), [summary](summary.md), [intent](intent.md) |
+| What the project does | The monitor receives the run identity of each GCP batch job (IDs, counts, status, times) and one trace for each run. It grades the core metrics and advises the RAI team. It never changes a model. In October there is no judge and no customer text (identity-only). |
+| The 7 monitored use cases | The S1-09 inventory |
+| Owner and team | The project owner, backend, platform, RAI |
+
+**Acceptance criteria**
+- [ ] The VRO Template is submitted by Monday 12 October. The link is in this issue.
+- [ ] The VRO decision is in this issue: "Yes", or "No" with the requested changes. The reviewer name and the date are in this issue.
+- [ ] The project record exists in the AI Governance Platform. Its ID is in this issue.
+
+**How to test**
+1. Open the project in the AI Governance Platform. Make sure that the record exists and that AI Transformation received the notification.
+
+### S2-13 — Governance gate 2: Risk Screening and AI Transformation review (pre-implementation)
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | Project owner. Reviewer: AI Transformation Lead. | S2-12 | — | S |
+
+**What:** Fill in the Risk Screening. Submit it on the day that gate 1 says "Yes". The AI
+Transformation Lead examines the use case and the risk class before the implementation.
+
+| Screening item | Source |
+|---|---|
+| Proposed risk class: an assisted internal workflow, tier R1. No personal data and no untrusted content reach the monitor in October. The monitor advises people and never acts on a model. | [Intent](intent.md), "Changes on 2026-10-09: identity-only for the whole MVP" |
+| Data: the run identity and the spans only (`records: []`) | S1-01, S1-08 |
+| What changes the risk: `SEND_RECORDS` and the judge (after October) make the tier R2 | S2-11, S2-09, S2-10 |
+| Failure modes and their controls | The review-focus table in "Changes on 2026-10-05", and S2-11 if it is done |
+
+At the review, ask the open decision of the parallel track: does the AI Transformation Lead
+accept the parallel order, and the test-host evidence for gate 7?
+
+**Acceptance criteria**
+- [ ] The Risk Screening is submitted. The link is in this issue.
+- [ ] The decision, the agreed risk class, the reviewer name and the date are in this issue.
+- [ ] The answer to the open decision of the parallel track is in this issue.
+- [ ] The platform status was "Under Review (AI Transformation)" during the review.
+
+**How to test**
+1. If the agreed risk class is higher than the proposal, tell the project owner the same day. A higher class can add documents to gates 3, 6 and 7, and can make S2-11 required.
+
+### S2-14 — Governance gate 3: privacy documents and DPO review
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | Project owner + security. Reviewer: DPO. | S2-13, S1-08, S1-09 | — | M |
+
+**What:** Fill in the five documents of gate 3. Submit them on the day that gate 2 says
+"Yes". Draft them in parallel with gates 1 and 2.
+
+| Document | Source |
+|---|---|
+| Pre-RAI Intake | S2-13 Risk Screening, the S1-09 inventory |
+| Data Privacy Checklist | The S1-08 approval: in October only the run identity and the spans leave the GCP jobs. No customer text. The retention (S1-02), who reads the data (S1-11). Record content needs a new approval before `SEND_RECORDS` goes on. |
+| BRD | [Plan](plan.md), [summary](summary.md): the goal, the users, the 7 use cases, the core metrics, the release criteria (S4-06) |
+| SOW (vendor) | Probably not applicable. No external vendor processes the data: Langfuse is self-hosted, and GCP and AWS are company accounts. Write this reason in the submission. |
+| DPA (vendor) | The same as the SOW |
+
+**Acceptance criteria**
+- [ ] The documents are submitted by Wednesday 14 October. The links are in this issue.
+- [ ] The DPO confirms in writing that the SOW and the DPA are not applicable, or names the vendor documents to get.
+- [ ] The DPO decision, the reviewer name and the date are in this issue.
+- [ ] The documents contain no customer data.
+
+**How to test**
+1. Compare the Data Privacy Checklist with the S1-08 approval table, one row at a time. If a row is different, correct the document or the approval.
+
+**Risk:** If the DPO asks for changes to the data in the run summary or to the retention,
+S1-01 and S1-02 change. Tell the backend and the GCP job developer the same day.
+
 ---
 
 ## Sprint 3 — Oct 19–23: scale to 8 and harden
@@ -1932,6 +2062,63 @@ AWS (S4-01).
 applies: build and test SSO on the local stack and on AWS (S4-01), not on the test host. The
 test-host steps above do not apply.
 
+### S3-08 — Governance gate 4: AF Slide, Security Assessment and IT solution architecture review
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | Project owner + platform. Reviewer: IT Solution Architect. | S2-14 | — | M |
+
+**What:** Make the AF Slide and the first version of the Security Assessment. Submit them on
+Monday 19 October. The IT Solution Architect examines the solution design.
+
+| Document | Source |
+|---|---|
+| AF Slide | The architecture in [plan](plan.md): GCP job → front door → backend → PostgreSQL; OTel Collector → Langfuse; SSO (S3-07). The test host in GCP (S1-04) and production in AWS (S3-06, plan A or plan B). The ports table in "Sprint 2 prerequisites". The fixed versions table. |
+| Security Assessment, first version | The S1-08 approval, ADR 0002 (push ingestion), the API key and the OTLP token, plain HTTP inside the VPC on the test host (S1-04), the SSO design (S3-07), the IP allowlist for AWS (S4-01), and S2-11 if it is done |
+
+Gate 5 (implementation) has no review. The development issues are the gate 5 work. After
+gate 4 says "Yes", set the platform status to "In Development".
+
+**Acceptance criteria**
+- [ ] The AF Slide and the Security Assessment are submitted. The links are in this issue.
+- [ ] The decision, the reviewer name and the date are in this issue, by Wednesday 21 October.
+- [ ] After the "Yes", the platform status is "In Development". The date of the change is in this issue.
+
+**How to test**
+1. Compare the AF Slide with the S3-06 files, one component at a time. If they are different, correct the slide or the files.
+
+**Risk:** If the architect asks for a design change (for example plan A or plan B, or the
+internet path from GCP to AWS), change S3-06 and S4-01 before 26 October.
+
+### S3-09 — Governance gate 6: Security Assessment with evidence and security review
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | Project owner + platform. Reviewer: Security Compliance. | S3-08, S3-05, S3-07 | — | S |
+
+**What:** Add the test evidence to the Security Assessment. Submit it by Thursday 22
+October. Security Compliance examines the security and the infrastructure readiness.
+
+| Evidence | Issue |
+|---|---|
+| Leak scan and retention review | S3-05 |
+| SSO results on the local stack, and each exception (for example no SSO on the test host) | S3-07 |
+| Attribute filter in the Collector | S3-03 |
+| Failure and recovery drills | S3-04 |
+| The approved data flow (identity-only) | S1-08, S2-14 |
+| The threat model, if it is done | S2-11 |
+
+**Acceptance criteria**
+- [ ] The updated Security Assessment is submitted. The link is in this issue.
+- [ ] The decision, the reviewer name and the date are in this issue, by Friday 23 October.
+- [ ] Each open security exception has an owner and a date.
+
+**How to test**
+1. Make sure that each row of the evidence table links to the result in its issue.
+
+**Hard stop:** S4-01 does not install production before this gate says "Yes". If there is no
+"Yes" by 26 October, S4-01 installs on the test AWS cluster only, and S4-06 reports a pilot.
+
 ---
 
 ## Sprint 4 — Oct 26–30: AWS release and handoff
@@ -1947,7 +2134,7 @@ test-host steps above do not apply.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Infrastructure | Platform | S3-06, long-lead requests (Sprint 1) | S4-02 | L |
+| Infrastructure | Platform | S3-06, S3-09 (gate 6 "Yes"), long-lead requests (Sprint 1) | S4-02 | L |
 
 **What:** Install the stack on the production AWS Kubernetes cluster. Use the S3-06 files.
 The installation on the test AWS cluster in Sprint 3 is the model for this installation.
@@ -1979,7 +2166,7 @@ The installation on the test AWS cluster in Sprint 3 is the model for this insta
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Feature | Job developers + platform | S4-01 | S4-01 | M |
+| Feature | Job developers + platform | S4-01, S4-08 (gate 7 "Yes") | S4-01 | M |
 
 **What:** Change one job at a time. For each job, change three things:
 1. The API URL.
@@ -2098,13 +2285,15 @@ alert webhook goes to this person or team.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Decision | RAI + platform owners | S4-04, S4-05 | — | S |
+| Decision | RAI + platform owners | S4-04, S4-05, S4-08 | — | S |
 
 **What:** Approve the release only on evidence. List each use case as "pass" or "blocked,
-with the reason" (S4-03).
+with the reason" (S4-03). This issue is also governance gate 8 (deploy to production). Gate 8
+has no review.
 
 **Acceptance criteria**
-- [ ] The release is approved only if all 7 use cases pass and the AWS drills pass.
+- [ ] The release is approved only if all 7 use cases pass, the AWS drills pass, and governance gate 7 (S4-08) said "Yes".
+- [ ] After a production release, the project owner sets the platform status to "In Production". After a pilot, the status stays "Approved for Deployment", and this issue records the reason.
 - [ ] If not, publish the result as a pilot, with each open blocker, its owner and its next step.
 - [ ] The result says clearly if it is a production release or a pilot on the test AWS cluster.
 
@@ -2132,3 +2321,35 @@ has no time left, do this issue in the first week of November.
 **How to test**
 1. Run the full backend suite and the pnpm checks.
 2. On the test host, send one GCP run. Run `scripts/check_trace.py`. Make sure that all the items are "found".
+
+### S4-08 — Governance gate 7: RAI Deployment Checklist and AI Transformation review (post-implementation)
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | Project owner + RAI. Reviewer: AI Transformation Lead. | S3-09, S3-01, S3-04 | — | M |
+
+**What:** Fill in the RAI Deployment Checklist with the evidence from the test host. Submit
+it on Monday 26 October. The AI Transformation Lead does the human-centric and responsible
+AI check after the implementation. This plan assumes that gate 7 accepts the test-host
+evidence (the open decision in S2-13). S4-04 adds the production evidence after the go-live.
+
+| Checklist item | Evidence |
+|---|---|
+| No customer data and no judge in October | Identity-only (`records: []`), S1-08. The judge (S2-09, S2-10) and `SEND_RECORDS` come after October and need this checklist again. |
+| Human oversight | The monitor advises the RAI team. It never acts on a model. The alert owner (S4-05, [ADR 0001](../../docs/adr/0001-alert-ownership.md)). |
+| No guessed values | A metric with no data shows "Unknown" with a reason, for example `records_not_approved` (S2-05, S4-04) |
+| Traceability | One trace for each run, from the GCP job to the graded run (S2-08, S1-07) |
+| Test and UAT | 7 use cases on the test host (S3-01), the drills (S3-04), the confirmation of each owner |
+| Privacy and security | Gate 3 (S2-14) and gate 6 (S3-09) |
+| Monitoring after the go-live | The runbooks and the on-call owner (S4-05) |
+
+**Acceptance criteria**
+- [ ] The RAI Deployment Checklist is submitted. The link is in this issue.
+- [ ] The decision, the reviewer name and the date are in this issue, by Tuesday 27 October.
+- [ ] After the "Yes", the platform status is "Approved for Deployment".
+
+**How to test**
+1. Make sure that each checklist item links to the result in its issue.
+
+**Hard stop:** No GCP job sends production runs to AWS (S4-02) before this gate says "Yes".
+If there is no "Yes" by 28 October, S4-06 reports a pilot.
