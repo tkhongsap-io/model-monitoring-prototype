@@ -66,8 +66,8 @@ depend on. The spec is
 - Decided (user): Prakasit Issanapong is the owner contact for all 7 rows and confirms
   them. Risk: the developer also confirms that each run is real (S1-10, S4-03, S4-04), so
   that confirmation is not independent.
-- Remaining before #11 can close: Prakasit's confirmation comment on #11. All the
-  acceptance criteria are met in the plan.
+- Prakasit confirmed the 7 rows in person on 2026-10-09. All the acceptance criteria are
+  met; S1-09 (#11) can close. Open item: the `workflow-automation` rerun in October.
 
 ### 2026-10-09 — The MVP is identity-only for all of October; risk tier R1
 

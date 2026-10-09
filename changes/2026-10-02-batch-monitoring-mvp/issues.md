@@ -797,7 +797,7 @@ Sprint 2 cannot be planned again without these answers.
 - [x] The project owner accepted the October goal of 7 use cases.
 
 **How to test**
-1. Prakasit Issanapong, the owner contact, confirms the 7 rows in the issue comments.
+1. Prakasit Issanapong, the owner contact, confirms the 7 rows. Done: he confirmed them in person on 2026-10-09; the issue comments record it.
 2. Platform reads the runtimes and plans VPC egress for each serverless job (S2-06).
 
 **Risk:** The team examined only 6 pipelines in 4 repositories. If the table has fewer
