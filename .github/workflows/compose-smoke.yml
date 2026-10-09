@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "deploy/compose/**"
+      - "deploy/nginx/**"
       - "backend/**"
       - "scripts/compose-smoke.sh"
       - ".github/workflows/compose-smoke.yml"
@@ -11,6 +12,7 @@ on:
     branches: [dev]
     paths:
       - "deploy/compose/**"
+      - "deploy/nginx/**"
       - "backend/**"
       - "scripts/compose-smoke.sh"
       - ".github/workflows/compose-smoke.yml"
