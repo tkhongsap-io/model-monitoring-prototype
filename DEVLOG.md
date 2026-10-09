@@ -66,6 +66,9 @@ depend on. The spec is
 - Evidence: `tests/test_docs.py` 5 passed (`uvx`, `--noconftest`). The deck was built (28 and 19 rows), passed
   the pptx validator against the template, and was rendered with LibreOffice and examined.
   A second build gave the same text.
+- Posted: the six Governance issues as #73 (S2-12) to #78 (S4-08), with the sprint label
+  and the new label `type: governance`. They are not on the portfolio project board
+  (project owner's choice).
 - Remaining:
   - Open decision for the AI Transformation Lead (S2-13, by 14 October): accept the
     parallel order, and the test-host evidence for gate 7.
