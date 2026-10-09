@@ -71,6 +71,44 @@ depend on. The spec is
 - The GCP job developer sent the body of a real RTR run
   (`rtr-fraud-validation-20261009T031440Z`, 125 requests, 0 failed, `records: []`,
   `submitted_at` set). `validate_run` accepted it. Evidence and criteria on #3; #3 closed.
+### 2026-10-09 — S1-09: inventory scope is 7 use cases
+
+- The GCP developer posted 7 use-case templates in #11 and confirmed the scope: 7 jobs,
+  `workflow-automation` included. The other 3 use cases run on NotebookLM and Gemini
+  Enterprise, with no job code for the send step.
+- Decided (user): network ranges (network team, S1-04) and egress IPs (S2-06 step 3, for
+  S4-01) leave the inventory; the table keeps only the runtime. All 7 jobs are Cloud Run
+  jobs, so each needs VPC egress before onboarding. Prakasit Issanapong runs a controlled
+  rerun on request when a job has no real run in time. The GCP
+  developer selects the order in Sprint 2 planning. The RAI profile confirmation and the
+  developer's 4 open questions move to the time before `SEND_RECORDS` goes on.
+- Decided (project owner): the October goal is 7 use cases. Sprint 3 (S3-01) onboards the
+  last 3, to 7; S4-03, S4-04 and S4-05 use 7.
+- Changed: `issues.md` (S1-09, S3-01, S4-03 to S4-05, "Changes on 2026-10-09"),
+  `plan.md`, `summary.md`, `intent.md`. No code change. Not changed: the after-October
+  judge texts (`llm-metrics-standard.md`, S1-12) that estimate the load for 10 use cases.
+- Decided (user): Prakasit Issanapong is the owner contact for all 7 rows and confirms
+  them. Risk: the developer also confirms that each run is real (S1-10, S4-03, S4-04), so
+  that confirmation is not independent.
+- Prakasit confirmed the 7 rows in person on 2026-10-09. All the acceptance criteria are
+  met; S1-09 (#11) can close. Open item: the `workflow-automation` rerun in October.
+
+### 2026-10-09 — The MVP is identity-only for all of October; risk tier R1
+
+- Decided (project owner): the jobs send `records: []` for the whole MVP; the focus is
+  traceability. The monitor grades runs with the core metrics from the body
+  (`failure_rate`, `volume_change`, `turnaround_s`) and the delivery lane.
+- Moved after October: S1-12 (LiteLLM access), S2-09 (judge), S2-10 (RAI accepts the
+  judge), the record and profile metrics. Smaller: S2-05 (core metrics only, size M),
+  S2-07, S2-08, S3-05, S4-04. S1-08 covers only the run identity and the spans, needed
+  before S4-02 (AWS), not on the test host.
+- Risk tier: R1 (was R2), measured again with the playbook rules: no personal data and no
+  judge on untrusted content. R2 comes back before `SEND_RECORDS` goes on. S2-11 is now
+  recommended, not required.
+- Changed: `issues.md` ("Changes on 2026-10-09" and a dated note in each affected issue),
+  `intent.md`, `core-metrics.md` status, `CLAUDE.md` risk line. No code change: the schema
+  keeps the record fields, and `SEND_RECORDS` stays off.
+
 ### 2026-10-08 — S1-07: trace check tool
 
 - Built: shared `db.driver_url`; pure checks and rendering in `backend/app/trace_check.py`;

@@ -3,7 +3,9 @@
 - **Status:** Accepted
 - **Owner:** project owner (ta.khongsap)
 - **Date:** 2026-10-07 (the plan started on 2026-10-02)
-- **Risk tier:** **R2 — material workflow** (accepted by the project owner on 2026-10-07)
+- **Risk tier:** **R1 — assisted internal workflow** for the October MVP (decided by the
+  project owner on 2026-10-09: identity-only, see below). Was R2 from 2026-10-07. **R2
+  comes back before `SEND_RECORDS` goes on.**
 - **Review date:** the release sign-off, S4-06 (week of 26 October 2026), or earlier when
   the data, the senders or the judge change
 - **Plan:** [plan.md](plan.md), [issues.md](issues.md). Decision record:
@@ -11,7 +13,7 @@
 
 ## Problem
 
-The RAI team must know if the LLM output of 10 GCP batch use cases is good enough. The
+The RAI team must know if the LLM output of 7 GCP batch use cases is good enough. The
 prototype monitor pulls telemetry from three demo models and cannot see the GCP jobs.
 
 ## Outcome
@@ -21,7 +23,22 @@ Green, Amber, Red or Unknown with the five LLM metrics, and shows the grade to t
 team. Engineers see one trace for each run in Langfuse. The monitor advises; the RAI team
 decides. The monitor never acts on a model or a job.
 
-## Risk tier measurement
+## Change on 2026-10-09: identity-only for the whole MVP
+
+The project owner decided that the jobs send `records: []` for all of October; the focus is
+traceability. The October outcome is: each GCP batch run sends one run summary without
+record text; the monitor grades it with the core metrics from the body (`failure_rate`,
+`volume_change`, `turnaround_s`) and the delivery lane, and shows it to the RAI team;
+engineers see one trace for each run. The five LLM metrics and the judge come after
+October (`issues.md`, "Changes on 2026-10-09").
+
+Risk tier again with the same rules: both escalation rules that applied are gone. No
+personal or confidential data reaches the monitor (only IDs, counts, status, times, model
+name, spans without text), and no judge reads untrusted content. Result: **R1**. The table
+below is the R2 measurement with records; it applies again before `SEND_RECORDS` goes on.
+For R1, the threat model (S2-11) and the evaluation set (S2-10) are not required.
+
+## Risk tier measurement (with records, 2026-10-07)
 
 Measured with `handbook/risk-tiers.md` of `tkhongsap-ai-engineering-playbook@5ba9dc8`.
 
@@ -36,7 +53,7 @@ Measured with `handbook/risk-tiers.md` of `tkhongsap-ai-engineering-playbook@5ba
 | Influences a consequential decision about a person | It grades models, not people | No |
 | Is exposed to untrusted content that can influence instructions or tools | The LLM judge reads customer text (prompt injection can change a score) | Yes |
 | Works without timely human review | The RAI team reviews the dashboard | No |
-| One failure can affect many users or systems | One monitor grades 10 use cases, but only advises | Partly |
+| One failure can affect many users or systems | One monitor grades 7 use cases, but only advises | Partly |
 | Has no reliable rollback or correction path | Stored runs never change; code rolls back | No |
 
 Result: **R2**. The prototype (three demo models, synthetic data) stays R1.

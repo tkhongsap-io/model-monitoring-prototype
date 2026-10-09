@@ -9,7 +9,9 @@
 - Source of truth: `docs/MONITORING-CONTRACT.md` (telemetry contract v1.1). Code and
   persisted observations implement it; the contract wins on conflict.
 - Risk tier: R1 — assisted internal workflow (rationale in `changes/2026-10-01-monitoring-gap-closure/intent.md`).
-  The October batch MVP is **R2** (`changes/2026-10-02-batch-monitoring-mvp/intent.md`).
+  The October batch MVP is **R1** while it is identity-only (`records: []`, decided
+  2026-10-09); it goes back to R2 before `SEND_RECORDS` goes on
+  (`changes/2026-10-02-batch-monitoring-mvp/intent.md`).
 - Architecture: `README.md#architecture`.
 - Current work and gaps: `DEVLOG.md`.
 - Applicable playbook version: `tkhongsap-ai-engineering-playbook@5ba9dc8`.

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft 2026-10-08. The project owner approved the direction: use metrics that fit each use case, not the chatbot metrics for all. The bands are proposals for RAI. |
+| **Status** | Draft 2026-10-08. The project owner approved the direction: use metrics that fit each use case, not the chatbot metrics for all. The bands are proposals for RAI. **2026-10-09:** the MVP is identity-only for all of October, so only the core metrics that work in identity-only mode are graded (`failure_rate`, `volume_change`, `turnaround_s`, run on time). The record metrics and the profiles (section 2) come after October. |
 | **Replaces** | The rule "the same five LLM metrics for all use cases" in [`llm-metrics-standard.md`](../2026-10-02-batch-monitoring-mvp/llm-metrics-standard.md). The five metrics stay, but only for the "generation from text" profile. |
 | **Related** | [Use-case template for GCP developers](use-case-template.md) · [Issues](../2026-10-02-batch-monitoring-mvp/issues.md) · S1-01 (#3), S1-09 |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
