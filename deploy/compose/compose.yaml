@@ -48,5 +48,15 @@ services:
     # the backend (S1-05); the smoke test checks the span file instead.
     restart: unless-stopped
 
+  # S1-07 trace check tool: a one-shot service, never started by `up` (profile tools).
+  # Run it with deploy/compose/check-trace.sh. It reads the span file read-only and the
+  # database with CHECK_DATABASE_URL (the read-only user), never the backend's URL.
+  trace-check:
+    profiles: ["tools"]
+    entrypoint: ["python", "scripts/check_trace.py"]
+    volumes:
+      - collector-data:/otel:ro
+    restart: "no"
+
 volumes:
   collector-data:

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test of the local Compose stack (S1-06). macOS and Linux.
 # Starts backend + PostgreSQL + OTel Collector, stores one batch run with a known
-# traceparent, and checks the row and the monitor.ingest span in the Collector file.
+# traceparent, and checks the row and, with the S1-07 trace check tool, the monitor.ingest span.
 # KEEP=1 keeps the stack running afterwards. Needs: docker (Compose v2), curl, python3.
 set -euo pipefail
 
@@ -63,28 +63,6 @@ ROW="$("${COMPOSE[@]}" exec -T postgres psql -U monitor -d monitor -tAc \
   "select trace_id, trace_id_source from batch_runs where run_id = '$RUN_ID'")"
 [ "$ROW" = "$TRACE_ID|traceparent" ]
 
-STEP="monitor.ingest span in the Collector file"
-for _ in $(seq 1 15); do
-  if "${COMPOSE[@]}" cp collector:/data/spans.jsonl "$WORK/spans.jsonl" >/dev/null 2>&1 &&
-     python3 - "$WORK/spans.jsonl" "$TRACE_ID" <<'PY'
-import json, sys
-found = False
-for line in open(sys.argv[1], encoding="utf-8"):
-    line = line.strip()
-    if not line:
-        continue
-    for resource in json.loads(line).get("resourceSpans", []):
-        for scope in resource.get("scopeSpans", []):
-            for span in scope.get("spans", []):
-                if span.get("name") == "monitor.ingest" and \
-                        span.get("traceId", "").lower() == sys.argv[2]:
-                    found = True
-sys.exit(0 if found else 1)
-PY
-  then
-    echo "SMOKE PASS: run $RUN_ID, trace $TRACE_ID"
-    exit 0
-  fi
-  sleep 2
-done
-exit 1
+STEP="check-trace"
+bash "$ROOT/deploy/compose/check-trace.sh" "$TRACE_ID" --backend-only --wait 30
+echo "SMOKE PASS: run $RUN_ID, trace $TRACE_ID"

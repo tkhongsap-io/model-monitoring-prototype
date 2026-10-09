@@ -33,5 +33,10 @@ services:
     ports:
       - "127.0.0.1:4318:4318"
 
+  trace-check:
+    image: model-monitor-backend:local
+    environment:
+      CHECK_DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor   # local test value
+
 volumes:
   pgdata:
