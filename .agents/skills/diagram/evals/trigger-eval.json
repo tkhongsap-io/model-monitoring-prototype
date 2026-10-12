@@ -9,6 +9,7 @@
   {"query": "i added a redis cache and moved the worker to its own container in docker-compose.prod.yml. does any of our recorded diagrams need a new version?", "should_trigger": true},
   {"query": "the password reset feature we proposed a sequence diagram for last sprint is merged now (PR 212). update docs/diagram accordingly", "should_trigger": true},
   {"query": "draw.io diagram of where everything runs in prod please - the k8s manifests are under deploy/k8s and the terraform under infra/", "should_trigger": true},
+  {"query": "no draw.io on this machine and I can't install it. still need the state diagram of a batch run recorded in docs/diagram today, mermaid is fine", "should_trigger": true},
   {"query": "can you explain how the request flows from the api gateway to the orders service? just walk me through it in text, I'm new to this codebase", "should_trigger": false},
   {"query": "we decided to move session storage from postgres to redis after the incident on tuesday. write that down properly so nobody undoes it in 6 months", "should_trigger": false},
   {"query": "plot the p95 latency per endpoint from perf/results.csv as a bar chart and save it as a png for the retro slides", "should_trigger": false},

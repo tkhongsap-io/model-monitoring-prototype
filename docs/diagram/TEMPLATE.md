@@ -11,6 +11,10 @@ related: [ADR-NNNN]
 
 {In a record, a Markdown image of the same file is also correct.}
 
+{A Mermaid version (no draw.io desktop on the machine): add `format: mermaid` under
+`related`, and put one `mermaid` code block here in place of the image. The block is in
+`.agents/skills/diagram/references/mermaid.md`.}
+
 ## What it shows
 
 {Two to four sentences: the scope of the picture — what is inside it and what is

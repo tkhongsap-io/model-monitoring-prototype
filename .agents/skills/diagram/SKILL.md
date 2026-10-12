@@ -1,6 +1,6 @@
 ---
 name: diagram
-description: Records a diagram as a numbered draw.io version in docs/diagram/ — architecture, workflow, deployment, use case, sequence, state, ER, class, data flow (DFD), or decision tree — as built from the repository, or as a proposal for a design not built yet. Use when asked to draw, update, or version any diagram of the system; on "diagram", "draw.io", "UML", "ERD", or "DFD"; or when a change adds, removes, or re-routes something a recorded diagram shows.
+description: Records a diagram as a numbered draw.io version in docs/diagram/ — architecture, workflow, deployment, use case, sequence, state, ER, class, data flow (DFD), or decision tree — as built from the repository, or as a proposal for a design not built yet. Records it as a Mermaid block when draw.io desktop is not installed. Use when asked to draw, update, or version any diagram of the system; on "diagram", "draw.io", "UML", "ERD", or "DFD"; or when a change adds, removes, or re-routes something a recorded diagram shows.
 ---
 
 # Record a Diagram Version
@@ -12,6 +12,12 @@ due. This skill is the procedure. Two references, read before writing any XML:
   layout. Read only the type you are drawing.
 - `references/drawio.md` — the file skeleton, house style, icons, containers, edges, and
   pitfalls every type shares.
+
+On a machine without draw.io desktop (step 1 finds out), `references/mermaid.md` takes
+the place of `references/drawio.md`.
+
+Paths that start with `references/` or `assets/` are relative to this skill's directory,
+`.agents/skills/diagram/`.
 
 ## 1. Pick the type, the subject, and the status
 
@@ -48,6 +54,21 @@ the directory of versions: `docs/diagram/<type>` or `docs/diagram/<type>/<subjec
 is of a design not built yet: the user says "before we build", "we plan to", "design
 for", or the code it would be drawn from does not exist.
 
+**Format.** Find out whether draw.io desktop is here, before any drawing:
+
+```bash
+uv run .agents/skills/diagram/scripts/render.py doctor
+```
+
+| Exit | Means | Do |
+|---|---|---|
+| 0 | draw.io was found | Record a draw.io version. This is the format whenever draw.io is installed |
+| 1 | draw.io is not installed | Record a **Mermaid version**, and say so now, with the places the command searched |
+| 2 | `DRAWIO_BIN` names no file | Stop and report it. Do not fall back: a typing mistake must not change the format |
+
+Mermaid is never a choice of style. If the user asks for Mermaid on a machine that has
+draw.io, say that the rule records draw.io there, and ask before you do otherwise.
+
 ## 2. Read what is recorded
 
 ```bash
@@ -59,7 +80,7 @@ The second command lists every open proposal in the project. Look at each one th
 could have built; step 3 decides what happens to it.
 
 If `<dir>` has a version, read its `.md`, list what it shows, and recover its model to
-start from (both only read the recorded file):
+start from (both only read the recorded file, and neither needs draw.io):
 
 ```bash
 uv run .agents/skills/diagram/scripts/render.py labels <dir>/NNNN-slug.drawio.svg
@@ -70,6 +91,13 @@ Starting from the previous model keeps the layout familiar from one version to t
 a reader comparing versions should see what changed, not a reshuffle. For a first
 version, start from `assets/examples/<type>.drawio`: a small picture in the house style
 that is known to render.
+
+When the previous version is a Mermaid version (its record has `format: mermaid`),
+`labels` takes the `.md` and prints its block, and there is no model to extract. A new
+Mermaid version starts from that block. A new draw.io version starts from
+`assets/examples/<type>.drawio`, because a block has no layout to keep. When you record a
+Mermaid version after a draw.io one, `labels` on the `.drawio.svg` is the list of what
+the block must show.
 
 ## 3. Establish what the system is now, and decide
 
@@ -86,7 +114,10 @@ Then decide, and say what you compared:
   reworded prose never does. A new member of a box that lists its members by name does:
   the picture names it, so the picture is now wrong.
 - **A drawing mistake in the `current` version, the system unchanged:** fix it in place
-  (re-export over the same file).
+  (re-export over the same file, or correct the block of a Mermaid version).
+- **Only the format would change** (the `current` version is Mermaid and draw.io is now
+  installed): write nothing, unless the user asks for the draw.io drawing. The next
+  version that is due is a draw.io version.
 - **An open proposal has now been built.** Compare it with the repository. If it matches
   and it is the highest number in its directory, do not redraw: set its `status` to
   `current`, add `confirmed: <today>` under `date`, set the previous `current` to
@@ -113,6 +144,8 @@ The highest number in `<dir>` plus one, four digits; `0001` in a new directory. 
 describes the picture, lowercase with dashes: `0002-with-streaming-ingest`.
 
 ## 5. Resolve every icon
+
+A Mermaid version has no icons: skip this step, and download nothing.
 
 Types drawn in a notation (`use-case`, `sequence`, `state`, `er`, `class`, `data-flow`,
 `decision`) use plain shapes and skip this step. For the others, in this order, stopping
@@ -195,6 +228,15 @@ the points under "Check the preview" in the type's reference. Fix and re-render 
 reads cleanly. The export stops with a message when draw.io is missing, when an icon is
 linked by URL or path, or when the file would exceed the 500 KB limit.
 
+An export that fails when `doctor` found draw.io (on headless Linux, an export without
+`xvfb-run` in front) is a failure to report, not a reason to record Mermaid.
+
+**A Mermaid version** (step 1, exit 1) has no export. Write the block, following
+`references/mermaid.md`: start from the example of the type, keep the type's keyword on
+the first line, and quote every label that has punctuation. Nothing renders the block
+here, so read the text for each point in section 4 of that reference in place of the
+preview. The block goes into the record in step 7; no `.drawio.svg` is written.
+
 ## 7. Write the record
 
 - Copy `docs/diagram/TEMPLATE.md` to `<dir>/NNNN-slug.md` and fill it: `status` (`current`
@@ -202,6 +244,8 @@ linked by URL or path, or when the file would exceed the 500 KB limit.
   `git config user.email` as `Name <email>`, `related` ADRs (`[]` when none); what it
   shows; what changed since the previous version (for 0001, "First recorded version");
   the key, with the rows this type's marks need; the sources from step 3.
+- A Mermaid version: add `format: mermaid` under `related` in the frontmatter, and put
+  the block where the template has the image. Remove the image line.
 - A new `current` version: set the previous `current` to `superseded by NNNN`. A new
   `proposed` version: leave the `current` one alone, since it is still the picture of the
   repository; set an earlier open proposal it replaces to `superseded by NNNN`. A version
@@ -225,6 +269,10 @@ needs:
 uv run .agents/skills/diagram/scripts/check_diagrams.py
 ```
 
-Report what passed, failed, and was not run, and list the proposals still open. A diagram
+Report what passed, failed, and was not run, and list the proposals still open. For a
+Mermaid version, the report also says that draw.io was not found and where the command
+searched, that no rendered picture was inspected, that the first rendered view is the
+record on GitHub after a push, and that the version has no product icons and no image
+file. A diagram
 version on its own is not a `CHANGELOG.md` item, and neither is a new icon: the change the
 picture depicts carries the entry. If that change has no entry yet, say so.

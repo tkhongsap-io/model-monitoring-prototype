@@ -224,6 +224,20 @@
         "The new model has a cell labelled Acme Queue whose style has no image=",
         "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
       ]
+    },
+    {
+      "id": 15,
+      "prompt": "record the sequence of a batch run push (job -> nginx -> backend -> database) under docs/diagram. I'm on a laptop that has no draw.io",
+      "expected_output": "Runs render.py doctor, which exits 1, and says that draw.io was not found and that the version is recorded in Mermaid. Downloads no icon. Writes one file, NNNN-slug.md, with format: mermaid in the frontmatter and one mermaid block that starts with sequenceDiagram; writes no .drawio.svg. Adds the index row. Reports that no rendered picture was inspected and that the first rendered view is on GitHub after a push.",
+      "files": [],
+      "setup": "Run on a machine where draw.io desktop is not installed and DRAWIO_BIN is not set, so that `uv run .agents/skills/diagram/scripts/render.py doctor` exits 1. The repository has the route and the nginx configuration the sequence is drawn from.",
+      "expectations": [
+        "The new record has format: mermaid in its frontmatter and exactly one mermaid block whose first line is sequenceDiagram",
+        "No .drawio.svg with the new number exists, and docs/diagram/icons/ is unchanged",
+        "The block has no click, href, URL, %%{ directive, or HTML image",
+        "The response says draw.io was not found and that no rendered picture was inspected",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
     }
   ]
 }

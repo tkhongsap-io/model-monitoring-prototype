@@ -40,6 +40,11 @@ model embedded (it renders here and opens in draw.io or VS Code), and `NNNN-slug
 [`TEMPLATE.md`](TEMPLATE.md). Icons downloaded for the pictures, each with its source, its
 license and its SHA-256, are in [`icons/`](icons/README.md).
 
+A version recorded on a machine without draw.io desktop is a Mermaid version: one file,
+`NNNN-slug.md`, with `format: mermaid` in its frontmatter and a `mermaid` block that
+GitHub draws. It has no product icons and no image file. The next version of that
+picture is a draw.io version again when draw.io is available.
+
 No diagram contains an IP address, a token or an internal URL.
 
 ## Layout
@@ -64,5 +69,14 @@ ls docs/diagram/<type>/<subject>/ | grep -E '^[0-9]{4}-' | sort | tail -1
 uv run .agents/skills/diagram/scripts/check_diagrams.py
 ```
 
-CI runs the same check (`.github/workflows/check-diagrams.yml`). The check needs only
-Python. To record a version, draw.io desktop and `uv` are also necessary.
+CI runs the same check on Linux, macOS and Windows
+(`.github/workflows/check-diagrams.yml`). The check needs only Python. To record a
+draw.io version, draw.io desktop and `uv` are also necessary; this command says whether
+draw.io was found:
+
+```bash
+uv run .agents/skills/diagram/scripts/render.py doctor
+```
+
+Without draw.io desktop, the `diagram` skill records a Mermaid version, which needs only
+`uv`.

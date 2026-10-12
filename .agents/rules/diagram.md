@@ -101,8 +101,12 @@ A proposal does not supersede the `current` version until it becomes `current` i
 compared.
 
 **Fix in place** a drawing mistake in the `current` version when the system did not
-change: re-export over the same file. A superseded or withdrawn version is never edited:
-it is history.
+change: re-export over the same file, or correct the block of a Mermaid version. A
+superseded or withdrawn version is never edited: it is history.
+
+**A change of format is not a change of the picture.** A Mermaid version is not drawn
+again in draw.io until the next version is due, unless a person asks for it. Then it is a
+new number, and the Mermaid version is superseded, not edited.
 
 **Check every picture the change touches.** One change often shows in several: a new
 component is a box in the architecture, a step in the workflow, a node in the deployment,
@@ -121,11 +125,19 @@ not at initialization.
 - Two files per version, same stem: `NNNN-slug.drawio.svg` (an SVG with the draw.io model
   embedded, uncompressed, so it renders in Markdown, opens in draw.io, and diffs as text)
   and `NNNN-slug.md` from `docs/diagram/TEMPLATE.md`
+- On a machine without draw.io desktop, a **Mermaid version**: one file, `NNNN-slug.md`,
+  with `format: mermaid` in its frontmatter and one `mermaid` block where the image goes.
+  GitHub draws it. It has no product icons and no image file, so for a picture that goes
+  into a slide it is a stopgap until the next version. draw.io is the format whenever it
+  is installed: a Mermaid version is never a choice of style
+- A Mermaid block starts with the keyword of its type and holds no directive, link, URL,
+  or HTML image: the same reason as the embedded images below
 - Four-digit numbers per directory of versions, sequential, **never reused**. The slug
   describes the picture, lowercase with dashes
 - Frontmatter: `status`, `date` (ISO 8601, the day the version was recorded), `author`
-  (`git config user.name` / `user.email` as `Name <email>`), `related` (ADRs), and
-  `confirmed` on a proposal that became `current`
+  (`git config user.name` / `user.email` as `Name <email>`), `related` (ADRs),
+  `confirmed` on a proposal that became `current`, and `format: mermaid` on a Mermaid
+  version only
 - Changing a version's status changes only its `status`, `confirmed`, and its index row,
   nothing else
 - Labels use the names in the glossary in `changes/2026-10-02-batch-monitoring-mvp/plan.md`
@@ -167,10 +179,20 @@ A component with no product icon is a plain labelled shape, never an unrelated l
 
 ## Tooling
 
-Recording a version needs draw.io desktop (`DRAWIO_BIN` if it is not in the default
-place; `xvfb-run` in front of it on headless Linux) and `uv`. Reading one needs nothing: it
-is an SVG. `check_diagrams.py` checks the records' structure without draw.io; CI runs it
-in `.github/workflows/check-diagrams.yml`.
+Recording a draw.io version needs draw.io desktop and `uv`, on Windows, macOS or Linux.
+`render.py doctor` says whether draw.io was found. Set `DRAWIO_BIN` if it is not in a
+default place (an AppImage never is), and put `xvfb-run` in front of the export on
+headless Linux.
+
+Without draw.io desktop, the skill records a Mermaid version, which needs only `uv`. The
+fallback is for a machine where draw.io is not installed. A `DRAWIO_BIN` that names no
+file, or an export that fails with draw.io installed, stops the work and does not fall
+back.
+
+Reading a version needs nothing: it is an SVG, or a block that GitHub draws.
+`check_diagrams.py` checks the records' structure without draw.io; CI runs it and the
+tests of the scripts on the three operating systems in
+`.github/workflows/check-diagrams.yml`.
 
 ## Changelog
 
@@ -181,4 +203,5 @@ entry. Neither is a new icon.
 
 The `diagram` skill records a version: it picks the type and the subject, reads the
 current version, establishes what the system is now, decides whether anything changed,
-draws, renders, inspects the preview, and writes the record.
+draws, renders, inspects the preview, and writes the record. Without draw.io it writes
+the Mermaid block and reads the text in place of the preview.
