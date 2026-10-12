@@ -18,9 +18,9 @@ draw.io (diagrams.net) and save it again as `.drawio.svg`.
 
 ## Check during the consultation
 
-- The diagrams are dated 2026-10-07. The identity-only decision came on 2026-10-09: no
-  customer text and no judge in October. The "judge calls" arrows show the phase after
-  October. Mark them as later, or remove them for the October scope.
+- The diagrams show the October scope: identity-only, no customer text and no judge
+  (decision of 2026-10-09). The judge calls and the Token Factory (the judge model) are
+  removed. They come back in a later version, after October.
 - The source of truth for the design is
   [the batch MVP plan](../../changes/2026-10-02-batch-monitoring-mvp/plan.md). If a diagram
   and the plan are different, record the difference in #81.
