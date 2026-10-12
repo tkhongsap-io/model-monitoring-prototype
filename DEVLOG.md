@@ -58,8 +58,12 @@ depend on. The spec is
 - Decisions: Langfuse's Redis is not shared; Google sign-in only (company domain); access
   through an IAP tunnel to port 3000.
 - Evidence: Windows, outside the Codex sandbox: fast suite 438 passed, 9 deselected.
-- Not run here: the `langfuse-smoke` CI test (on the PR; it proves the Langfuse setting
-  names) and the test-host deploy.
+- CI on #84: `langfuse-smoke` passed (5 of 5 found, also after a Langfuse restart),
+  `smoke` and `test-migrate-and-configure` passed. Two fixes from the first CI runs:
+  Langfuse needs `HOSTNAME=0.0.0.0` (Docker sets it to the container ID) and health checks
+  with `node` on `127.0.0.1`; the plain smoke test skips the Langfuse item
+  (`CHECK_LANGFUSE_URL` is set only by `langfuse-smoke`).
+- Not run yet: the test-host deploy.
 - Test host: `backend:13` (`8a1c5ba`, S2-01) is deployed; readiness `ready`.
 
 ### 2026-10-12 — issue deck: titles and Done status from GitHub
