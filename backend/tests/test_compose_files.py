@@ -53,7 +53,8 @@ def test_local_file_builds_backend_and_waits_for_postgres():
     env = backend["environment"]
     assert env["DATABASE_URL"] == "postgresql://monitor:monitor@postgres:5432/monitor"
     expected = hashlib.sha256(LOCAL_KEY.encode()).hexdigest()
-    assert env["BATCH_API_KEY_SHA256"] == f"GCP-UC-03:{expected}"
+    # the local test key belongs to a registered use case (S2-01 registry)
+    assert env["BATCH_API_KEY_SHA256"] == f"rtr-fraud-validation:{expected}"
     assert "ports" not in local["postgres"]
     # PostgreSQL 17 images keep the data in /var/lib/postgresql/data (18 changed it)
     assert local["postgres"]["volumes"] == ["pgdata:/var/lib/postgresql/data"]
@@ -118,6 +119,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "compose-smoke.yml"
 
 def test_smoke_script_cleans_up_and_fails_fast():
     text = SMOKE.read_text(encoding="utf-8")
+    assert 'body["use_case_id"] = "rtr-fraud-validation"' in text
     assert text.startswith("#!/usr/bin/env bash\n")
     assert "set -euo pipefail" in text
     assert "trap cleanup EXIT" in text and "down -v" in text

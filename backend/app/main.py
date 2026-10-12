@@ -6,7 +6,8 @@ prototype code (demo and strict-live routers, the pull-lane poller, the dashboar
 the repository until S4-07, but this module does not import it.  The prototype tests build
 the old composition from `tests/prototype_app.py`.
 
-Startup runs the ordered migrations (`db.engine()`); shutdown sends the remaining spans.
+Startup loads the batch use-case registry (S2-01; a bad registry stops the start) and runs
+the ordered migrations (`db.engine()`); shutdown sends the remaining spans.
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from . import config, db, logging_setup, tracing
+from . import config, db, logging_setup, registry, tracing
 from .api import batch_routes, ops_routes
 
 logging_setup.configure(config.LOG_FORMAT)
@@ -22,6 +23,7 @@ logging_setup.configure(config.LOG_FORMAT)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    registry.set_current(registry.load(config.BATCH_REGISTRY_PATH))   # error: no start
     db.engine()
     try:
         yield

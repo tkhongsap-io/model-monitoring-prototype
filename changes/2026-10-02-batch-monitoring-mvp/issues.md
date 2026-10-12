@@ -1045,13 +1045,15 @@ Langfuse uses its own port because it does not work easily under a URL path.
 |---|---|---|---|---|
 | Feature | Backend + platform | S1-02, S1-11 | S2-06 | M |
 
+**Changed 2026-10-12 (design: changes/2026-10-12-s2-01-registry/):** the key hashes stay in the backend env file (BATCH_API_KEY_SHA256), not in a database table; scripts/batch_keys.py edits that file. The registry is backend/registry/batch-use-cases.yaml with the October fields only (identity-only). A key for an unregistered use case gives 403.
+
 **What:** Make a registry of the batch use cases in two parts. This follows the YAML
 registry in section 15 of the [monitoring contract](../../docs/MONITORING-CONTRACT.md).
 
 | Part | Location | Contains | How it changes |
 |---|---|---|---|
 | Settings | YAML file in the repository | Use-case ID, name, owner, developer, mode (`identity_only` or `records`), sample size, task description with version and approver, run schedule, data classification, band overrides | Pull request, approved by backend. RAI also approves changes to the task description or the bands. |
-| API key hashes | Database table | The SHA-256 hash of each API key, the use-case ID, and the key status | The script `scripts/batch_keys.py` |
+| API key hashes | The backend env file (`BATCH_API_KEY_SHA256`) | The SHA-256 hash of each API key, the use-case ID, and the key status | The script `scripts/batch_keys.py` |
 
 The API key itself is kept only in the GCP Secret Manager of that project. Never put a
 key or a key hash in git, chat or email.

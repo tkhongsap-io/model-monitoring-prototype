@@ -9,9 +9,11 @@ script producer behaviour tick by tick.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from app import config, db
+from app import config, db, registry
 from app.adapters import telemetry_http
 from app.adapters.explain import live_http as explain_live_http
 from app.adapters.ml_monitor import engines, live_http
@@ -19,6 +21,17 @@ from app.scenario import live_runner as live_runner_module
 
 WINDOW_SIZE = 600
 LABEL_LAG = 3
+
+TEST_REGISTRY = Path(__file__).resolve().parent / "fixtures" / "batch-use-cases.test.yaml"
+
+
+@pytest.fixture(autouse=True)
+def batch_registry(monkeypatch):
+    """Every test uses the test registry (S2-01), also routes called without the lifespan."""
+    monkeypatch.setattr(config, "BATCH_REGISTRY_PATH", str(TEST_REGISTRY))
+    registry.set_current(registry.load(TEST_REGISTRY))
+    yield
+
 
 
 @pytest.fixture()

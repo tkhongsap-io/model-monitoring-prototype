@@ -47,6 +47,23 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-12 — S2-01: batch use-case registry
+
+- Built (Codex from `changes/2026-10-12-s2-01-registry/plan.md`, reviewed by Claude):
+  `backend/registry/batch-use-cases.yaml` (one entry, `rtr-fraud-validation`, October
+  fields only), `backend/app/registry.py` and `BATCH_REGISTRY_PATH`; the backend does not
+  start with a bad registry; a key for an unregistered use case gives `403` before the body
+  is read; readiness shows `use_cases` and reports key entries of unregistered use cases
+  (no hash); `backend/scripts/batch_keys.py` (`make`, `add`, `list`, `remove`, standard
+  library only, never shows a key or more than 8 hash characters); the local stack and the
+  smoke test use `rtr-fraud-validation`; tests use their own registry file.
+- Decisions (`intent.md`): the key hashes stay in `BATCH_API_KEY_SHA256` (option B, no
+  database table); the registry ships in the image; no test entry in the real registry.
+- Evidence (Windows, outside the Codex sandbox): fast suite 416 passed, 9 deselected.
+  Codex's own runs had only sandbox temp-folder errors. Codex additions: `make` refuses
+  the same path for the key and the hash; an entry with an invalid ID is named by position.
+- Not yet run: the CI smoke test (on the pull request) and the test-host deploy (readiness
+  must stay `ready` with the existing `rtr-fraud-validation` key).
 ### 2026-10-12 — S1-02b: the receiver agrees with the approved S1-01 schema
 
 - Changed: compared `batch-run-1.schema.json` with `BatchRunV1` field by field (table in

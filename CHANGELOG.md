@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Batch use-case registry (S2-01): `backend/registry/batch-use-cases.yaml` lists each batch
+  use case with its October settings. The backend does not start with a bad registry, a key
+  for an unregistered use case gives `403`, and readiness reports such a key entry.
+  `backend/scripts/batch_keys.py` makes, adds, lists and removes API key entries without
+  showing a key or a full hash.
+
 - nginx front door (S1-06): a standalone Compose project (`deploy/nginx`) that serves only
   `/api/batch/runs`, `/api/health` and `/otlp/*` (port 80 on the test host). The Collector
   accepts GCP spans only with the OTLP token (`bearertokenauth`, receiver `otlp/external`).

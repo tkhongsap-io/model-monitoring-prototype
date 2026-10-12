@@ -6,7 +6,7 @@ import hashlib
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config, db, live_poller, main
+from app import config, db, live_poller, main, registry
 
 GOOD_KEY = "test-key-surface-" + "a" * 32
 GOOD_ENTRY = "GCP-UC-03:" + hashlib.sha256(GOOD_KEY.encode()).hexdigest()
@@ -69,7 +69,7 @@ def test_readiness_ready(ready_config):
         response = client.get("/api/readiness")
     assert response.status_code == 200, response.text
     assert response.json() == {"status": "ready", "database": {"ok": True, "error": None},
-                               "batch_api_keys": 1, "errors": []}
+                               "batch_api_keys": 1, "use_cases": 2, "errors": []}
 
 
 @pytest.mark.parametrize("url, entries, expected", [
@@ -134,3 +134,23 @@ def test_version_makes_no_outbound_call(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {"service": "model-monitor", "build_sha": config.BUILD_SHA,
                                "batch_schema": "batch-run/1"}
+
+
+def test_readiness_reports_unregistered_key_use_case(ready_config, monkeypatch):
+    other = hashlib.sha256(b"key of an unregistered use case").hexdigest()
+    monkeypatch.setattr(config, "BATCH_API_KEY_SHA256", f"{GOOD_ENTRY}, GCP-UC-99:{other}")
+    with TestClient(main.app) as client:
+        response = client.get("/api/readiness")
+    assert response.status_code == 503
+    assert ("BATCH_API_KEY_SHA256 has entries for use cases that are not in the registry: "
+            "GCP-UC-99") in response.json()["errors"]
+    assert other not in response.text
+
+
+def test_backend_does_not_start_with_a_bad_registry(isolated_db, monkeypatch, tmp_path):
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("use_cases: []\n", encoding="utf-8")
+    monkeypatch.setattr(config, "BATCH_REGISTRY_PATH", str(bad))
+    with pytest.raises(registry.RegistryError):
+        with TestClient(main.app):
+            pass

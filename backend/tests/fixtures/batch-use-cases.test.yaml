@@ -1,0 +1,18 @@
+# Test registry (S2-01): the use cases of the S1-01 example bodies. Tests only.
+use_cases:
+  - use_case_id: GCP-UC-03
+    name: Invoice summary (test)
+    owner: test-team
+    developer: test-developer
+    mode: records
+    schedule: {expected_every_s: 86400, grace_s: 21600}
+    turnaround_limit_s: 3600
+    data_classification: internal
+  - use_case_id: GCP-UC-07
+    name: Second use case (test)
+    owner: test-team
+    developer: test-developer
+    mode: identity_only
+    schedule: {expected_every_s: 86400, grace_s: 21600}
+    turnaround_limit_s: null
+    data_classification: internal
