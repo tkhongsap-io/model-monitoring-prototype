@@ -1,0 +1,16 @@
+# Batch use cases of the October MVP (S2-01). A change is a pull request, approved by
+# backend; RAI also approves band_overrides. Never put an API key or a key hash here:
+# the hashes are in BATCH_API_KEY_SHA256 of the host env file (scripts/batch_keys.py).
+# turnaround_limit_s: null means no limit is set yet (turnaround_s is Unknown, not_reported).
+use_cases:
+  - use_case_id: rtr-fraud-validation
+    name: RTR fraud validation
+    owner: RTR fraud team
+    developer: Prakasit Issanapong
+    mode: identity_only
+    schedule:
+      expected_every_s: 86400
+      grace_s: 21600
+    turnaround_limit_s: null
+    data_classification: confidential
+    band_overrides: {}

@@ -93,9 +93,14 @@ LLM_JUDGE_MAX_TRACES = int(_env("LLM_JUDGE_MAX_TRACES", "20"))
 # <key>` when the SHA-256 of the key is listed here as comma-separated
 # `USE_CASE_ID:<64 hex>` entries (two entries for one use case during key rotation).
 # Only hashes are configured, never a key.  Empty: every request is 401.  The source
-# registry (S2-01) replaces this setting.
+# registry (S2-01) lists the use cases; the hashes stay here (scripts/batch_keys.py).
 BATCH_API_KEY_SHA256 = os.getenv("BATCH_API_KEY_SHA256", "").strip()
 BATCH_MAX_BODY_BYTES = int(_env("BATCH_MAX_BODY_BYTES", str(10 * 1024 * 1024)))
+# Batch use-case registry (S2-01): a reviewed YAML file in the image. The backend does not
+# start when the file has an error.
+BATCH_REGISTRY_PATH = (os.getenv("BATCH_REGISTRY_PATH", "").strip()
+                       or str(BACKEND_DIR / "registry" / "batch-use-cases.yaml"))
+
 
 _BUILD_SHA_FILE = BACKEND_DIR / ".build-sha"
 
