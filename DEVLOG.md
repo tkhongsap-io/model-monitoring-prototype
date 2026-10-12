@@ -56,9 +56,10 @@ depend on. The spec is
 - Evidence: the deck was built (29 and 19 rows, 10 issues Done), passed the pptx
   validator against the template, and was rendered with LibreOffice and examined. A
   second build gave the same text. `tests/test_docs.py` 5 passed.
-- Remaining: some GitHub titles do not agree with `issues.md` (S3-01 "8 use cases", S4-03
-  "all 10 use cases", S4-04 "10-row"; the plan has 7). The deck shows the GitHub titles.
-  S3-08a is not in `issues.md` yet.
+- Fixed: the GitHub titles of #25 (S3-01), #34 (S4-03) and #35 (S4-04) now say 7 use
+  cases, the same as `issues.md`. S3-08a (#81) is now in `issues.md`: in the Sprint 2
+  section (its label), in the gates 4 and 6 workstream, and S3-08 depends on it.
+- Remaining: the bodies of #25, #34 and #35 were not changed.
 
 ### 2026-10-12 — S3-08a: first draft of the architecture diagrams
 

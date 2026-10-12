@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-10-09 |
-| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. |
+| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. S3-08a (#81, the architecture draft for gate 4) added on 2026-10-12. |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
@@ -204,6 +204,7 @@ remaining prototype-only code.
 | S3-06 | Kubernetes deployment files: Langfuse Helm chart and our manifests | Infrastructure | Platform | S4-01 | L |
 | S3-07 | SSO login for the dashboard and Langfuse (Google now, Entra ID later) | Infrastructure | Platform; backend reviews | S3-05, S3-04 | M |
 | S3-08 | Governance gate 4: AF Slide, Security Assessment and IT solution architecture review | Governance | Project owner + platform. Reviewer: IT Solution Architect. | — | M |
+| S3-08a | Draft the architecture for the solution design consultation (Sprint 2) | Governance | @eatrabyo + @Prakasit-Iss. Consulted: K. Wirat (solution design). | S3-08 | S |
 | S3-09 | Governance gate 6: Security Assessment with evidence and security review | Governance | Project owner + platform. Reviewer: Security Compliance. | — | S |
 | S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 | L |
 | S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 | M |
@@ -236,7 +237,7 @@ only. GitHub issues are the tracker; this file is the source of their text.
 | Validate | Sprint demos: first real run, one trace to the scores | S1-10, S2-08 | Backend + platform |
 | Validate | RAI accepts the local judge | S2-10 | RAI + backend |
 | Validate | Drills and security review | S3-04, S3-05, S4-05 | Platform + security |
-| Validate | Governance gates 4 and 6: IT architecture and security review | S3-08, S3-09 | Project owner + platform |
+| Validate | Governance gates 4 and 6: IT architecture and security review | S3-08, S3-08a, S3-09 | Project owner + platform |
 | Conclude | Evidence checklist and release sign-off | S4-04, S4-06 | RAI + platform owners |
 | Conclude | Governance gate 7: RAI Deployment Checklist | S4-08 | Project owner + RAI |
 | Conclude | Remove the prototype-only code | S4-07 | Backend |
@@ -1700,6 +1701,38 @@ accept the parallel order, and the test-host evidence for gate 7?
 **Risk:** If the DPO asks for changes to the data in the run summary or to the retention,
 S1-01 and S1-02 change. Tell the backend and the GCP job developer the same day.
 
+### S3-08a — Draft the architecture for the solution design consultation
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | @eatrabyo + @Prakasit-Iss. Consulted: K. Wirat (solution design). | — | S3-08 | S |
+
+**What:** Draft the architecture of the batch monitoring MVP. Use the draft to consult K.
+Wirat and the other teams before the IT Solution Architecture review forum (gate 4). The
+draft is the input for the AF Slide in S3-08. Finish the draft and the consultation in
+Sprint 2, before the AF Slide is due on Monday 19 October. This issue is part of gate 4,
+but its work is in Sprint 2.
+
+**What the draft shows**
+
+| Item | Source |
+|---|---|
+| Components and data flow: GCP job → front door → backend → PostgreSQL; OTel Collector → Langfuse; dashboard with SSO (S3-07) | [Plan](plan.md) |
+| Environments: the test host in GCP (S1-04, private VPC path, no public IP) and production in AWS (S3-06, plan A or plan B) | Plan, this file |
+| Network and ports: the paths that the front door sends to the backend (`/api/batch/runs`, `/api/health`), the ports table in "Sprint 2 prerequisites", the GCP to AWS path and the IP allowlist (S4-01) | This file |
+| Security controls: the API key, the OTLP token, SSO, plain HTTP inside the VPC on the test host | S1-08, ADR 0002, S3-07 |
+| Data scope: identity-only in October. No customer data or customer text, and no judge. | "Changes on 2026-10-09: identity-only for the whole MVP" |
+| Fixed versions | The fixed versions table |
+
+**Acceptance criteria**
+- [ ] The architecture draft (diagram and short notes) exists. The link is in this issue.
+- [ ] The consultation with K. Wirat happened. The date, the attendees and the comments are in this issue.
+- [ ] Each requested change is applied to the draft, or recorded as an open question for the forum.
+- [ ] If the consultation asks for a design change (for example plan A or plan B, or the path from GCP to AWS), the plan in this file and S3-06 / S4-01 have a note.
+
+**How to test**
+1. Compare the draft with the plan and the S3-06 files, one component at a time. If they are different, correct the draft or record the difference.
+
 ---
 
 ## Sprint 3 — Oct 19–23: scale to 8 and harden
@@ -2068,7 +2101,7 @@ test-host steps above do not apply.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Governance | Project owner + platform. Reviewer: IT Solution Architect. | S2-14 | — | M |
+| Governance | Project owner + platform. Reviewer: IT Solution Architect. | S2-14, S3-08a | — | M |
 
 **What:** Make the AF Slide and the first version of the Security Assessment. Submit them on
 Monday 19 October. The IT Solution Architect examines the solution design.
