@@ -1,0 +1,61 @@
+<mxfile host="drawio">
+  <diagram id="sequence" name="Sequence example">
+    <mxGraphModel background="#FFFFFF" grid="1" gridSize="10" page="0" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="&lt;b&gt;Sequence password-reset 0001: request a reset link&lt;/b&gt;&lt;br&gt;2026-01-15" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="20" y="10" width="420" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="User" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;participant=umlActor;size=50;fontSize=11;strokeColor=#232F3E;fontColor=#232F3E;verticalAlign=top;spacingTop=52;" vertex="1" parent="1">
+          <mxGeometry x="60" y="70" width="30" height="390" as="geometry"/>
+        </mxCell>
+        <mxCell id="web" value="Web app" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fontSize=11;strokeColor=#232F3E;fontColor=#232F3E;fillColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="200" y="80" width="110" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="web-act" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#232F3E;" vertex="1" parent="web">
+          <mxGeometry x="50" y="70" width="10" height="270" as="geometry"/>
+        </mxCell>
+        <mxCell id="auth" value="Auth API" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fontSize=11;strokeColor=#232F3E;fontColor=#232F3E;fillColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="420" y="80" width="110" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="auth-act" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#232F3E;" vertex="1" parent="auth">
+          <mxGeometry x="50" y="110" width="10" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="mail" value="Mail provider" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fontSize=11;strokeColor=#232F3E;fontColor=#232F3E;fillColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="640" y="80" width="110" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="m1" value="1 submit email" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;rounded=0;fontSize=10;strokeColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="75" y="160" as="sourcePoint"/>
+            <mxPoint x="250" y="160" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2" value="2 POST /password-resets" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;rounded=0;fontSize=10;strokeColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="200" as="sourcePoint"/>
+            <mxPoint x="470" y="200" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3" value="3 send reset link" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;rounded=0;fontSize=10;strokeColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="480" y="250" as="sourcePoint"/>
+            <mxPoint x="695" y="250" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m4" value="4 202 Accepted" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;rounded=0;fontSize=10;strokeColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="470" y="330" as="sourcePoint"/>
+            <mxPoint x="260" y="330" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m5" value="5 &quot;check your inbox&quot;" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;rounded=0;fontSize=10;strokeColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="250" y="410" as="sourcePoint"/>
+            <mxPoint x="75" y="410" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

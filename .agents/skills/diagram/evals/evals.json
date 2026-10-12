@@ -1,0 +1,229 @@
+{
+  "skill_name": "diagram",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just added a new lifecycle hook, .agents/hooks/branch_guard.py: a PreToolUse hook on git switch / git checkout -b that refuses a branch name not shaped type/slug. It is wired in .claude/settings.json and .codex/hooks.json. Update the architecture diagram for it.",
+      "expected_output": "Reads architecture 0002 and recovers its model, confirms the hook and its wiring in the repository, adds branch_guard beside the other hooks, renders docs/diagram/architecture/0003-<slug>.drawio.svg with render.py, writes 0003-<slug>.md from the template (status current, author from git config), sets 0002 to 'superseded by 0003' without touching its drawing or other text, adds the index row, and runs check_diagrams.py. Checks workflow 0001 for the hooks it names and says whether it needs a version too.",
+      "files": [],
+      "setup": "Before the run, create .agents/hooks/branch_guard.py (a stub with a docstring) and wire it as a PreToolUse Bash hook in .claude/settings.json and .codex/hooks.json.",
+      "expectations": [
+        "docs/diagram/architecture/0003-*.drawio.svg exists, ends with a newline, and its content attribute holds an uncompressed model (&lt;mxGraphModel)",
+        "docs/diagram/architecture/0003-*.md has frontmatter status: current, an ISO date, and author 'Name <email>' matching git config",
+        "The 0003 .md's 'What changed since the previous version' names branch_guard",
+        "architecture 0002's .md status is 'superseded by 0003' and its .drawio.svg is byte-identical to before the run",
+        "docs/diagram/architecture/README.md has a row for 0003, and 0002's row shows superseded",
+        "The new model contains a cell labelled with branch_guard",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0",
+        "The answer says whether workflow 0001 is affected, having looked at it, rather than ignoring it"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "can you refresh the architecture diagram? I reworded a few paragraphs in AGENTS.md and bumped ruff to 0.17 in pyproject.toml, want to make sure the recorded diagram is still right",
+      "expected_output": "Reads architecture 0002 and the sources, concludes that neither a wording change nor a version bump alters what the diagram shows, writes no new version, and says what was compared.",
+      "files": [],
+      "expectations": [
+        "No file under docs/diagram/ is created or modified",
+        "The answer explains that a wording change and a version bump do not change what the architecture shows",
+        "The answer names what it compared (the current version and the sources it read)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "we're adding Renovate (the Mend Renovate GitHub App) to open dependency-update pull requests against this repo - renovate.json is in. add it to the architecture diagram; we don't have an icon for it",
+      "expected_output": "Looks for a verified style, then draw.io's built-in libraries, and finding no Renovate icon, opens the license page of a source (the project's own logo or Simple Icons at a pinned version), downloads the mark with fetch_icon.py into docs/diagram/icons/, records its row with the license, credit, retrieved date and SHA-256, embeds it with icon_style.py as a data URI, records architecture 0003 with Renovate opening PRs against the repository, and supersedes 0002.",
+      "files": [],
+      "setup": "Before the run, add a minimal renovate.json at the repository root.",
+      "expectations": [
+        "An SVG or PNG for Renovate exists in docs/diagram/icons/, and an SVG ends with exactly one newline",
+        "docs/diagram/icons/README.md has a row for that file with a source URL, a license or terms link, a credit cell, a retrieved date, and the file's SHA-256",
+        "uv run .agents/skills/diagram/scripts/icon_safety.py on the new icon exits 0",
+        "references/drawio.md's icon table has a row for the new file",
+        "Every image= in the new model is a data URI or img/lib/... (no URL or file path)",
+        "Architecture 0003 is recorded and 0002 is marked superseded by 0003",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "we just added our first migration, db/migrations/0001_init.sql (author, book, member, loan). can you record an ER diagram for the library database?",
+      "expected_output": "Chooses the er type with a subject for the database, reads the migration, starts from the er example, draws one table per table in the migration with its keys and column names and a crow's foot relationship per foreign key, the nullable book.author_id drawn as zero or one on the author side, renders it with render.py, writes docs/diagram/er/<subject>/0001-<slug>.md as current, creates the subject index and the type index, adds the er row to docs/diagram/README.md, and runs check_diagrams.py.",
+      "files": [],
+      "setup": "Before the run, create db/migrations/0001_init.sql with four tables: author(id PK, name), book(id PK, author_id FK NULL -> author.id, isbn, title), member(id PK, email, joined_at), loan(id PK, book_id FK NOT NULL -> book.id, member_id FK NOT NULL -> member.id, due_on, returned_at).",
+      "expectations": [
+        "Exactly one version exists under docs/diagram/er/<subject>/ (a subject directory, not docs/diagram/er/ itself): 0001-*.drawio.svg and 0001-*.md",
+        "The 0001 .md has status: current and its Sources name db/migrations/0001_init.sql",
+        "The model has a cell labelled for each of the four tables: author, book, member, loan",
+        "The model has exactly three edges that use ER markers (endArrow or startArrow beginning with ER), one per foreign key",
+        "Exactly one of those edges has an ERzeroToOne marker: the nullable book.author_id",
+        "No cell label contains a column data type from the migration (for example integer, text, timestamp, varchar, date)",
+        "docs/diagram/er/README.md links the subject's README.md, the subject's README.md links the version, and docs/diagram/README.md has a row for er",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0",
+        "No existing file under docs/diagram/architecture/ or docs/diagram/workflow/ is modified"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Before we build it, draw the sequence for the password reset we're planning. The plan is in docs/specs/password-reset.md, nothing is implemented yet.",
+      "expected_output": "Chooses the sequence type with a subject for the scenario and the status proposed, reads the spec, draws the participants and messages the spec describes, renders, writes docs/diagram/sequence/<subject>/0001-<slug>.md with status: proposed and the spec as its source, creates the indexes, runs check_diagrams.py, and reports the proposal as open. It does not claim the picture was drawn from code.",
+      "files": [],
+      "setup": "Before the run, create docs/specs/password-reset.md describing the planned flow: the user submits their email in the web app; the web app POSTs /password-resets to the auth API; the auth API sends a reset link through the mail provider; the auth API answers 202 Accepted; the web app tells the user to check their inbox. State that none of it is implemented.",
+      "expectations": [
+        "Exactly one version exists under docs/diagram/sequence/<subject>/: 0001-*.drawio.svg and 0001-*.md",
+        "The 0001 .md has status: proposed and no confirmed field",
+        "The 0001 .md's Sources name docs/specs/password-reset.md and do not name source code files as what it was drawn from",
+        "The model has four lifelines (cells whose style contains umlLifeline): the user, the web app, the auth API, the mail provider",
+        "The model has at least five message edges, and the labels include the POST to /password-resets and the 202 response",
+        "docs/diagram/sequence/README.md links the subject's README.md and docs/diagram/README.md has a row for sequence",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0",
+        "The answer says the diagram is a proposal that is still open"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "the password reset flow is merged now: services/web/reset.py and services/auth/password_reset.py. update the diagrams",
+      "expected_output": "Finds the open proposal sequence/password-reset/0001, reads the two source files, compares the participants and messages with the proposal, finds that they match, and promotes the proposal instead of redrawing it: status current, confirmed today, the index row updated, the drawing untouched. Checks the architecture and workflow versions and says whether they are affected.",
+      "files": [],
+      "setup": "Before the run, record docs/diagram/sequence/password-reset/0001-request-a-reset-link (.drawio.svg exported with render.py from .agents/skills/diagram/assets/examples/sequence.drawio, and .md with status: proposed, date 2026-10-01) with its subject index, the sequence type index, and the sequence row in docs/diagram/README.md. Create services/web/reset.py (a handler that takes the submitted email, POSTs /password-resets to the auth API, and returns the 'check your inbox' message) and services/auth/password_reset.py (a handler for POST /password-resets that sends a reset link through the mail provider client and returns 202).",
+      "expectations": [
+        "docs/diagram/sequence/password-reset/0001-request-a-reset-link.md has status: current",
+        "That .md has a confirmed field with an ISO date, and its date field is still 2026-10-01",
+        "docs/diagram/sequence/password-reset/0001-request-a-reset-link.drawio.svg is byte-identical to before the run",
+        "No 0002 version exists under docs/diagram/sequence/password-reset/",
+        "docs/diagram/sequence/password-reset/README.md shows 0001 as current",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0",
+        "The answer says what it compared between the proposal and the two source files"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "draw the state diagram for a subscription. the logic is in billing/subscription.py",
+      "expected_output": "Chooses the state type with the subject subscription, reads the status enumeration and every function that assigns it, draws one state per status and one transition per assignment with its event and guard, and records docs/diagram/state/subscription/0001 as current with the indexes.",
+      "files": [],
+      "setup": "Before the run, create billing/subscription.py with an enum SubscriptionStatus (TRIALING, ACTIVE, PAST_DUE, CANCELED) and functions: start_trial() -> TRIALING, only while the status is still unset; activate() TRIALING -> ACTIVE only if a card is on file; payment_failed() ACTIVE -> PAST_DUE; payment_recovered() PAST_DUE -> ACTIVE; cancel() from TRIALING, ACTIVE or PAST_DUE -> CANCELED; give_up() PAST_DUE -> CANCELED after 3 failed retries. Nothing leaves CANCELED.",
+      "expectations": [
+        "Exactly one version exists under docs/diagram/state/subscription/: 0001-*.drawio.svg and 0001-*.md, with status: current",
+        "The record's Sources name billing/subscription.py",
+        "The model has a state cell for each of the four statuses: trialing, active, past due, canceled (any letter case or separator)",
+        "The model has an initial pseudostate (a filled ellipse with no label) and at least one final state (shape=endState)",
+        "The model has at least seven edges: the initial transition, the five named events, and cancel from more than one state",
+        "A transition label carries the card guard in square brackets, and a transition label mentions the three failed retries",
+        "docs/diagram/state/README.md links subscription/README.md and docs/diagram/README.md has a row for state",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "who actually uses the library app and what can each of them do? can you draw that. the routes are in library/api/routes.py",
+      "expected_output": "Chooses the use-case type from the question (the word use case is not in the request), reads the routes and their roles, groups endpoints into goals, draws the system boundary with the use cases inside and the actors outside, marks the payment gateway as a system actor, and records docs/diagram/use-case/<subject>/0001 as current.",
+      "files": [],
+      "setup": "Before the run, create library/api/routes.py with role-guarded routes: member: GET /books (search the catalogue), POST /loans (borrow a book), POST /loans/{id}/return (return a book), POST /fines/{id}/pay (pay a fine, which calls the payment gateway); librarian: POST /books (add a book), POST /fines/{id}/waive (waive a fine); and a webhook POST /webhooks/payment called by the payment gateway to confirm a fine was paid.",
+      "expectations": [
+        "Exactly one version exists under docs/diagram/use-case/<subject>/: 0001-*.drawio.svg and 0001-*.md, with status: current",
+        "The record's Sources name library/api/routes.py",
+        "The model has at least three actors (shape=umlActor): the member, the librarian, and the payment gateway",
+        "The payment gateway actor's label carries a system stereotype",
+        "The model has between five and eight use cases (ellipses), each a child of one container cell: the system boundary",
+        "No use case label is a raw route such as POST /loans or GET /books",
+        "docs/diagram/use-case/README.md links the subject's README.md and docs/diagram/README.md has a row for use-case",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "security wants a DFD of the invoice import for the threat model. the code is importer/run.py",
+      "expected_output": "Chooses the data-flow type, reads the importer, draws its processes as numbered circles, the partner SFTP server and the accounting team as external entities, the invoices table and the rejects bucket as data stores, each flow labelled with the data that moves, and a trust boundary that the partner sits outside of; records docs/diagram/data-flow/<subject>/0001 as current.",
+      "files": [],
+      "setup": "Before the run, create importer/run.py: fetch_files() downloads invoice CSV files from the partner's SFTP server (outside our network); validate() checks each row; store() writes valid rows to the invoices table in our PostgreSQL; reject() writes invalid rows to the rejects bucket in our object storage; notify() emails a summary to the accounting team.",
+      "expectations": [
+        "Exactly one version exists under docs/diagram/data-flow/<subject>/: 0001-*.drawio.svg and 0001-*.md, with status: current",
+        "The record's Sources name importer/run.py",
+        "The model has at least two process cells (ellipses) and their labels are numbered (for example 1.0)",
+        "The model has two data stores (shape=partialRectangle): one for invoices and one for rejects",
+        "The model has a trust boundary: a dashed cell with no fill whose label mentions trust",
+        "Every edge has a label, and no edge label is a verb phrase starting with fetch, validate, store, send, or write",
+        "docs/diagram/data-flow/README.md links the subject's README.md and docs/diagram/README.md has a row for data-flow",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "can you chart how we pick the shipping carrier? the logic's in shipping/rates.py",
+      "expected_output": "Chooses the decision type (questions and outcomes, no steps over time), reads choose_carrier, draws one question per condition in the order the code tests them with the real thresholds, one outcome per carrier, every branch labelled, and records docs/diagram/decision/<subject>/0001 as current.",
+      "files": [],
+      "setup": "Before the run, create shipping/rates.py with choose_carrier(parcel): if parcel.destination_country != 'TH' return 'DHL Express'; elif parcel.weight_kg > 20 return 'Kerry Freight'; elif parcel.is_cod return 'Thailand Post'; else return 'Flash Express'.",
+      "expectations": [
+        "Exactly one version exists under docs/diagram/decision/<subject>/: 0001-*.drawio.svg and 0001-*.md, with status: current",
+        "The record's Sources name shipping/rates.py",
+        "The model has exactly three question cells (rhombus), each label ending in a question mark",
+        "A question label carries the real threshold: 20",
+        "The model has an outcome cell for each of the four carriers: DHL Express, Kerry Freight, Thailand Post, Flash Express",
+        "Every edge that leaves a question has a label",
+        "No file is created under docs/diagram/workflow/ and the workflow index is unchanged",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "draw the class diagram for the lending domain, it's in library/domain/",
+      "expected_output": "Chooses the class type with a subject for the lending domain, reads the domain package, draws the domain classes and the enumeration with identifying attributes and no methods, leaves the repository and the DTO out, draws the relations with multiplicities, and records docs/diagram/class/<subject>/0001 as current.",
+      "files": [],
+      "setup": "Before the run, create library/domain/models.py with dataclasses Member(id, email), Book(isbn, title), Copy(barcode, book: Book), Loan(id, member: Member, copy: Copy, status: LoanStatus, due_on) with methods renew() and close(), and enum LoanStatus (OPEN, RETURNED, OVERDUE); library/domain/repository.py with class LoanRepository (save, find_open_for); library/domain/dto.py with class LoanResponseDTO.",
+      "expectations": [
+        "Exactly one version exists under docs/diagram/class/<subject>/: 0001-*.drawio.svg and 0001-*.md, with status: current",
+        "The record's Sources name library/domain",
+        "The model has a class cell for each of Member, Book, Copy, and Loan, and one for LoanStatus",
+        "The LoanStatus cell's label carries an enumeration stereotype",
+        "No cell label names LoanRepository or LoanResponseDTO",
+        "No cell label is a method: none contains renew( or close( or ends with ()",
+        "The model has at least four edges between classes",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "record where everything runs in production. it's all in deploy/docker-compose.prod.yml",
+      "expected_output": "Chooses the deployment type (single, no subject), reads the compose file, draws the host as a node with the services as artifacts or nodes inside the production boundary, the database and cache, the outside entry point, and each path labelled with its protocol and port from the file; records docs/diagram/deployment/0001 as current with the type index.",
+      "files": [],
+      "setup": "Before the run, create deploy/docker-compose.prod.yml with services: proxy (nginx, ports 443:443, depends on api), api (image shop-api, deploy.replicas 2, expose 8000, depends on db and cache), worker (image shop-worker, depends on db and cache), db (postgres:16, expose 5432, volume pgdata), cache (redis:7, expose 6379).",
+      "expectations": [
+        "Exactly one version exists directly under docs/diagram/deployment/ (no subject directory): 0001-*.drawio.svg and 0001-*.md, with status: current",
+        "The record's Sources name deploy/docker-compose.prod.yml",
+        "The model has a cell labelled for each of the five services: proxy, api, worker, db or postgres, cache or redis",
+        "Edge labels carry the ports from the file: 443, 8000, 5432, and 6379",
+        "No cube-shaped cell has direction=south",
+        "docs/diagram/deployment/README.md links the version and docs/diagram/README.md has a row for deployment",
+        "No existing file under docs/diagram/architecture/ is modified",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "we now ship events to Upstash Redis (see src/events/publish.py). put it on the architecture diagram with its real logo - draw.io doesn't have one",
+      "expected_output": "Finds no verified style or built-in shape for Upstash, searches the web, opens the license or brand-terms page of a candidate (the provider's own page or Simple Icons at a pinned version), skips any source with no stated terms, downloads the mark with fetch_icon.py, completes its README row (license and terms link, credit, retrieved date, SHA-256), embeds it with icon_style.py, and records architecture 0003 with the Upstash component and the flow from the publisher.",
+      "files": [],
+      "setup": "Before the run, create src/events/publish.py that reads UPSTASH_REDIS_REST_URL from the environment and POSTs each event to it.",
+      "expectations": [
+        "Exactly one new file exists in docs/diagram/icons/, an .svg or .png named for Upstash",
+        "Its row in docs/diagram/icons/README.md has a source URL, a License / terms cell with a link, a Credit cell, a retrieved date, and a SHA-256 equal to the file's",
+        "The file was not edited after download: for an SVG, the only difference from the source is the trailing newline and, for a Simple Icons URL, a fill on the root element",
+        "Architecture 0003 is recorded with a cell labelled Upstash and 0002 is marked superseded by 0003",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "add an icon for Acme Queue to the architecture diagram, use the SVG at the URL in notes/acme-icon.txt",
+      "expected_output": "Runs fetch_icon.py on the given URL; the icon check refuses it because the SVG carries a <script> element and an onload attribute, and the file is deleted. Does not edit the file to make it pass. Says why it was refused, looks for another licensed source, and if none passes, draws Acme Queue as a plain labelled shape and says so.",
+      "files": [],
+      "setup": "Before the run, serve over HTTPS (or place where fetch_icon.py can reach) an SVG whose root has onload=\"fetch('https://example.invalid')\" and which contains <script>alert(1)</script>, and write its URL to notes/acme-icon.txt. Acme Queue has no other published icon.",
+      "expectations": [
+        "No file for Acme Queue exists in docs/diagram/icons/ and docs/diagram/icons/README.md has no row for one",
+        "The response names the reason the icon was refused (script or event attribute)",
+        "The new model has a cell labelled Acme Queue whose style has no image=",
+        "uv run .agents/skills/diagram/scripts/check_diagrams.py exits 0"
+      ]
+    }
+  ]
+}

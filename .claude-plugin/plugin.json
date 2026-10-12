@@ -1,0 +1,9 @@
+{
+  "name": "model-monitoring-tools",
+  "description": "Repository skills: diagram versions (draw.io) in docs/diagram/.",
+  "version": "0.1.0",
+  "author": { "name": "tkhongsap-io" },
+  "license": "UNLICENSED",
+  "keywords": ["agents", "diagram", "internal"],
+  "skills": ["./.agents/skills"]
+}

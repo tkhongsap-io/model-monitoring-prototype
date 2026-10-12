@@ -1,0 +1,30 @@
+name: check-diagrams
+
+# The structure of the recorded diagram versions in docs/diagram/ (S3-08b): paired files,
+# numbering, status, embedded models and icons. Standard library only: no draw.io, no secrets.
+on:
+  pull_request:
+    paths:
+      - "docs/diagram/**"
+      - ".agents/skills/diagram/scripts/**"
+      - ".github/workflows/check-diagrams.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "docs/diagram/**"
+      - ".agents/skills/diagram/scripts/**"
+      - ".github/workflows/check-diagrams.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check-diagrams:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python .agents/skills/diagram/scripts/check_diagrams.py
