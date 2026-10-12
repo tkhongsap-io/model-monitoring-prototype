@@ -22,7 +22,7 @@ These three files are the hand-drawn first drafts and do not change. The recheck
 2026-10-13 found differences between the GCP test host draft and the plan (for example the
 ports, the VM size, and the Langfuse database). The corrected architecture, with both phases
 in one picture, is
-[Architecture 0001](../diagram/architecture/0001-gcp-test-host-and-aws-production.md) in
+[Architecture 0002](../diagram/architecture/0002-both-phases-with-ports-and-stores.md) in
 [`docs/diagram/`](../diagram/README.md) (S3-08b). Use that version for the consultation.
 
 ## Check during the consultation
