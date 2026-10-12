@@ -9,6 +9,13 @@ Intent: `intent.md`. Spec: `spec.md`. One pull request to `dev`, one commit for 
 | 3 | Architecture `0001`: build the model from the two drafts, export, read the preview, write the record and the index | The check and the label scan pass; the preview reads cleanly |
 | 4 | `docs/architecture/README.md`, `README.md`, `CHANGELOG.md`, `DEVLOG.md` | The fast suite passes |
 | 5 | Architecture `0002`; `data-flow`, `sequence`, `deployment` (two subjects), `er`, `state`, `decision`, `use-case` | The check and the label scan pass; each preview reads cleanly |
+| 6 | Intent, spec and plan for recording without draw.io and for `.claude` in git | `test_docs.py` passes |
+| 7 | Tests of the scripts as they are; the CI check on three operating systems | The tests pass on Windows |
+| 8 | `render.py`: the search for each operating system, `doctor`, a wrong `DRAWIO_BIN` is an error, `extract` with no draw.io | The tests pass; `extract` on a recorded version gives a model |
+| 9 | `mermaid_block.py`; `check_diagrams.py` accepts a Mermaid version; `labels` reads one | Each refusal has a test; the check exits with 0 on the recorded versions |
+| 10 | `SKILL.md`, `references/mermaid.md`, the rule, `docs/diagram/README.md`, `TEMPLATE.md`, the evals | `test_docs.py` passes |
+| 11 | `.gitignore`, the rule pointer and the skill pointer in `.claude/`; `.claude-plugin/` removed | `git check-ignore` still matches the settings files; a new session lists the skill |
+| 12 | `CHANGELOG.md`, `DEVLOG.md` | The fast suite passes |
 
 ## Rollback
 

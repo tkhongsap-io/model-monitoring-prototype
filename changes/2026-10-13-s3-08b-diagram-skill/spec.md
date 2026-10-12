@@ -87,6 +87,85 @@ without a DNS name. One RDS instance for both databases stays as drawn and is it
 **Not in the drawing:** the words "planned" or "proposed". The record has the table "Built
 and not built", so the drawing does not change when a part is built.
 
+## Added 2026-10-13: record without draw.io, and `.claude` in git
+
+This section replaces three statements above: "The text changes; the scripts do not",
+"The five scripts", and the section "Claude Code discovery". The CI check becomes a
+matrix. No pip or npm package is added.
+
+### Mermaid version
+
+- One file, `NNNN-slug.md`. Its frontmatter has `format: mermaid`. A record with no
+  `format` is a draw.io version, so the 10 recorded versions do not change.
+- The record has exactly one `mermaid` code block, where a draw.io record has the image.
+  There is no `NNNN-slug.drawio.svg`.
+- The first line of the block is the keyword of the type:
+
+| Type | Keyword |
+|---|---|
+| `sequence` | `sequenceDiagram` |
+| `state` | `stateDiagram-v2` |
+| `er` | `erDiagram` |
+| `class` | `classDiagram` |
+| every other type | `flowchart` and a direction |
+
+- The check refuses: an `%%{` directive, a `---` configuration block, `click`, `href`, a
+  URL, and the tags `img`, `a`, `script`, `iframe`, `object`, `embed`, `style`.
+- A Mermaid version has no product icons and no image file.
+- `erDiagram` needs a type for each column, and the rule shows no data types. Every
+  column has the constant type `col`.
+
+### Scripts
+
+| Script | Change |
+|---|---|
+| `render.py` | Searches the install places of each operating system. A new `doctor` command reports draw.io: exit 0 found, 1 not installed, 2 `DRAWIO_BIN` is wrong. `extract` reads the embedded model with no draw.io. `labels` prints the block of a Mermaid version. The output of draw.io is read as UTF-8. |
+| `mermaid_block.py` | New. Finds the block in a record and lists what is wrong with it. |
+| `check_diagrams.py` | Accepts a `format: mermaid` version: the `.md` only, with the block checks. Prints UTF-8. |
+| `fetch_icon.py`, `icon_safety.py`, `icon_style.py` | No change. |
+
+`.agents/skills/diagram/tests/` is new: `unittest` tests of the three scripts above, with
+files in a temporary directory.
+
+### Skill and rule
+
+`SKILL.md` runs `render.py doctor` at the end of step 1. Exit 1 selects Mermaid; exit 2
+stops. Step 5 (icons) is for draw.io only. Step 6 has a Mermaid branch. The report says
+why Mermaid was used and that no rendered picture was inspected. `references/mermaid.md`
+is new: the keyword of each type, one example for each keyword, what the check refuses,
+and what to read in the text. The ten type references do not change.
+
+`.agents/rules/diagram.md` and `docs/diagram/README.md` describe the two formats.
+
+### Claude Code discovery
+
+| File | Change |
+|---|---|
+| `.gitignore` | `.claude/*` is ignored, except `.claude/rules/` and `.claude/skills/`. `settings.json` and `settings.local.json` stay personal. |
+| `.claude/rules/diagram.md` | In git. It imports `.agents/rules/diagram.md` for files under `docs/diagram/`. |
+| `.claude/skills/diagram/SKILL.md` | New. The same `name` and `description` as the skill, and one instruction: read and follow `.agents/skills/diagram/SKILL.md`. A test compares the two descriptions. |
+| `.claude-plugin/` | Removed. A person with the plugin on would see the skill two times. |
+
+Codex reads `.agents/skills` with no setting, as before.
+
+### CI check
+
+`check-diagrams.yml` runs on `ubuntu-latest`, `macos-latest` and `windows-latest`
+(`fail-fast: false`, Python 3.12): first
+`python -m unittest discover -s .agents/skills/diagram/tests`, then `check_diagrams.py`.
+The paths also include `.agents/skills/diagram/tests/**`.
+
+### Verification of this addition
+
+1. The script tests pass.
+2. `check_diagrams.py` exits with 0 on the 10 recorded versions.
+3. `render.py doctor` exits with 0 with draw.io installed and with 2 when `DRAWIO_BIN`
+   names no file. A test covers exit 1.
+4. `render.py extract` on a recorded version gives a model that draw.io exports again.
+5. A new Claude Code session lists `diagram`.
+6. macOS and Linux have no local evidence: only the CI matrix shows them, after a push.
+   That GitHub draws each example in `references/mermaid.md` is also seen after a push.
+
 ## Verification
 
 1. `uv run .agents/skills/diagram/scripts/check_diagrams.py` exits with 0.

@@ -46,6 +46,30 @@ drafts, corrects them and adds the missing detail.
 Architecture `0002` with more detail, and the first version of every Must and Nice-to-have
 type. The skill is used by its path (`.agents/skills/diagram/SKILL.md`).
 
+## Added 2026-10-13: record without draw.io, and `.claude` in git (@Prakasit-Iss)
+
+**Problem.** The skill records a version only on a machine with draw.io desktop: the
+export, the preview and `render.py extract` all call it. `.claude/` is in `.gitignore`, so
+a new clone has neither the diagram rule nor the skill in Claude Code.
+
+**Outcome.** With draw.io installed, nothing changes. Without it, the skill records the
+version as a Mermaid block in the version's `.md`, on macOS, Windows and Linux. A new
+clone has the rule and the skill in Claude Code with no personal setting.
+
+| Decision | Reason |
+|---|---|
+| The fallback is Mermaid, in the version's `.md`, marked `format: mermaid` | GitHub draws it with no tool, on every operating system |
+| draw.io stays the default. The fallback is used only when draw.io is not installed | A draw.io version has product icons, a manual layout and an image file for a slide |
+| A wrong `DRAWIO_BIN`, or an export that fails with draw.io installed, stops the work | A typing mistake must not change the format of a version |
+| A Mermaid version is drawn again in draw.io only when the next version is due, or on request | The rule records nothing when the picture does not change |
+| Claude Code finds the skill through a pointer file in `.claude/skills/`, not through the plugin | The plugin did not load here, and it copies the whole working tree to the home directory |
+| The scripts now differ from `project-template` | The template has no fallback. The changes go to the template after this work |
+| This decision replaces "No existing test, workflow or application file changes" for `.gitignore` and `check-diagrams.yml` only | The two files are part of the wiring |
+
+**Success criteria.** The script tests pass on Windows locally and on the three
+operating systems in CI. `check_diagrams.py` exits with 0 on the 10 recorded versions and
+refuses a wrong Mermaid version. A new Claude Code session lists the `diagram` skill.
+
 ## Not in scope
 
 The consultation with K. Wirat (S3-08a). The AF Slide (S3-08).
