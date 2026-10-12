@@ -30,6 +30,7 @@ First recorded version.
 | Box with a folded edge | A node: a place where software runs |
 | Grey box in a node | An artifact: one service or one resource |
 | Rounded grey box | An account or a provider |
+| Small logo | The product of a node or an artifact; the sources are in `docs/diagram/icons/README.md` |
 | Arrow | A communication path, with protocol and port, or the route |
 
 ## Sources

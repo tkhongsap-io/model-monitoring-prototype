@@ -13,8 +13,9 @@ related: []
 
 The AI governance document track of the batch monitoring MVP, as the plan has it: the
 project owner submits each document, a reviewer decides at each gate, and the development
-continues in parallel. The steps are numbered in the order of time. The three hard stops
-are the pink arrows into the development lane.
+continues in parallel. The columns are the four sprints. Each gate box names its documents,
+its reviewer and its decision date. The pink arrows into the development lane are the hard
+stops.
 
 The picture leaves out the "No" loops (the rule is in the note), the content of each
 document, and the work inside each sprint.
@@ -28,7 +29,8 @@ First recorded version.
 | Mark | Means |
 |---|---|
 | Lane | Who does the step |
-| Solid dark arrow | A document or the work goes to the next step |
+| Grey bar | A sprint, with its dates |
+| Solid dark arrow | The work goes to the next step |
 | Dashed pink arrow | A decision starts or allows the next step |
 
 ## Sources

@@ -38,6 +38,11 @@ Phase 2, added:
   had them only in a note.
 - The ConfigMap for the dashboard allowlist, with the Kubernetes secrets.
 
+Both phases, added: the product icons of nginx, the OpenTelemetry Collector, PostgreSQL,
+Redis, ClickHouse, MinIO, Docker, Kubernetes, Cloud Run, Compute Engine and Artifact
+Registry. A component with no icon that a licence allows (Langfuse, OAuth2 Proxy, Google
+Workspace) or with no product (the monitor backend, the trace check tool) stays a box.
+
 Nothing was removed.
 
 ## Built and not built

@@ -77,6 +77,15 @@ depend on. The spec is
 - Evidence for the 11 versions: `check_diagrams.py` exit 0; label scan with no old value,
   no IP address and no URL; each PNG preview read after its layout corrections;
   `tests/test_docs.py` 5 passed.
+- Icons (the owner asked for them where a licence allows): draw.io built-in icons for Cloud
+  Run, Compute Engine, Artifact Registry, Cloud SQL, RDS, S3 and the load balancer; 8 files
+  from Simple Icons 16.35.0 through `fetch_icon.py` (nginx, OpenTelemetry, PostgreSQL, Redis,
+  ClickHouse, MinIO, Docker, Kubernetes), each with source, licence and SHA-256 in
+  `docs/diagram/icons/README.md`. No icon: Langfuse (its brand page grants no licence),
+  OAuth2 Proxy, Google Workspace. Architecture `0002` and the two deployment diagrams were
+  exported again in place (a drawing fix; the system did not change).
+- Workflow `0001` was redrawn in place: the first drawing had 15 steps in one row and was
+  about 4500 px wide. It is now a grid with the sprints as columns and one box for each gate.
 - Not run locally: the fast backend suite (`.venv` is not set up on this host); CI runs it.
   How GitHub shows the SVG is examined on the pull request.
 - Not done: the push and the pull request. The account has read-only access to the

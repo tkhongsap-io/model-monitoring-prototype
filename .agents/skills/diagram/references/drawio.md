@@ -128,7 +128,10 @@ All share this style; only `prIcon` changes. The label goes below the icon, 54 b
 sketch=0;html=1;fillColor=#5184F3;strokeColor=none;verticalAlign=top;labelPosition=center;verticalLabelPosition=bottom;align=center;fontSize=11;fontColor=#232F3E;shape=mxgraph.gcp2.hexIcon;prIcon=<name>;
 ```
 
-Verified `prIcon` names: `cloud_sql`, `cloud_nat`, `cloud_dns`, `identity_aware_proxy`. A
+Verified `prIcon` names: `cloud_sql`, `cloud_nat`, `cloud_dns`, `identity_aware_proxy`,
+`compute_engine`, `cloud_run`, `container_registry`. `artifact_registry` does not exist as a
+`prIcon`: use the Artifact Registry image of draw.io's GCP icon library (a data URI; architecture
+0002 has it). A
 Google Cloud project or VPC is a rounded container with the stroke `#4285F4` and the fill
 `#F0F6FF`.
 
@@ -161,6 +164,14 @@ a square mark at 48:
 
 | File | For | Width |
 |---|---|---|
+| `clickhouse.svg` | ClickHouse | 24 inside a box, 48 alone |
+| `docker.svg` | Docker | 24 inside a box, 48 alone |
+| `kubernetes.svg` | Kubernetes | 24 inside a box, 48 alone |
+| `minio.svg` | MinIO | 24 inside a box, 48 alone |
+| `nginx.svg` | nginx | 24 inside a box, 48 alone |
+| `opentelemetry.svg` | OpenTelemetry Collector | 24 inside a box, 48 alone |
+| `postgresql.svg` | PostgreSQL | 24 inside a box, 48 alone |
+| `redis.svg` | Redis | 24 inside a box, 48 alone |
 
 A service that is none of these: see the skill's step 5.
 
