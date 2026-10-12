@@ -47,6 +47,31 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-13 — S3-08b: diagram skill and architecture 0001
+
+- Recheck of S3-08a (#81): the judge item is done (`862a964`). The GCP test host draft had
+  7 differences from the plan and the deploy files (ports, HTTPS, SSO, DNS, VM size,
+  Langfuse database, IAP path). The record of architecture `0001` lists them.
+- Added: the `diagram` skill from `project-template` (`9b1339d`) in `.agents/skills/diagram/`,
+  the rule `.agents/rules/diagram.md`, `docs/diagram/` with the types for this repository
+  (Must: `architecture`, `data-flow`, `sequence`), `.claude-plugin/` for Claude Code, and the
+  CI workflow `check-diagrams`. Design: `changes/2026-10-13-s3-08b-diagram-skill/`.
+- Added: architecture `0001`, one picture with phase 1 (GCP test host) and phase 2 (AWS
+  production), status `proposed`. It is built from the models of the two drafts. The three
+  drafts in `docs/architecture/` are unchanged.
+- Evidence (Windows): `check_diagrams.py` exit 0. Label scan of `0001`: none of the 7 old
+  values, no IP address, no URL, no "Token Factory"; "judge" only in "There is no judge".
+  The PNG preview was read in six parts after two layout corrections. `tests/test_docs.py`
+  5 passed (`uvx`, `--noconftest`), with no change to the test.
+- Not run locally: the fast backend suite (`.venv` is not set up on this host); CI runs it.
+  How GitHub shows the SVG is examined on the pull request.
+- Remaining:
+  - A maintainer sets the labels, the assignee and the parent link (#81) of #85. The account
+    that opened it has no permission for them.
+  - `.claude/` is in `.gitignore`, so each person turns the plugin on one time (the spec
+    has the setting).
+  - The `data-flow` and `sequence` diagrams (Must).
+
 ### 2026-10-12 — S2-03: self-hosted Langfuse
 
 - Built (Codex from `changes/2026-10-12-s2-03-langfuse/plan.md`, reviewed by Claude):

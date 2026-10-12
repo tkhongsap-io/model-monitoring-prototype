@@ -50,6 +50,9 @@ To see the API, from `backend/` run
 
 ## Architecture
 
+The batch MVP architecture (GCP test host and AWS production) is a versioned diagram in
+[docs/diagram/](docs/diagram/README.md). The text below describes the prototype.
+
 ```
 ai-use-cases producer (Reserved VM)              model-monitoring-prototype (Autoscale)
   /telemetry/meta | inferences | labels |  <--pull--  live_poller (Postgres lease, one worker)
