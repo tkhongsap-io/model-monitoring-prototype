@@ -66,15 +66,15 @@ depend on. The spec is
 - Added later the same day, with the skill used by its path: architecture `0002` (ports,
   the Collector pipeline, volumes, secret files, database accounts, the ingress rules as
   edges; `0001` is `superseded by 0002`) and the first version of `data-flow/batch-run`,
-  `sequence/batch-run-ingest`, `deployment/gcp-test-host`, `er/monitor-database` and
-  `workflow` (all `current`, drawn from the code and the deploy files), and of
+  `sequence/batch-run-ingest`, `deployment/gcp-test-host` and `er/monitor-database` (all
+  `current`, drawn from the code and the deploy files), and of
   `deployment/aws-production`, `state/use-case-delivery`, `decision/run-grade` and
   `use-case/monitor` (`proposed`, drawn from the plan).
 - Found while drawing: `0001` did not show the backend spans to the Collector (OTLP 4318);
   `0002` does. The docstring of `batch_routes.py` puts `413` and `400` before the registry
   `403`, but the code examines the registry first; the sequence diagram follows the code.
   The span outcome `unregistered` is not in the S1-05 spec list. No code was changed.
-- Evidence for the 11 versions: `check_diagrams.py` exit 0; label scan with no old value,
+- Evidence for the 10 versions: `check_diagrams.py` exit 0; label scan with no old value,
   no IP address and no URL; each PNG preview read after its layout corrections;
   `tests/test_docs.py` 5 passed.
 - Icons (the owner asked for them where a licence allows): draw.io built-in icons for Cloud
@@ -84,8 +84,9 @@ depend on. The spec is
   `docs/diagram/icons/README.md`. No icon: Langfuse (its brand page grants no licence),
   OAuth2 Proxy, Google Workspace. Architecture `0002` and the two deployment diagrams were
   exported again in place (a drawing fix; the system did not change).
-- Workflow `0001` was redrawn in place: the first drawing had 15 steps in one row and was
-  about 4500 px wide. It is now a grid with the sprints as columns and one box for each gate.
+- Removed: the `workflow` diagram of the governance gates and the sprints. The owner
+  rejected it: it shows the project schedule, not this system. A recheck of the other
+  diagrams found that each one shows a part of the system (built, or planned in this repo).
 - Not run locally: the fast backend suite (`.venv` is not set up on this host); CI runs it.
   How GitHub shows the SVG is examined on the pull request.
 - Not done: the push and the pull request. The account has read-only access to the

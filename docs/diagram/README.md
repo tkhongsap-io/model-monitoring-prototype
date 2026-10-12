@@ -19,14 +19,16 @@ governance gate or a release check. **Nice to have** types are recorded when som
 | Nice to have | `er` | `monitor-database` | The tables and their keys | S1-11, S3-05 | [er/](er/README.md) |
 | Nice to have | `state` | `use-case-delivery` | The delivery health of a use case, and what changes it | RAI team, S3-02 | [state/](state/README.md) |
 | Nice to have | `decision` | `run-grade` | Which grade a run gets, and by which questions | Gate 7 (S4-08), S2-05 | [decision/](decision/README.md) |
-| Nice to have | `workflow` | Whole project | The 8 governance gates beside the 4 sprints | Project owner | [workflow/](workflow/README.md) |
 | Nice to have | `use-case` | `monitor` | The actors and what each can do | VRO Template, BRD | [use-case/](use-case/README.md) |
 
 A version with the status `current` is drawn from the repository. A version with the status
 `proposed` is drawn from the plan, for a part that is not built yet: architecture, the AWS
 deployment, the delivery state, the run grade and the use cases.
 
-`class` is not used: the domain is small, and the `er` type carries it.
+`class` is not used: the domain is small, and the `er` type carries it. `workflow` is not
+used: the system has no multi-step process of its own beyond the ingest of one run (the
+`sequence` diagram). The governance gates and the sprints are the project schedule, not the
+system; they are in the batch MVP plan, not in a diagram.
 
 The hand-drawn first drafts of the architecture are in
 [`docs/architecture/`](../architecture/README.md).

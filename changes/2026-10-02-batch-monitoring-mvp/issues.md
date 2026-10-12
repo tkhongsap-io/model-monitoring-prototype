@@ -1777,7 +1777,6 @@ version is drawn from the plan for a part that is not built.
 | `er` / `monitor-database` | `0001` | current |
 | `state` / `use-case-delivery` | `0001` | proposed |
 | `decision` / `run-grade` | `0001` | proposed |
-| `workflow` | `0001` | current |
 | `use-case` / `monitor` | `0001` | proposed |
 
 **How to test**

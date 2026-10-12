@@ -20,7 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `.agents/skills/diagram/` records each diagram as a numbered draw.io version in
   `docs/diagram/`. Architecture `0001` shows phase 1 (the GCP test host) and phase 2 (AWS
   production) in one picture, and corrects the first drafts; `0002` adds ports, pipelines and
-  stores. Also recorded: data flow, sequence, deployment, ER, state, decision, workflow and
+  stores. Also recorded: data flow, sequence, deployment, ER, state, decision and
   use-case diagrams. New CI check `check-diagrams`. No change to the backend, the frontend or the deploy files.
 
 - Architecture diagrams, first draft (S3-08a): `docs/architecture/` has the GCP test host,
