@@ -147,10 +147,14 @@ issue S1-02; spec in
 It is available in demo and strict live mode. It stores the run in `batch_runs`
 (migration 8) and never touches a telemetry cursor.
 
-- Body: the S1-01 **draft** schema `batch-run/1`
-  ([schema](../changes/2026-10-02-batch-monitoring-mvp/schema/README.md)). The backend
-  enforces it in `backend/app/batch_schema.py`. The optional field `submitted_at` (added
-  2026-10-08) is accepted and kept in `payload`; it has no column yet.
+- Body: the approved S1-01 schema `batch-run/1`
+  ([schema file](../backend/schemas/batch-run/1/batch-run-1.schema.json), examples next to
+  it, [notes and backend rules](../changes/2026-10-02-batch-monitoring-mvp/schema/README.md)).
+  The backend enforces it in `backend/app/batch_schema.py`. The optional field
+  `submitted_at` (added 2026-10-08) is accepted and kept in `payload`; it has no column yet.
+  From S1-02b, a record with `refused: true` must have `answer: ""`, and the number of
+  records must not be more than `request_count` − `failed_count`. A rule that makes a
+  stored row invalid needs a new schema version (`batch-run/2`); stored rows never change.
 - Key: `Authorization: Bearer <key>`. Configure only the SHA-256 of each key in
   `BATCH_API_KEY_SHA256` as comma-separated `USE_CASE_ID:<64 hex>` entries. Two entries for
   one use case are allowed during a key rotation. If the setting is empty, every request

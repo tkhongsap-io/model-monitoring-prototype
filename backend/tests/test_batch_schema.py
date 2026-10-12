@@ -1,7 +1,7 @@
-"""Run summary `batch-run/1` (S1-01 draft) as the backend enforces it (S1-02).
+"""Run summary `batch-run/1` (S1-01, approved 2026-10-09) as the backend enforces it (S1-02).
 
-The examples are read from the S1-01 change folder, so the schema draft and these tests
-cannot drift apart while the GCP developer reviews it.
+The examples are read from `backend/schemas/batch-run/1/`, next to the schema file, so the
+schema and these tests cannot drift apart.
 """
 from __future__ import annotations
 
@@ -11,10 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from app.batch_schema import BatchRunInvalid, validate_run
+from app.batch_schema import SCHEMA_VERSION, BatchRunInvalid, validate_run
 
-EXAMPLES = (Path(__file__).resolve().parents[2] / "changes" / "2026-10-02-batch-monitoring-mvp"
-            / "schema" / "examples")
+EXAMPLES = Path(__file__).resolve().parents[1] / "schemas" / "batch-run" / "1" / "examples"
 VALID = sorted((EXAMPLES / "valid").glob("*.json"))
 INVALID = sorted((EXAMPLES / "invalid").glob("*.json"))
 
@@ -38,7 +37,14 @@ def locs(errors: list[dict]) -> list[tuple]:
 
 
 def test_examples_are_present():
-    assert len(VALID) == 5 and len(INVALID) == 3
+    assert len(VALID) == 5 and len(INVALID) == 5
+
+
+def test_schema_file_is_the_approved_version():
+    text = (EXAMPLES.parent / "batch-run-1.schema.json").read_text(encoding="utf-8")
+    schema = json.loads(text)
+    assert schema["properties"]["schema_version"]["const"] == SCHEMA_VERSION
+    assert "DRAFT" not in text and "PROPOSED" not in text
 
 
 @pytest.mark.parametrize("path", VALID, ids=lambda p: p.name)
@@ -58,6 +64,10 @@ def test_invalid_examples_name_the_field():
     assert ("records", 0, "customer_id") in locs(unknown)
     wrong = locs(errors_for((EXAMPLES / "invalid" / "wrong-type-and-zero-latency.json").read_bytes()))
     assert ("request_count",) in wrong and ("records", 0, "latency_s") in wrong
+    failed = errors_for((EXAMPLES / "invalid" / "records-from-failed-requests.json").read_bytes())
+    assert locs(failed) == [("records",)]
+    refused = errors_for((EXAMPLES / "invalid" / "refused-with-answer.json").read_bytes())
+    assert locs(refused) == [("records", 0, "answer")]
 
 
 def test_errors_never_echo_the_input():
@@ -154,6 +164,14 @@ def test_answer_may_be_empty_only_when_refused():
     assert ("records", 1, "answer") in locs(errors_for(body))
 
 
+def test_refused_answer_must_be_empty():
+    body = example("02-partial-failure.json")
+    body["records"][1]["answer"] = "SECRET-TEXT partial output"
+    errors = errors_for(body)
+    assert ("records", 1, "answer") in locs(errors)
+    assert "SECRET-TEXT" not in json.dumps(errors)
+
+
 def test_question_and_text_lengths():
     body = example("01-completed-online.json")
     body["records"][0]["question"] = ""
@@ -234,6 +252,14 @@ def test_records_not_more_than_request_count():
     body["request_count"] = 1
     assert ("records",) in locs(errors_for(body))
 
+
+def test_records_only_from_answered_or_refused_requests():
+    body = example("02-partial-failure.json")       # 2 records
+    body["request_count"] = 3
+    body["failed_count"] = 2                        # 1 answered or refused
+    assert ("records",) in locs(errors_for(body))
+    body["failed_count"] = 1                        # 2 answered or refused
+    validate_run(raw(body))
 
 def test_submitted_at_not_later_than_completed_at():
     body = example("03-batch-api-null-latency.json")

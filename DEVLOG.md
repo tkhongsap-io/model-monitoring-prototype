@@ -64,6 +64,34 @@ depend on. The spec is
   the same path for the key and the hash; an entry with an invalid ID is named by position.
 - Not yet run: the CI smoke test (on the pull request) and the test-host deploy (readiness
   must stay `ready` with the existing `rtr-fraud-validation` key).
+### 2026-10-12 — S1-02b: the receiver agrees with the approved S1-01 schema
+
+- Changed: compared `batch-run-1.schema.json` with `BatchRunV1` field by field (table in
+  [changes/2026-10-12-s1-02b-approved-schema/spec.md](changes/2026-10-12-s1-02b-approved-schema/spec.md)).
+  Types, lengths, required fields and `allOf` rules were already the same. The project owner
+  chose option B for the rules decided on 2026-10-08:
+  - New: a record with `refused: true` must have `answer: ""` (schema and code).
+  - New: records ≤ `request_count` − `failed_count` (backend rule).
+  - Note only (project owner, 2026-10-12): `completed` means 0 failures and `partial`
+    means more than 0. The backend does not check it, because a check would make stored
+    rows such as `04-identity-only.json` invalid and need `batch-run/2`. Metrics read
+    `failed_count`, not `status`.
+  - The version stays `batch-run/1`: Sprint 1 runs have no records, so no stored row breaks.
+  - The DRAFT and PROPOSED notes are removed, and the descriptions carry the GCP answers.
+  - The schema and examples moved to `backend/schemas/batch-run/1/`, with two new invalid
+    examples. The schema README stays in the change folder as the S1-01 record.
+  - The smoke script, the Compose README and `docs/STRICT-LIVE.md` point to the new path.
+- Evidence (Windows, Python 3.12): the batch and docs tests passed (124). Fast suite: 394
+  passed, 1 failed. The failure is `test_alert_routes.py::test_alerts_route_lists_filters_and_redacts`,
+  which is not related: 3 of 4 runs alone failed with no change in between. The three alerts
+  in it have the same timestamp on the Windows clock, so "newest first" has no fixed order.
+  A one-off `jsonschema` 2020-12 check (not a dependency) agreed with the backend on all
+  10 examples, except `records-from-failed-requests.json`, which only the backend rule rejects.
+- Not run here: `pnpm` checks (no frontend change; CI runs them). The real job body after
+  this change is not tested; it needs S1-02a on the test host.
+- Remaining:
+  - Deploy to the test host before the GCP job sends records (Sprint 2).
+
 ### 2026-10-09 — batch MVP plan: AI governance document track
 
 - Changed: added the 8 gates of the company AI governance process to

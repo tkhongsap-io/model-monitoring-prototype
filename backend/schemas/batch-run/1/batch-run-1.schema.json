@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:aict:monitor:batch-run:1",
   "title": "Batch run summary v1 (batch-run/1)",
-  "description": "DRAFT for S1-01. One body for each run of a GCP batch job. The job sends it to POST /api/batch/runs after the publish step (S1-03). The trace ID is not in the body: it goes in the W3C traceparent HTTP header (S1-05). Field names of a record are the same as the contract v1.1 Trace record, so the shared judge code reads them without a change. See llm-metrics-standard.md. Rules that JSON Schema cannot express are listed in schema/README.md; the backend (S1-02) enforces them.",
+  "description": "Approved for S1-01 on 2026-10-09; the backend agrees with it from S1-02b. One body for each run of a GCP batch job. The job sends it to POST /api/batch/runs after the publish step (S1-03). The trace ID is not in the body: it goes in the W3C traceparent HTTP header (S1-05). Field names of a record are the same as the contract v1.1 Trace record, so the shared judge code reads them without a change. See llm-metrics-standard.md. Rules that JSON Schema cannot express are listed in changes/2026-10-02-batch-monitoring-mvp/schema/README.md; the backend (backend/app/batch_schema.py) enforces them.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -31,7 +31,7 @@
       "$ref": "#/$defs/identifier"
     },
     "status": {
-      "description": "SOURCE (GCP answer 2026-10-08): 'completed': the job published, and failed_count is 0. 'partial': the job published, and failed_count is more than 0 (the failed rows show their error to the users). 'failed': the job did not publish, because the job code caught an error before or during the publish step.",
+      "description": "SOURCE (GCP answer 2026-10-08): 'completed': the job published, and failed_count is 0. 'partial': the job published, and failed_count is more than 0 (the failed rows show their error to the users). 'failed': the job did not publish, because the job code caught an error before or during the publish step. The backend does not check status against failed_count (decided 2026-10-12); the metrics use failed_count.",
       "enum": ["completed", "partial", "failed"]
     },
     "completed_at": {
@@ -81,13 +81,13 @@
       }
     },
     "records": {
-      "description": "The sampled records, with PII replaced by placeholders. Sample only from the requests that Gemini answered or refused; never include a failed request. Empty in identity-only mode (SEND_RECORDS off), when the job failed, or when request_count is 0.",
+      "description": "The sampled records, with PII replaced by placeholders. Sample only from the requests that Gemini answered or refused; never include a failed request, so the number of records is never more than request_count - failed_count (the backend checks this). Empty in identity-only mode (SEND_RECORDS off), when the job failed, or when request_count is 0.",
       "type": "array",
       "maxItems": 200,
       "items": { "$ref": "#/$defs/record" }
     },
     "records_reason": {
-      "description": "Why records is empty. Required when records is empty and request_count is more than 0. Not allowed when records has items. 'records_not_approved': identity-only mode. 'job_failed': status is 'failed' (PROPOSED, not yet in the standard).",
+      "description": "Why records is empty. Required when records is empty and request_count is more than 0. Not allowed when records has items. 'records_not_approved': identity-only mode. 'job_failed': status is 'failed' and the job sent requests before it failed (confirmed by the GCP job developer 2026-10-08; an addition to the standard).",
       "enum": ["records_not_approved", "job_failed"]
     }
   },
@@ -163,18 +163,18 @@
           "$ref": "#/$defs/identifier"
         },
         "question": {
-          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The instruction that the model got, without the source material and without the system prompt. Redacted. If the prompt contains an image, write the marker [IMAGE] where each image was; never send the image, base64 data or an image URL.",
+          "description": "SOURCE (GCP answer 2026-10-08): the user-turn text of the request, without the source material and without the system prompt. Redacted. If the prompt contains an image, write the marker [IMAGE] where each image was, for example 'Process These Images [IMAGE] [IMAGE] [IMAGE]'; never send the image, base64 data or an image URL.",
           "allOf": [{ "$ref": "#/$defs/redactedText" }],
           "minLength": 1,
           "maxLength": 32000
         },
         "answer": {
-          "description": "SOURCE: GCP job developer to fill in. The output text of the model for this request. Redacted. Can be empty only when refused is true (blocked, no output).",
+          "description": "SOURCE (decided 2026-10-08): the output text of the model for this request. Redacted. For a forced function call that only gives structured output, the function args as a JSON string, with the string values redacted. Empty if and only if refused is true: send '' also when a block left partial text.",
           "allOf": [{ "$ref": "#/$defs/redactedText" }],
           "maxLength": 32000
         },
         "retrieval_context": {
-          "description": "SOURCE: GCP job developer to fill in (which part of the prompt). The source material that the model got with the instruction: any input text that the answer must agree with, for example a document, a transaction, a complaint, OCR text or retrieved chunks. Not only for document retrieval. Send the text as the model got it, one item for each source. [] if the prompt has no text source material, for example when the only input is an image.",
+          "description": "SOURCE (GCP answer 2026-10-08): the source material that the model got with the instruction: any input text that the answer must agree with, for example a document, a transaction, a complaint, OCR text or retrieved chunks. Not only for document retrieval. Send the text as the model got it, one item for each source. [] if the prompt has no text source material, for example when the only input is an image.",
           "type": "array",
           "maxItems": 20,
           "items": {
@@ -222,7 +222,7 @@
           }
         },
         "refused": {
-          "description": "SOURCE: GCP job developer to fill in. true if the model declined or was blocked: finishReason SAFETY / PROHIBITED_CONTENT / BLOCKLIST / SPII, promptFeedback.blockReason set, or a clear refusal text.",
+          "description": "SOURCE (decided 2026-10-08): true if the model was blocked: finishReason SAFETY / PROHIBITED_CONTENT / BLOCKLIST / SPII / RECITATION / IMAGE_SAFETY / IMAGE_PROHIBITED_CONTENT, or promptFeedback.blockReason set. A refused request is not a failed request: it counts in request_count, not in failed_count, and it can be in the sample. A fallback value that the prompt asks for (for example 'unknown' or 'N/A') is a normal answer with refused false.",
           "type": "boolean"
         },
         "latency_s": {
@@ -237,6 +237,9 @@
       },
       "then": {
         "properties": { "answer": { "minLength": 1 } }
+      },
+      "else": {
+        "properties": { "answer": { "maxLength": 0 } }
       }
     }
   }
