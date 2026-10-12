@@ -26,9 +26,9 @@ A version with the status `current` is drawn from the repository. A version with
 deployment, the delivery state, the run grade and the use cases.
 
 `class` is not used: the domain is small, and the `er` type carries it. `workflow` is not
-used: the system has no multi-step process of its own beyond the ingest of one run (the
-`sequence` diagram). The governance gates and the sprints are the project schedule, not the
-system; they are in the batch MVP plan, not in a diagram.
+recorded for now. Record it later if the system gets a process with several actors and
+steps (for example the evaluation worker, or the alert path). The governance gates and the
+sprints are the project schedule, not the system, so they are not a diagram.
 
 The hand-drawn first drafts of the architecture are in
 [`docs/architecture/`](../architecture/README.md).
