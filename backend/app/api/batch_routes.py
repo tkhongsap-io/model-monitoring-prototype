@@ -27,7 +27,7 @@ from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 from opentelemetry import trace
 
-from .. import config, db, tracing
+from .. import config, db, registry, tracing
 from ..batch_schema import BatchRunInvalid, validate_run
 
 log = logging.getLogger(__name__)
@@ -93,6 +93,13 @@ async def _ingest(request: Request, authorization: str | None, span: trace.Span,
         log.warning("batch run rejected: invalid API key", extra={"outcome": "unauthorized"})
         return JSONResponse({"detail": "invalid API key"}, status_code=401,
                             headers={"WWW-Authenticate": "Bearer"})
+
+    if key_use_case not in registry.current():
+        span.set_attribute("outcome", "unregistered")
+        log.warning("batch run rejected: the use case of the API key is not registered",
+                    extra={"outcome": "unregistered", "key_use_case_id": key_use_case})
+        return JSONResponse({"detail": "the use case of this API key is not registered"},
+                            status_code=403)
 
     limit = config.BATCH_MAX_BODY_BYTES
     declared = request.headers.get("content-length", "")

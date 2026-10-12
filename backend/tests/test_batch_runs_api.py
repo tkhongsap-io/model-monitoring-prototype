@@ -312,3 +312,40 @@ def test_key_hash_parsing_and_configuration_errors(monkeypatch):
 def test_upper_case_hash_is_accepted(monkeypatch):
     monkeypatch.setattr(config, "BATCH_API_KEY_SHA256", f"GCP-UC-03:{sha(KEY_03).upper()}")
     assert config.batch_api_key_hashes() == [(sha(KEY_03), "GCP-UC-03")]
+
+
+KEY_99 = "test-key-uc99-" + "c" * 32
+
+
+def test_key_of_unregistered_use_case_403_nothing_stored(client, monkeypatch):
+    monkeypatch.setattr(config, "BATCH_API_KEY_SHA256", f"GCP-UC-99:{sha(KEY_99)}")
+    body = example("01-completed-online.json")
+    body["use_case_id"] = "GCP-UC-99"
+    response = client.post(URL, json=body, headers={"Authorization": f"Bearer {KEY_99}"})
+    assert response.status_code == 403
+    assert response.json() == {"detail": "the use case of this API key is not registered"}
+    assert rows() == []
+
+
+def test_unregistered_check_comes_before_the_body(client, monkeypatch):
+    monkeypatch.setattr(config, "BATCH_API_KEY_SHA256", f"GCP-UC-99:{sha(KEY_99)}")
+    response = client.post(URL, content=b"not json",
+                           headers={"Authorization": f"Bearer {KEY_99}"})
+    assert response.status_code == 403
+
+
+def test_rotation_old_key_removed_new_key_works(client, monkeypatch):
+    new_key = "test-key-uc03-new-" + "d" * 32
+    monkeypatch.setattr(config, "BATCH_API_KEY_SHA256",
+                        f"GCP-UC-03:{sha(KEY_03)}, GCP-UC-03:{sha(new_key)}")
+    first = example("01-completed-online.json")
+    second = {**first, "run_id": "rotation-second-run"}
+    assert client.post(URL, json=first, headers=AUTH).status_code == 201
+    assert client.post(URL, json=second,
+                       headers={"Authorization": f"Bearer {new_key}"}).status_code == 201
+    before = rows()
+    monkeypatch.setattr(config, "BATCH_API_KEY_SHA256", f"GCP-UC-03:{sha(new_key)}")
+    assert client.post(URL, json=first, headers=AUTH).status_code == 401     # removed key
+    assert client.post(URL, json=first,
+                       headers={"Authorization": f"Bearer {new_key}"}).status_code == 200
+    assert rows() == before                                                  # runs unchanged
