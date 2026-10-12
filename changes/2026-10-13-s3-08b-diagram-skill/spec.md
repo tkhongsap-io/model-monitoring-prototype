@@ -153,7 +153,9 @@ Codex reads `.agents/skills` with no setting, as before.
 `check-diagrams.yml` runs on `ubuntu-latest`, `macos-latest` and `windows-latest`
 (`fail-fast: false`, Python 3.12): first
 `python -m unittest discover -s .agents/skills/diagram/tests`, then `check_diagrams.py`.
-The paths also include `.agents/skills/diagram/tests/**`.
+The paths are `docs/diagram/**`, `.agents/skills/diagram/**`,
+`.agents/rules/diagram.md`, `.claude/**` and the workflow file, because a test compares
+the pointers in `.claude/` with the skill and the rule.
 
 ### Verification of this addition
 

@@ -8,15 +8,17 @@ on:
   pull_request:
     paths:
       - "docs/diagram/**"
-      - ".agents/skills/diagram/scripts/**"
-      - ".agents/skills/diagram/tests/**"
+      - ".agents/skills/diagram/**"
+      - ".agents/rules/diagram.md"
+      - ".claude/**"
       - ".github/workflows/check-diagrams.yml"
   push:
     branches: [dev]
     paths:
       - "docs/diagram/**"
-      - ".agents/skills/diagram/scripts/**"
-      - ".agents/skills/diagram/tests/**"
+      - ".agents/skills/diagram/**"
+      - ".agents/rules/diagram.md"
+      - ".claude/**"
       - ".github/workflows/check-diagrams.yml"
 
 permissions:
