@@ -12,6 +12,9 @@ nothing but the standard library: no draw.io, no network. It checks what the rul
   directory is named like a slug and holds versions
 - every ``NNNN-slug.drawio.svg`` has its ``NNNN-slug.md`` beside it and the other way
   round, and no number is used twice in one directory
+- a record with ``format: mermaid`` (a version recorded without draw.io) has no
+  ``.drawio.svg``; it holds one ``mermaid`` block that ``mermaid_block.py`` accepts for
+  the type
 - each record's frontmatter has ``status`` (``current``, ``proposed``, ``withdrawn``, or
   ``superseded by NNNN`` naming a later version in the same directory), an ISO ``date``,
   ``author`` as ``Name <email>``, and, when present, an ISO ``confirmed``
@@ -114,6 +117,8 @@ def record_problems(md: Path, number: str, numbers: set) -> list:
         problems.append(f"date is {fields.get('date', '')!r}; expected YYYY-MM-DD")
     if not AUTHOR.match(fields.get("author", "")):
         problems.append("author is not 'Name <email>' (git config user.name / user.email)")
+    if fields.get("format", "mermaid") != "mermaid":
+        problems.append(f"format is {fields['format']!r}; omit it for draw.io, or 'mermaid'")
     if "confirmed" in fields:
         try:
             datetime.date.fromisoformat(fields["confirmed"])
@@ -128,7 +133,7 @@ def check_type(directory: Path) -> list:
     """Return the problems in one type directory: its versions, or its subjects' versions."""
     subjects = sorted(p for p in directory.iterdir() if p.is_dir())
     if not subjects:
-        return check_versions(directory)
+        return check_versions(directory, directory.name)
     problems = []
     if any(VERSION.match(p.name) for p in directory.iterdir() if p.is_file()):
         problems.append(
@@ -143,12 +148,15 @@ def check_type(directory: Path) -> list:
             problems.append(f"{subject}: not a subject name (lowercase words joined by dashes)")
         if index is not None and f"({subject.name}/README.md)" not in index:
             problems.append(f"{index_path}: no row linking {subject.name}/README.md")
-        problems += check_versions(subject)
+        problems += check_versions(subject, directory.name)
     return problems
 
 
-def check_versions(directory: Path) -> list:
+def check_versions(directory: Path, diagram_type: str) -> list:
     """Return the problems in one directory of versions, each prefixed with its path."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from mermaid_block import record_problems as mermaid_problems  # beside this script
+
     problems = []
     stems = {}
     for path in sorted(directory.iterdir()):
@@ -176,15 +184,24 @@ def check_versions(directory: Path) -> list:
     statuses = {}
     for (number, slug), kinds in sorted(stems.items()):
         stem = directory / f"{number}-{slug}"
-        for kind in ("drawio.svg", "md"):
-            if kind not in kinds:
-                problems.append(f"{stem}.{kind}: missing; every version has both files")
+        md = Path(f"{stem}.md")
+        svg = Path(f"{stem}.drawio.svg")
+        fields = frontmatter(md) if "md" in kinds else {}
+        mermaid = fields.get("format") == "mermaid"
+        if "md" not in kinds:
+            problems.append(f"{md}: missing; every version has its record")
+        elif mermaid and "drawio.svg" in kinds:
+            problems.append(f"{svg}: a format: mermaid version has no .drawio.svg")
+        elif not mermaid and "drawio.svg" not in kinds:
+            problems.append(
+                f"{svg}: missing; a version has both files, or 'format: mermaid' in its record"
+            )
         if "md" in kinds:
-            md = Path(f"{stem}.md")
             problems += [f"{md}: {p}" for p in record_problems(md, number, set(numbers))]
-            statuses.setdefault(frontmatter(md).get("status", ""), []).append(number)
+            statuses.setdefault(fields.get("status", ""), []).append(number)
+        if mermaid:
+            problems += [f"{md}: {p}" for p in mermaid_problems(md, diagram_type)]
         if "drawio.svg" in kinds:
-            svg = Path(f"{stem}.drawio.svg")
             problems += [f"{svg}: {p}" for p in model_problems(svg)]
         if index is not None and f"({number}-{slug}.md)" not in index:
             problems.append(f"{index_path}: no row linking {number}-{slug}.md")
@@ -234,6 +251,7 @@ def main() -> None:
 
     if not args.root.is_dir():
         return
+    sys.stdout.reconfigure(encoding="utf-8")  # paths and labels carry non-ASCII; Windows defaults to cp1252
     problems = []
     for directory in sorted(p for p in args.root.iterdir() if p.is_dir()):
         if directory.name in NOT_TYPES:

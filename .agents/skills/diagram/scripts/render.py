@@ -11,7 +11,7 @@ script wraps the draw.io desktop CLI, which does the rendering.
     uv run render.py doctor
     uv run render.py export SRC.drawio OUT.drawio.svg [--preview OUT.png]
     uv run render.py extract IN.drawio.svg OUT.drawio
-    uv run render.py labels IN.drawio.svg
+    uv run render.py labels IN.drawio.svg | IN.md
 
 (render.py is .agents/skills/diagram/scripts/render.py.)
 
@@ -233,11 +233,23 @@ def extract(source: Path, output: Path) -> None:
 
 
 def labels(source: Path) -> None:
-    """Print the plain-text label of every cell in the model embedded in source."""
+    """Print the plain-text label of every cell in the model embedded in source.
+
+    For the record of a Mermaid version (a ``.md``), print its block: the labels are in
+    the text already.
+    """
+    sys.stdout.reconfigure(encoding="utf-8")  # labels carry non-ASCII; Windows defaults to cp1252
+    if source.suffix == ".md":
+        from mermaid_block import block  # beside this script
+
+        try:
+            print(block(source))
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+        return
     model = embedded_model(source)
     if "<mxGraphModel" not in model:
         raise SystemExit(f"{source} embeds no uncompressed model; use extract")
-    sys.stdout.reconfigure(encoding="utf-8")  # labels carry non-ASCII; Windows defaults to cp1252
     for value in re.findall(r'\svalue="([^"]*)"', model):
         text = re.sub(r"<br\s*/?>", " / ", html.unescape(value))
         text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", text)).strip()
@@ -258,7 +270,7 @@ def main() -> None:
     extract_cmd = commands.add_parser("extract", help="recover the model from .drawio.svg")
     extract_cmd.add_argument("source", type=Path)
     extract_cmd.add_argument("output", type=Path)
-    labels_cmd = commands.add_parser("labels", help="print the labels of a .drawio.svg")
+    labels_cmd = commands.add_parser("labels", help="print the labels of a version")
     labels_cmd.add_argument("source", type=Path)
     args = parser.parse_args()
 
