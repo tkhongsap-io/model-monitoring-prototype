@@ -5,6 +5,9 @@
 name: langfuse
 
 x-langfuse-env: &langfuse-env
+  # Docker sets HOSTNAME to the container ID; Langfuse binds to it, so localhost health
+  # checks fail. Bind to all addresses inside the container (no port is published).
+  HOSTNAME: "0.0.0.0"
   TELEMETRY_ENABLED: "false"
   LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
   AUTH_DISABLE_SIGNUP: "true"

@@ -59,6 +59,7 @@ def test_base_settings_turn_off_signup_and_telemetry():
     for name in ("langfuse-web", "langfuse-worker"):
         env = services[name]["environment"]
         assert env["TELEMETRY_ENABLED"] == "false"
+        assert env["HOSTNAME"] == "0.0.0.0"   # else it binds the container ID, not localhost
         assert env["AUTH_DISABLE_SIGNUP"] == "true"
         assert env["LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES"] == "false"
         assert env["LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT"] == "http://minio:9000"
