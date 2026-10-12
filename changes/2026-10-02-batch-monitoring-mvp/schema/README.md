@@ -121,11 +121,11 @@ The backend (S1-02) returns `400` for these:
 | `use_case_id` is the use case of the API key | One key cannot write for another use case |
 | Total body size ≤ limit (proposed 10 MB) | Protect the API |
 
-### Agreed, but not enforced yet
+### Agreed meaning, not checked by the backend
 
-| Rule | Why it waits |
+| Rule | Why it is not checked |
 |---|---|
-| `status: completed` means `failed_count` 0; `status: partial` means `failed_count` above 0 (GCP answer 2026-10-08) | It applies to every run, also identity-only runs. The example `04-identity-only.json` is `completed` with `failed_count` 2, and rows of that shape can be stored. A rule that makes a stored row invalid needs `batch-run/2`. The project owner decides (see [S1-02b spec](../../2026-10-12-s1-02b-approved-schema/spec.md)). |
+| `status: completed` means `failed_count` 0; `status: partial` means `failed_count` above 0 (GCP answer 2026-10-08) | The project owner decided on 2026-10-12 that this is a note only: the jobs follow it, and the backend does not reject a body that breaks it. To check it would make stored rows such as `04-identity-only.json` (`completed`, `failed_count` 2) invalid and need `batch-run/2`. The monitor must read `failed_count`, not `status`, for `failure_rate` (see [S1-02b spec](../../2026-10-12-s1-02b-approved-schema/spec.md)). |
 
 ## Added 2026-10-08: `submitted_at` (optional)
 

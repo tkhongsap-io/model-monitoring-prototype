@@ -31,7 +31,7 @@
       "$ref": "#/$defs/identifier"
     },
     "status": {
-      "description": "SOURCE (GCP answer 2026-10-08): 'completed': the job published, and failed_count is 0. 'partial': the job published, and failed_count is more than 0 (the failed rows show their error to the users). 'failed': the job did not publish, because the job code caught an error before or during the publish step.",
+      "description": "SOURCE (GCP answer 2026-10-08): 'completed': the job published, and failed_count is 0. 'partial': the job published, and failed_count is more than 0 (the failed rows show their error to the users). 'failed': the job did not publish, because the job code caught an error before or during the publish step. The backend does not check status against failed_count (decided 2026-10-12); the metrics use failed_count.",
       "enum": ["completed", "partial", "failed"]
     },
     "completed_at": {

@@ -55,9 +55,10 @@ depend on. The spec is
   chose option B for the rules decided on 2026-10-08:
   - New: a record with `refused: true` must have `answer: ""` (schema and code).
   - New: records ≤ `request_count` − `failed_count` (backend rule).
-  - Waits: `completed` means 0 failures and `partial` means more than 0. It applies to
-    identity-only runs too, and `04-identity-only.json` breaks it, so it needs a decision on
-    `batch-run/2`.
+  - Note only (project owner, 2026-10-12): `completed` means 0 failures and `partial`
+    means more than 0. The backend does not check it, because a check would make stored
+    rows such as `04-identity-only.json` invalid and need `batch-run/2`. Metrics read
+    `failed_count`, not `status`.
   - The version stays `batch-run/1`: Sprint 1 runs have no records, so no stored row breaks.
   - The DRAFT and PROPOSED notes are removed, and the descriptions carry the GCP answers.
   - The schema and examples moved to `backend/schemas/batch-run/1/`, with two new invalid
@@ -72,8 +73,6 @@ depend on. The spec is
 - Not run here: `pnpm` checks (no frontend change; CI runs them). The real job body after
   this change is not tested; it needs S1-02a on the test host.
 - Remaining:
-  - Decision for the project owner: enforce the status and `failed_count` rule as
-    `batch-run/2`, or keep it as a note.
   - Deploy to the test host before the GCP job sends records (Sprint 2).
 
 ### 2026-10-09 — batch MVP plan: AI governance document track

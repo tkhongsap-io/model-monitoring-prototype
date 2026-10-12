@@ -5,7 +5,7 @@
 | **Issue** | [#44](https://github.com/tkhongsap-io/model-monitoring-prototype/issues/44) (S1-02b) |
 | **Depends on** | S1-01 (#3), closed 2026-10-09; S1-02 (#41), merged |
 | **Risk tier** | R1, the same as S1-02. One validation module, its tests and docs. |
-| **Scope** | Option B, chosen by the owner on 2026-10-12: descriptions, file move, and the two record rules. Rule 1 waits. |
+| **Scope** | Option B, chosen by the owner on 2026-10-12: descriptions, file move, and the two record rules. Rule 1 is a note only (owner, 2026-10-12). |
 
 ## Outcome
 
@@ -31,7 +31,7 @@ Differences found against the decisions of 2026-10-08 (issue #3), and what this 
 
 | # | Decided rule | Before | Now |
 |---|---|---|---|
-| 1 | `completed` means `failed_count` 0; `partial` means `failed_count` above 0 | Not enforced | **Not enforced.** Applies to every run. Example `04-identity-only.json` breaks it, and stored rows can have that shape. Needs `batch-run/2`; the project owner decides. |
+| 1 | `completed` means `failed_count` 0; `partial` means `failed_count` above 0 | Not enforced | **Note only** (owner, 2026-10-12). Applies to every run; example `04-identity-only.json` breaks it, and stored rows can have that shape, so a check would need `batch-run/2`. Metrics read `failed_count`, not `status`. |
 | 2 | Records only from answered or refused requests | Records ≤ `request_count` | Records ≤ `request_count` − `failed_count` (backend rule; error on `records`) |
 | 3 | `refused: true` means `answer: ""` | Not enforced | Enforced in the schema (`if`/`else` on the record) and the code (error on `records[i].answer`) |
 | — | Descriptions | DRAFT, `job_failed` "PROPOSED", "to fill in" notes, 4 `finishReason` values | Approved text; the 2026-10-08 answers for `question`, `answer`, `retrieval_context`, `refused` (7 `finishReason` values) |
