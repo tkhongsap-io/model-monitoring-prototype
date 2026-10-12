@@ -47,6 +47,19 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-12 — issue deck: titles and Done status from GitHub
+
+- Changed: `build_issues_pptx.py --github` reads the issues from GitHub with the `gh` CLI.
+  The deck uses the GitHub titles, marks each closed issue "Done" (green) or "Not
+  planned", and adds the issues that are on GitHub but not in `issues.md` (S3-08a, #81,
+  under the workstream of S3-08). Without `--github`, the script works as before.
+- Evidence: the deck was built (29 and 19 rows, 10 issues Done), passed the pptx
+  validator against the template, and was rendered with LibreOffice and examined. A
+  second build gave the same text. `tests/test_docs.py` 5 passed.
+- Remaining: some GitHub titles do not agree with `issues.md` (S3-01 "8 use cases", S4-03
+  "all 10 use cases", S4-04 "10-row"; the plan has 7). The deck shows the GitHub titles.
+  S3-08a is not in `issues.md` yet.
+
 ### 2026-10-12 — S3-08a: first draft of the architecture diagrams
 
 - Added: three draw.io diagrams in `docs/architecture/` (GCP test host, AWS production,
