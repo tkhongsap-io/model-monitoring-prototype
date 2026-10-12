@@ -81,6 +81,7 @@ python3 - "$EXAMPLE" "$RUN_ID" > "$WORK/body.json" <<'PY'
 import json, sys
 body = json.load(open(sys.argv[1], encoding="utf-8"))
 body["run_id"] = sys.argv[2]
+body["use_case_id"] = "rtr-fraud-validation"   # a registered use case (S2-01)
 print(json.dumps(body))
 PY
 

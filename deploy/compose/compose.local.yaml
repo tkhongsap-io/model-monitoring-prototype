@@ -22,7 +22,7 @@ services:
     image: model-monitor-backend:local
     environment:
       DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor
-      BATCH_API_KEY_SHA256: GCP-UC-03:ca9263478834f0d9f054e84eda1a55dee86d8a6551f27aa8a2c751a4b541b200
+      BATCH_API_KEY_SHA256: rtr-fraud-validation:ca9263478834f0d9f054e84eda1a55dee86d8a6551f27aa8a2c751a4b541b200
     depends_on:
       postgres:
         condition: service_healthy
