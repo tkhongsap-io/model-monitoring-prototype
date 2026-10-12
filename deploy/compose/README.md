@@ -54,7 +54,7 @@ Send one run (the local test key is `local-dev-batch-key-not-a-secret`, use case
 `GCP-UC-03`; it is not a secret):
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/api/batch/runs -H "Authorization: Bearer local-dev-batch-key-not-a-secret" -H "Content-Type: application/json" -H "traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01" --data-binary @../../changes/2026-10-02-batch-monitoring-mvp/schema/examples/valid/04-identity-only.json
+curl -s -X POST http://127.0.0.1:8000/api/batch/runs -H "Authorization: Bearer local-dev-batch-key-not-a-secret" -H "Content-Type: application/json" -H "traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01" --data-binary @../../backend/schemas/batch-run/1/examples/valid/04-identity-only.json
 ```
 
 Send test spans to the Collector (needs `telemetrygen`):
