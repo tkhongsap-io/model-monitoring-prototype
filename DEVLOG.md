@@ -54,7 +54,7 @@ depend on. The spec is
   Langfuse database, IAP path). The record of architecture `0001` lists them.
 - Added: the `diagram` skill from `project-template` (`9b1339d`) in `.agents/skills/diagram/`,
   the rule `.agents/rules/diagram.md`, `docs/diagram/` with the types for this repository
-  (Must: `architecture`, `data-flow`, `sequence`), `.claude-plugin/` for Claude Code, and the
+  (Must: `architecture`, `data-flow`, `sequence`), `.claude-plugin/` for Claude Code (removed later, see below), and the
   CI workflow `check-diagrams`. Design: `changes/2026-10-13-s3-08b-diagram-skill/`.
 - Added: architecture `0001`, one picture with phase 1 (GCP test host) and phase 2 (AWS
   production), status `proposed`. It is built from the models of the two drafts. The three
@@ -87,6 +87,33 @@ depend on. The spec is
 - Removed: the `workflow` diagram of the governance gates and the sprints. The owner
   rejected it: it shows the project schedule, not this system. A recheck of the other
   diagrams found that each one shows a part of the system (built, or planned in this repo).
+- Added (the owner asked for it): a version can be recorded without draw.io desktop.
+  `render.py doctor` exits 0 (found), 1 (not installed) or 2 (`DRAWIO_BIN` names no file).
+  On 1 the skill records a Mermaid version: one `.md` with `format: mermaid` and one
+  `mermaid` block, no `.drawio.svg`. On 2, or when an export fails with draw.io installed,
+  it stops. `render.py` searches the install places of Windows, macOS and Linux, and
+  `extract` reads the embedded model with no draw.io. `mermaid_block.py` is new;
+  `check_diagrams.py` accepts a Mermaid version and refuses a directive, a link, a URL and
+  an HTML image in the block. `references/mermaid.md` has one example for each type.
+- Changed behavior: a `DRAWIO_BIN` that names no file was ignored before; it is now an
+  error. The scripts now differ from `project-template` (`9b1339d`).
+- Added: `.claude/rules/diagram.md` and `.claude/skills/diagram/SKILL.md` are in git, as
+  pointers to `.agents/`. `.gitignore` still ignores every other file in `.claude/`.
+  Removed: `.claude-plugin/`. The plugin was not installed on this host, and a plugin at
+  the repository root copies the working tree to the home directory.
+- Added: 49 `unittest` tests in `.agents/skills/diagram/tests/`. `check-diagrams.yml` runs
+  them and the check on `ubuntu-latest`, `macos-latest` and `windows-latest`.
+- Evidence (Windows, Python 3.12 through `uv`): 49 tests passed. `check_diagrams.py` exit 0
+  on the 10 versions and the 8 icons. `doctor`: exit 0 with draw.io installed, exit 2 with
+  a wrong `DRAWIO_BIN`, exit 1 with the Windows install variables removed. `extract` on
+  architecture `0001` with no draw.io, then an export of that model to a scratch file:
+  the same 121 labels and the same file size as the recorded version. `tests/test_docs.py`
+  5 passed (`--noconftest`).
+- Not available locally: macOS and Linux (the CI matrix shows them after a push). No
+  Mermaid block was rendered: the check proves the structure, and GitHub is the first
+  rendered view of the examples in `references/mermaid.md`. A new Claude Code session
+  that lists the `diagram` skill was not opened. No Mermaid version is recorded, because
+  no picture changed.
 - Not run locally: the fast backend suite (`.venv` is not set up on this host); CI runs it.
   How GitHub shows the SVG is examined on the pull request.
 - Not done: the push and the pull request. The account has read-only access to the
@@ -94,8 +121,11 @@ depend on. The spec is
 - Remaining:
   - A maintainer sets the labels, the assignee and the parent link (#81) of #85. The account
     that opened it has no permission for them.
-  - `.claude/` is in `.gitignore`, so each person turns the plugin on one time (the spec
-    has the setting).
+  - A person who turned the plugin on has `enabledPlugins` and `extraKnownMarketplaces`
+    for `model-monitoring-prototype` in a personal `.claude/settings.json`. Remove the two
+    entries: the plugin is gone, and the pointer in `.claude/skills/` replaces it.
+  - Send the script changes (`render.py`, `check_diagrams.py`, `mermaid_block.py`, the
+    tests) to `project-template`, or the next copy from it removes them.
   - The `data-flow` and `sequence` diagrams (Must).
 
 ### 2026-10-12 — S2-03: self-hosted Langfuse
