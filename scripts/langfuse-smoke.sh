@@ -21,6 +21,9 @@ cleanup() {
   local status=$?
   if [ "$status" -ne 0 ]; then
     echo "LANGFUSE SMOKE FAIL: $STEP"
+    for c in $("${LANGFUSE[@]}" ps -aq); do
+      docker inspect --format '{{.Name}} {{if .State.Health}}{{.State.Health.Status}} {{range .State.Health.Log}}{{.Output}}{{end}}{{end}}' "$c" || true
+    done
     "${LANGFUSE[@]}" logs --no-color --tail 100 langfuse-web langfuse-worker || true
     "${COMPOSE[@]}" logs --no-color --tail 100 collector || true
   fi
