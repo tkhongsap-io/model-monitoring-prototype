@@ -36,6 +36,8 @@ def database(tmp_path, monkeypatch):
     db.batch_runs.create(engine)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("CHECK_DATABASE_URL", url)
+    for name in ("CHECK_LANGFUSE_URL", "CHECK_LANGFUSE_PUBLIC_KEY", "CHECK_LANGFUSE_SECRET_KEY"):
+        monkeypatch.delenv(name, raising=False)
     return engine
 
 
@@ -178,6 +180,7 @@ def test_span_file_read_error_is_exit_2(database, monkeypatch, capsys):
             return False
         def __iter__(self):
             raise OSError("test read error")
+    monkeypatch.setattr(check_trace, "span_files", lambda path: [Path(path)])
     monkeypatch.setattr(check_trace, "open", lambda *args, **kwargs: Unreadable(), raising=False)
     assert run([T]) == 2
     captured = capsys.readouterr()
@@ -192,3 +195,88 @@ def test_usage_error_is_one_stderr_line(capsys):
     captured = capsys.readouterr()
     assert len(captured.err.splitlines()) == 1
     assert captured.out == ""
+
+
+import http.server
+import threading
+
+
+class FakeLangfuse:
+    """A local HTTP server that answers the Observations API with a scripted reply."""
+
+    def __init__(self, status=200, body=None):
+        outer = self
+        self.status, self.body, self.auth = status, body, None
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                outer.auth = self.headers.get("Authorization")
+                outer.path = self.path
+                payload = outer.body if isinstance(outer.body, bytes) else json.dumps(
+                    outer.body).encode()
+                self.send_response(outer.status)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        self.server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self.server.server_port}"
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.server.shutdown()
+
+
+def langfuse_env(monkeypatch, url):
+    monkeypatch.setenv("CHECK_LANGFUSE_URL", url)
+    monkeypatch.setenv("CHECK_LANGFUSE_PUBLIC_KEY", "pk-lf-test")
+    monkeypatch.setenv("CHECK_LANGFUSE_SECRET_KEY", "sk-lf-secret-value")
+
+
+def test_langfuse_item_found_through_the_api(database, tmp_path, monkeypatch, capsys):
+    add_row(database)
+    path = spans_file(tmp_path, otlp_line(raw_span("monitor.ingest", "b2", outcome="stored")))
+    fake = FakeLangfuse(body={"data": [{"name": "monitor.ingest"}]})
+    try:
+        langfuse_env(monkeypatch, fake.url)
+        assert run([T, "--backend-only", "--spans-file", path]) == 0
+    finally:
+        fake.close()
+    assert fake.path == f"/api/public/v2/observations?traceId={T}&limit=100"
+    assert fake.auth == "Basic " + __import__("base64").b64encode(
+        b"pk-lf-test:sk-lf-secret-value").decode()
+    out = capsys.readouterr().out
+    assert "langfuse trace found" in " ".join(out.split())
+    assert out.splitlines()[-1] == "RESULT: OK (3 of 3 found)"
+
+
+def test_langfuse_errors_are_one_safe_line(database, tmp_path, monkeypatch, capsys):
+    add_row(database)
+    path = spans_file(tmp_path, otlp_line(raw_span("monitor.ingest", "b2", outcome="stored")))
+    for status, body, expected in [(401, {"message": "no"}, "Langfuse answered 401"),
+                                   (200, b"not json", "Langfuse answered with bad JSON")]:
+        fake = FakeLangfuse(status=status, body=body)
+        try:
+            langfuse_env(monkeypatch, fake.url)
+            assert run([T, "--backend-only", "--spans-file", path]) == 1
+        finally:
+            fake.close()
+        out = capsys.readouterr()
+        assert expected in out.out
+        assert "sk-lf-secret-value" not in out.out + out.err
+    langfuse_env(monkeypatch, "http://127.0.0.1:1")
+    assert run([T, "--backend-only", "--spans-file", path]) == 1
+    out = capsys.readouterr()
+    assert "Langfuse is not reachable (" in out.out
+    assert "sk-lf-secret-value" not in out.out + out.err
+
+
+def test_rotated_span_files_are_read(database, tmp_path, capsys):
+    add_row(database)
+    current = spans_file(tmp_path, otlp_line(raw_span("other", "c1", trace="1" * 32)))
+    (tmp_path / "spans-2026-10-12T00-00-00.000.jsonl").write_text(
+        otlp_line(raw_span("monitor.ingest", "b2", outcome="stored")) + "\n", encoding="utf-8")
+    assert run([T, "--backend-only", "--spans-file", current]) == 0

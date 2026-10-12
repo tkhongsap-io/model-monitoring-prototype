@@ -41,7 +41,7 @@ def detail(result, name):
 def test_all_four_found_with_the_path():
     result = check(T, [row()], full_trace(), backend_only=False)
     assert states(result) == {"run row": FOUND, "monitor span": FOUND,
-                              "gcp root span": FOUND, "ancestor link": FOUND}
+                              "gcp root span": FOUND, "ancestor link": FOUND, "langfuse trace": SKIPPED}
     assert result.ok
     assert detail(result, "ancestor link") == \
         "monitor.ingest → POST /api/batch/runs → POST → batch.send"
@@ -138,3 +138,26 @@ def test_render_result_line_note_and_no_other_attributes():
     assert "SECRET" not in text
     missing = render(check(T, [], [], backend_only=False))
     assert missing.splitlines()[-1] == "RESULT: MISSING (0 of 4 found)"
+
+
+def test_langfuse_item_skipped_without_settings():
+    result = check(T, [row()], full_trace(), backend_only=False)
+    assert states(result)["langfuse trace"] == SKIPPED and len(result.checked) == 4
+
+
+def test_langfuse_item_found_and_missing():
+    names = ["batch.run", "batch.send", "POST", "monitor.ingest"]
+    found = check(T, [row()], full_trace(), backend_only=False, langfuse_names=names)
+    assert states(found)["langfuse trace"] == FOUND
+    assert detail(found, "langfuse trace") == "4 observations in Langfuse"
+    assert render(found).splitlines()[-1] == "RESULT: OK (5 of 5 found)"
+    backend_only = check(T, [row()], full_trace(), backend_only=True,
+                         langfuse_names=["monitor.ingest"])
+    assert states(backend_only)["langfuse trace"] == FOUND
+    missing = check(T, [row()], full_trace(), backend_only=False,
+                    langfuse_names=["monitor.ingest"])
+    assert states(missing)["langfuse trace"] == MISSING
+    assert detail(missing, "langfuse trace") == "not in Langfuse: batch.run"
+    error = check(T, [row()], full_trace(), backend_only=False, langfuse_names=[],
+                  langfuse_error="Langfuse answered 401")
+    assert detail(error, "langfuse trace") == "Langfuse answered 401"
