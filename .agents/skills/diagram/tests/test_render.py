@@ -27,6 +27,114 @@ class Fixture(unittest.TestCase):
         return buffer.getvalue()
 
 
+class Locate(Fixture):
+    """The search for draw.io, with the environment, the platform and PATH replaced."""
+
+    def locate(self, platform: str, env: dict, which: str | None = None):
+        with (
+            mock.patch.object(render.sys, "platform", platform),
+            mock.patch.dict(render.os.environ, env, clear=True),
+            mock.patch.object(render.shutil, "which", return_value=which),
+            mock.patch.object(render.Path, "home", return_value=self.temp / "home"),
+        ):
+            return render.locate_drawio(), render.install_places()
+
+    def test_nothing_installed_is_none_on_each_platform(self) -> None:
+        for platform in ("win32", "darwin", "linux"):
+            with self.subTest(platform=platform):
+                found, _ = self.locate(platform, {})
+                self.assertIsNone(found)
+
+    def test_windows_places_come_only_from_variables_that_are_set(self) -> None:
+        _, places = self.locate("win32", {})
+        self.assertEqual(places, [])
+        local = self.temp / "local"
+        binary = support.write(local / "Programs" / "draw.io" / "draw.io.exe", "")
+        found, places = self.locate("win32", {"LOCALAPPDATA": str(local)})
+        self.assertEqual(found, binary)
+        self.assertTrue(all(place.is_absolute() for place in places))
+
+    def test_macos_searches_the_user_applications_folder(self) -> None:
+        app = self.temp / "home" / "Applications" / "draw.io.app" / "Contents" / "MacOS"
+        binary = support.write(app / "draw.io", "")
+        found, _ = self.locate("darwin", {})
+        self.assertEqual(found, binary)
+
+    def test_linux_falls_back_to_path(self) -> None:
+        found, places = self.locate("linux", {}, which="/home/me/bin/drawio")
+        self.assertEqual(found, Path("/home/me/bin/drawio"))
+        self.assertIn(Path("/snap/bin/drawio"), places)
+
+    def test_drawio_bin_wins_when_it_is_a_file(self) -> None:
+        binary = support.write(self.temp / "drawio-x86_64.AppImage", "")
+        found, _ = self.locate("linux", {"DRAWIO_BIN": str(binary)}, which="/usr/bin/drawio")
+        self.assertEqual(found, binary)
+
+    def test_a_wrong_drawio_bin_is_an_error_not_a_fallback(self) -> None:
+        with self.assertRaises(render.DrawioBinError):
+            self.locate("linux", {"DRAWIO_BIN": str(self.temp / "nope")}, which="/usr/bin/drawio")
+
+
+class Doctor(Fixture):
+    def doctor(self, located) -> tuple[int, str]:
+        buffer = io.StringIO()
+        with mock.patch.object(render, "locate_drawio", side_effect=located):
+            with contextlib.redirect_stdout(buffer):
+                code = render.doctor()
+        return code, buffer.getvalue()
+
+    def test_found_is_0(self) -> None:
+        code, text = self.doctor([Path("/usr/bin/drawio")])
+        self.assertEqual(code, 0)
+        self.assertIn("drawio: ", text)
+
+    def test_not_installed_is_1_and_lists_the_places(self) -> None:
+        code, text = self.doctor([None])
+        self.assertEqual(code, 1)
+        self.assertIn("drawio: missing", text)
+        self.assertIn("searched: PATH", text)
+
+    def test_a_wrong_drawio_bin_is_2(self) -> None:
+        code, text = self.doctor(render.DrawioBinError("DRAWIO_BIN is 'x', which is not a file"))
+        self.assertEqual(code, 2)
+        self.assertIn("misconfigured", text)
+
+    def test_the_command_line_runs_doctor_with_no_source(self) -> None:
+        with (
+            mock.patch.object(render.sys, "argv", ["render.py", "doctor"]),
+            mock.patch.object(render, "doctor", return_value=1),
+            self.assertRaises(SystemExit) as exit_,
+        ):
+            render.main()
+        self.assertEqual(exit_.exception.code, 1)
+
+
+class Extract(Fixture):
+    def test_an_uncompressed_model_is_recovered_without_drawio(self) -> None:
+        source = support.write(self.temp / "0001-a.drawio.svg", support.svg(support.model()))
+        output = self.temp / "out.drawio"
+        with mock.patch.object(render, "run_drawio") as run:
+            render.extract(source, output)
+        run.assert_not_called()
+        self.assertEqual(output.read_bytes().decode("utf-8"), support.model() + "\n")
+
+    def test_a_compressed_model_goes_to_drawio(self) -> None:
+        source = support.write(self.temp / "0001-a.drawio.svg", support.svg("<mxfile>7V1b</mxfile>"))
+        output = self.temp / "out.drawio"
+
+        def fake(args: list) -> None:
+            support.write(output, support.model())
+
+        with mock.patch.object(render, "run_drawio", side_effect=fake) as run:
+            render.extract(source, output)
+        run.assert_called_once()
+
+    def test_a_file_with_no_model_is_refused(self) -> None:
+        source = support.write(self.temp / "plain.svg", "<svg></svg>\n")
+        with self.assertRaises(SystemExit):
+            render.extract(source, self.temp / "out.drawio")
+
+
 class Labels(Fixture):
     def test_labels_are_plain_text_one_per_line(self) -> None:
         source = support.write(self.temp / "0001-a.drawio.svg", support.svg(support.model()))

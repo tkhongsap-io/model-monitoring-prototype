@@ -8,6 +8,7 @@ A recorded diagram version is one ``NNNN-slug.drawio.svg``: an SVG image with th
 draw.io model embedded, so it renders in Markdown and still opens in draw.io. This
 script wraps the draw.io desktop CLI, which does the rendering.
 
+    uv run render.py doctor
     uv run render.py export SRC.drawio OUT.drawio.svg [--preview OUT.png]
     uv run render.py extract IN.drawio.svg OUT.drawio
     uv run render.py labels IN.drawio.svg
@@ -23,12 +24,19 @@ on a transparent background, which a dark page can turn unreadable. It ends the 
 with a newline (the gate's end-of-file-fixer would otherwise rewrite it), refuses a
 result the gate's 500 KB limit would reject, and optionally writes a PNG preview.
 ``extract`` recovers the uncompressed model from a recorded version, which is where the
-next version starts; it only reads the recorded file. ``labels`` prints every cell's label
-as plain text, one per line, straight from the embedded model and without draw.io: the
-quick way to compare a version with the repository or search the other type.
+next version starts; it only reads the recorded file, and needs draw.io only for a
+compressed model. ``labels`` prints every cell's label as plain text, one per line,
+straight from the embedded model and without draw.io: the quick way to compare a version
+with the repository or search the other type.
 
-The draw.io binary is taken from ``DRAWIO_BIN``, then the default install path for the
-platform, then ``PATH``. On a Linux machine with no display, run under ``xvfb-run``.
+``doctor`` says whether ``export`` can run here. It exits 0 when draw.io was found, 1
+when it is not installed, and 2 when ``DRAWIO_BIN`` is set but names no file. The skill
+records a version in Mermaid on 1 and stops on 2: a typing mistake must not change the
+format of a version.
+
+The draw.io binary is taken from ``DRAWIO_BIN``, then the install places of the platform
+(Windows, macOS, Linux), then ``PATH``. An AppImage has no fixed place: name it in
+``DRAWIO_BIN``. On a Linux machine with no display, run under ``xvfb-run``.
 
 Raises SystemExit with a message when draw.io is missing or an export fails.
 """
@@ -45,42 +53,105 @@ from pathlib import Path
 
 log = logging.getLogger("render")
 
-DEFAULT_PATHS = [
-    Path(r"C:\Program Files\draw.io\draw.io.exe"),
-    Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "draw.io" / "draw.io.exe",
-    Path("/Applications/draw.io.app/Contents/MacOS/draw.io"),
-    Path("/opt/drawio/drawio"),
-    Path("/usr/bin/drawio"),
-]
+PATH_NAMES = ("drawio", "draw.io", "com.jgraph.drawio.desktop")  # the last is the Flatpak
+INSTALL_URL = "https://github.com/jgraph/drawio-desktop/releases"
+CONTENT = re.compile(r'<svg\b[^>]*?\scontent="([^"]*)"', re.DOTALL)
 TIMEOUT_SECONDS = 180
 MAX_KB = 500  # check-added-large-files in .pre-commit-config.yaml
 TRANSPARENT = "background: transparent; background-color: transparent;"
 WHITE = "background-color: #ffffff;"
 
 
-def find_drawio() -> Path:
-    """Return the draw.io desktop binary, or exit with how to install it."""
+class DrawioBinError(Exception):
+    """``DRAWIO_BIN`` is set but does not name a file."""
+
+
+def install_places() -> list[Path]:
+    """Return where draw.io desktop installs itself on this platform."""
+    if sys.platform == "win32":
+        roots = [os.environ.get(name) for name in ("ProgramFiles", "ProgramFiles(x86)")]
+        places = [Path(root) / "draw.io" / "draw.io.exe" for root in roots if root]
+        local = os.environ.get("LOCALAPPDATA")  # the per-user installer
+        if local:
+            places.append(Path(local) / "Programs" / "draw.io" / "draw.io.exe")
+        return places
+    if sys.platform == "darwin":
+        binary = Path("draw.io.app") / "Contents" / "MacOS" / "draw.io"
+        return [Path("/Applications") / binary, Path.home() / "Applications" / binary]
+    return [Path("/opt/drawio/drawio"), Path("/usr/bin/drawio"), Path("/snap/bin/drawio")]
+
+
+def locate_drawio() -> Path | None:
+    """Return the draw.io desktop binary, or None when it is not installed.
+
+    Raises DrawioBinError when ``DRAWIO_BIN`` is set and names no file: the caller asked
+    for one binary, so another one, or none, is not what they meant.
+    """
     configured = os.environ.get("DRAWIO_BIN")
-    if configured and Path(configured).is_file():
+    if configured:
+        if not Path(configured).is_file():
+            raise DrawioBinError(f"DRAWIO_BIN is {configured!r}, which is not a file")
         return Path(configured)
-    for candidate in DEFAULT_PATHS:
-        if candidate.is_file():
-            return candidate
-    for name in ("drawio", "draw.io"):
+    for place in install_places():
+        if place.is_file():
+            return place
+    for name in PATH_NAMES:
         found = shutil.which(name)
         if found:
             return Path(found)
-    raise SystemExit(
-        "draw.io desktop not found. Install it from "
-        "https://github.com/jgraph/drawio-desktop/releases or set DRAWIO_BIN to its executable."
-    )
+    return None
+
+
+def find_drawio() -> Path:
+    """Return the draw.io desktop binary, or exit with how to install it."""
+    try:
+        found = locate_drawio()
+    except DrawioBinError as error:
+        raise SystemExit(f"{error}. Correct it or unset it.") from error
+    if found is None:
+        raise SystemExit(
+            f"draw.io desktop not found. Install it from {INSTALL_URL} "
+            "or set DRAWIO_BIN to its executable."
+        )
+    return found
+
+
+def doctor() -> int:
+    """Print whether draw.io was found; return 0 found, 1 not installed, 2 misconfigured."""
+    try:
+        found = locate_drawio()
+    except DrawioBinError as error:
+        print(f"drawio: misconfigured\n{error}. Correct it or unset it.")
+        return 2
+    if found is None:
+        print("drawio: missing")
+        print("searched: DRAWIO_BIN (not set)")
+        for place in install_places():
+            print(f"searched: {place}")
+        print(f"searched: PATH for {', '.join(PATH_NAMES)}")
+        print(f"install: {INSTALL_URL}")
+        return 1
+    print(f"drawio: {found}")
+    displays = ("DISPLAY", "WAYLAND_DISPLAY")
+    if sys.platform.startswith("linux") and not any(os.environ.get(d) for d in displays):
+        print("no display: put xvfb-run in front of the export command")
+    return 0
 
 
 def run_drawio(args: list[str]) -> None:
     """Run the draw.io CLI with args; exit with its output if it fails."""
     command = [str(find_drawio()), *args]
     log.info("running %s", " ".join(command))
-    result = subprocess.run(command, capture_output=True, text=True, timeout=TIMEOUT_SECONDS)
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            encoding="utf-8",  # not the locale codec: it fails on output it cannot decode
+            errors="replace",
+            timeout=TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise SystemExit(f"draw.io did not finish in {TIMEOUT_SECONDS} seconds") from error
     if result.returncode != 0:
         raise SystemExit(f"draw.io failed ({result.returncode}):\n{result.stdout}{result.stderr}")
 
@@ -137,18 +208,33 @@ def export(source: Path, output: Path, preview: Path | None) -> None:
     log.info("wrote %s", output)
 
 
+def embedded_model(source: Path) -> str:
+    """Return the text of the model embedded in a .drawio.svg, or "" when there is none."""
+    match = CONTENT.search(source.read_text(encoding="utf-8"))
+    return html.unescape(match.group(1)) if match else ""
+
+
 def extract(source: Path, output: Path) -> None:
-    """Recover the uncompressed draw.io model embedded in a recorded .drawio.svg."""
-    run_drawio(["-x", "-f", "xml", "-u", "-o", str(output), str(source)])
-    if "<mxGraphModel" not in output.read_text(encoding="utf-8"):
-        raise SystemExit(f"{output} holds no mxGraphModel; is {source} a draw.io export?")
+    """Recover the uncompressed draw.io model embedded in a recorded .drawio.svg.
+
+    A recorded version holds the model as text, so this needs no draw.io. Only a
+    compressed model (a file that ``export`` did not write) is handed to draw.io.
+    """
+    model = embedded_model(source)
+    if not model:
+        raise SystemExit(f"{source} embeds no model; is it a draw.io export?")
+    if "<mxGraphModel" in model:
+        output.write_text(model.rstrip("\n") + "\n", encoding="utf-8", newline="\n")
+    else:
+        run_drawio(["-x", "-f", "xml", "-u", "-o", str(output), str(source)])
+        if "<mxGraphModel" not in output.read_text(encoding="utf-8"):
+            raise SystemExit(f"{output} holds no mxGraphModel; is {source} a draw.io export?")
     log.info("wrote %s", output)
 
 
 def labels(source: Path) -> None:
     """Print the plain-text label of every cell in the model embedded in source."""
-    match = re.search(r'<svg\b[^>]*?\scontent="([^"]*)"', source.read_text(encoding="utf-8"))
-    model = html.unescape(match.group(1)) if match else ""
+    model = embedded_model(source)
     if "<mxGraphModel" not in model:
         raise SystemExit(f"{source} embeds no uncompressed model; use extract")
     sys.stdout.reconfigure(encoding="utf-8")  # labels carry non-ASCII; Windows defaults to cp1252
@@ -160,10 +246,11 @@ def labels(source: Path) -> None:
 
 
 def main() -> None:
-    """Parse the command line and run export or extract."""
+    """Parse the command line and run the command it names."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("doctor", help="say whether draw.io is installed here")
     export_cmd = commands.add_parser("export", help="render .drawio into .drawio.svg")
     export_cmd.add_argument("source", type=Path)
     export_cmd.add_argument("output", type=Path)
@@ -175,6 +262,8 @@ def main() -> None:
     labels_cmd.add_argument("source", type=Path)
     args = parser.parse_args()
 
+    if args.command == "doctor":
+        sys.exit(doctor())
     if not args.source.is_file():
         sys.exit(f"{args.source} does not exist")
     if args.command == "export":
