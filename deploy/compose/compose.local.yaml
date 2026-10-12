@@ -39,7 +39,8 @@ services:
   trace-check:
     image: model-monitor-backend:local
     environment:
-      CHECK_LANGFUSE_URL: http://langfuse-web:3000
+      # Empty unless langfuse-smoke sets it: the plain smoke test has no Langfuse (skipped item).
+      CHECK_LANGFUSE_URL: ${CHECK_LANGFUSE_URL:-}
       CHECK_LANGFUSE_PUBLIC_KEY: pk-lf-local-00000000-0000-0000-0000-000000000000
       CHECK_LANGFUSE_SECRET_KEY: sk-lf-local-00000000-0000-0000-0000-000000000000   # local test value
       CHECK_DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor   # local test value

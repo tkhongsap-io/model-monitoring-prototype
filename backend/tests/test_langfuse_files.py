@@ -125,6 +125,8 @@ def test_langfuse_smoke_script():
     assert "set -euo pipefail" in text and "trap cleanup EXIT" in text and "\r\n" not in text
     assert "deploy/langfuse/compose.yaml" in text and "deploy/langfuse/compose.local.yaml" in text
     assert "RESULT: OK (5 of 5 found)" in text
+    # The plain compose smoke has no Langfuse; only this script turns the 5th item on.
+    assert 'export CHECK_LANGFUSE_URL="http://langfuse-web:3000"' in text
     assert text.count("check-trace.sh") >= 2 and "restart" in text
     assert "http://127.0.0.1:3000/api/public/health" in text
     assert "down -v" in text and "docker network rm edge" in text

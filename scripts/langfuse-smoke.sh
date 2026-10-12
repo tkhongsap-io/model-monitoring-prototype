@@ -37,6 +37,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The trace check reads Langfuse only when this is set (compose.local.yaml).
+export CHECK_LANGFUSE_URL="http://langfuse-web:3000"
+
 STEP="edge network"
 if ! docker network inspect edge >/dev/null 2>&1; then
   docker network create edge >/dev/null

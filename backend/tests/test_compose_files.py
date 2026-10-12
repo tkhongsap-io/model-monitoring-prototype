@@ -202,7 +202,7 @@ def test_trace_check_service_is_a_read_only_tool():
     assert local["image"] == "model-monitor-backend:local"
     assert local["environment"] == {
         "CHECK_DATABASE_URL": "postgresql://monitor:monitor@postgres:5432/monitor",
-        "CHECK_LANGFUSE_URL": "http://langfuse-web:3000",
+        "CHECK_LANGFUSE_URL": "${CHECK_LANGFUSE_URL:-}",   # set only by langfuse-smoke
         "CHECK_LANGFUSE_PUBLIC_KEY": "pk-lf-local-00000000-0000-0000-0000-000000000000",
         "CHECK_LANGFUSE_SECRET_KEY": "sk-lf-local-00000000-0000-0000-0000-000000000000"}
     assert "DATABASE_URL" not in local["environment"]
