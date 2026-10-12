@@ -1,0 +1,23 @@
+{
+  "schema_version": "batch-run/1",
+  "use_case_id": "GCP-UC-03",
+  "run_id": "invoice-summary-2026-10-10",
+  "status": "completed",
+  "completed_at": "2026-10-10T02:41:09Z",
+  "request_count": 1902,
+  "failed_count": 0,
+  "model": "gemini-2.5-flash",
+  "sample": {"method": "uniform_random", "size": 50},
+  "records": [
+    {
+      "record_id": "req-000871",
+      "question": "Summarize this invoice in two sentences for the billing team.",
+      "answer": "[SYNTHETIC PARTIAL TEXT LEFT BY A RECITATION BLOCK]",
+      "retrieval_context": [
+        {"doc_id": "inv-91377", "title": "Invoice 91377", "text": "Note from customer: [SYNTHETIC TEXT THAT TRIGGERED A SAFETY BLOCK]. Total 250.00 THB."}
+      ],
+      "refused": true,
+      "latency_s": 0.62
+    }
+  ]
+}

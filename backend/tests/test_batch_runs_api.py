@@ -17,8 +17,7 @@ from fastapi.testclient import TestClient
 from app import config, db, main
 from app.api import batch_routes
 
-EXAMPLES = (Path(__file__).resolve().parents[2] / "changes" / "2026-10-02-batch-monitoring-mvp"
-            / "schema" / "examples")
+EXAMPLES = Path(__file__).resolve().parents[1] / "schemas" / "batch-run" / "1" / "examples"
 KEY_03 = "test-key-uc03-" + "a" * 32
 KEY_07 = "test-key-uc07-" + "b" * 32
 AUTH = {"Authorization": f"Bearer {KEY_03}"}

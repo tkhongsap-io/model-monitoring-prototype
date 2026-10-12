@@ -1,9 +1,10 @@
 """Run summary `batch-run/1` — the body a GCP batch job POSTs to /api/batch/runs (S1-02).
 
-DRAFT: this mirrors `changes/2026-10-02-batch-monitoring-mvp/schema/batch-run-1.schema.json`
-(S1-01), which the GCP job developer has not approved yet.  Every rule of the schema and
-every backend-only rule of its README lives in this one module, so a schema change is a
-change here and in its tests only.
+This mirrors `backend/schemas/batch-run/1/batch-run-1.schema.json` (S1-01, approved
+2026-10-09; S1-02b).  Every rule of the schema and every backend-only rule of its README
+(`changes/2026-10-02-batch-monitoring-mvp/schema/README.md`) lives in this one module, so a
+schema change is a change here and in its tests only.  A rule that makes a stored row
+invalid needs a new schema version; stored rows never change.
 
 Pure: no I/O.  Field errors never carry the input value, because record text can reach
 the error list and the body is never logged or echoed.
@@ -104,8 +105,10 @@ class BatchRunV1(_Strict):
             err(("records",), "a run with request_count 0 has no records")
         if n > self.sample.size:
             err(("records",), "more records than sample.size")
-        if 0 < self.request_count < n:
-            err(("records",), "more records than request_count")
+        # records come only from requests that Gemini answered or refused, never failed ones
+        if n and self.request_count and n > self.request_count - self.failed_count:
+            err(("records",), "more records than answered or refused requests "
+                              "(request_count - failed_count)")
         if n == 0 and self.request_count > 0 and self.records_reason is None:
             err(("records_reason",), "required when records is empty and request_count > 0")
         if n and self.records_reason is not None:
@@ -124,6 +127,8 @@ class BatchRunV1(_Strict):
             seen.add(record.record_id)
             if not record.refused and record.answer == "":
                 err(("records", i, "answer"), "can be empty only when refused is true")
+            if record.refused and record.answer != "":
+                err(("records", i, "answer"), "must be empty when refused is true")
             if "tool_calls" in record.model_fields_set and record.tool_calls is None:
                 err(("records", i, "tool_calls"), "must be omitted, not null")
         return errors

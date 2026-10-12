@@ -41,6 +41,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `POST /api/batch/runs` follows the approved S1-01 schema `batch-run/1` (S1-02b). Two
+  record rules are new, and each gives `400`: a record with `refused: true` must have
+  `answer: ""`, and the number of records must not be more than `request_count` −
+  `failed_count`. Identity-only bodies (`records: []`) do not change. The schema file and
+  its examples moved to `backend/schemas/batch-run/1/`.
+
 - Batch MVP plan, S1-09: the inventory has 7 GCP use cases, not 10. The other 3 run on
   NotebookLM and Gemini Enterprise and have no job code. Network ranges, egress IPs, the
   order of the use cases and the RAI profile confirmation are no longer in the inventory.

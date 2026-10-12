@@ -1,10 +1,14 @@
-# S1-01 — Run summary JSON Schema `batch-run/1` (draft)
+# S1-01 — Run summary JSON Schema `batch-run/1`
 
 | | |
 |---|---|
-| **Status** | Draft 2026-10-05, for review by the GCP job developers. Not yet approved by backend, RAI or security (S1-08). |
-| **Schema** | [`batch-run-1.schema.json`](batch-run-1.schema.json) (JSON Schema draft 2020-12) |
-| **Examples** | [`examples/valid/`](examples/valid/) (5 files) and [`examples/invalid/`](examples/invalid/) (3 files). All text is synthetic. |
+| **Status** | Approved 2026-10-09: S1-01 closed when a real identity-only body passed `validate_run`. The backend agrees with it from S1-02b (2026-10-12). The record fields are reviewed again before `SEND_RECORDS` goes on (Sprint 2). Security: S1-08. |
+| **Schema** | [`batch-run-1.schema.json`](../../../backend/schemas/batch-run/1/batch-run-1.schema.json) (JSON Schema draft 2020-12), in the backend from S1-02b |
+| **Examples** | [`examples/valid/`](../../../backend/schemas/batch-run/1/examples/valid/) (5 files) and [`examples/invalid/`](../../../backend/schemas/batch-run/1/examples/invalid/) (5 files). All text is synthetic. |
+| **Backend** | [`backend/app/batch_schema.py`](../../../backend/app/batch_schema.py) enforces the schema and the backend rules below. |
+
+This README is the S1-01 review record. The questions and answers below show how the
+fields were decided; the answers are in [issue #3](https://github.com/tkhongsap-io/model-monitoring-prototype/issues/3).
 | **Based on** | [LLM metrics and data standard](../llm-metrics-standard.md), [issue S1-01](../issues.md#s1-01--map-one-gcp-job-and-write-the-json-body-v1) |
 
 ## What the GCP developer does
@@ -63,7 +67,7 @@ Body
   customer ID field and no trace field.
 - Free text only in `question`, `answer`, `retrieval_context[].title/text` and `tool_calls[].output`.
 - `latency_s` is required and is either a number above 0 or `null`. Never `0`.
-- `answer` can be empty only when `refused` is `true`.
+- `answer` is empty if and only if `refused` is `true` (the "only if" part from S1-02b).
 - `request_count: 0` means `records: []`.
 - `records: []` with `request_count > 0` needs `records_reason`. Records present means no `records_reason`.
 - `status: failed` means `records: []` and `records_reason: job_failed`.
@@ -110,11 +114,18 @@ The backend (S1-02) returns `400` for these:
 |---|---|
 | `failed_count` ≤ `request_count` | Counts must agree |
 | `submitted_at` is not later than `completed_at`; if the field is present, it is not `null` | Turnaround cannot be negative |
-| Number of records ≤ `sample.size` and ≤ `request_count` | The job sent more than it sampled |
+| Number of records ≤ `sample.size` | The job sent more than it sampled |
+| Number of records ≤ `request_count` − `failed_count` (from S1-02b) | Records come only from requests that Gemini answered or refused |
 | `record_id` is unique in the run | The judge stores one result for each record |
 | `sample.size` is in the registry range of the use case (8 to 200) | Registry setting (S2-01) |
 | `use_case_id` is the use case of the API key | One key cannot write for another use case |
 | Total body size ≤ limit (proposed 10 MB) | Protect the API |
+
+### Agreed, but not enforced yet
+
+| Rule | Why it waits |
+|---|---|
+| `status: completed` means `failed_count` 0; `status: partial` means `failed_count` above 0 (GCP answer 2026-10-08) | It applies to every run, also identity-only runs. The example `04-identity-only.json` is `completed` with `failed_count` 2, and rows of that shape can be stored. A rule that makes a stored row invalid needs `batch-run/2`. The project owner decides (see [S1-02b spec](../../2026-10-12-s1-02b-approved-schema/spec.md)). |
 
 ## Added 2026-10-08: `submitted_at` (optional)
 
@@ -172,6 +183,6 @@ older backend rejects unknown fields with `400`.
 
 ## How to test (from the issue)
 
-1. Unit: `pytest` checks each file in `examples/valid/` passes and each file in
-   `examples/invalid/` fails (added with S1-02 when the schema moves to the backend).
+1. Unit: `backend/tests/test_batch_schema.py` checks that each file in `examples/valid/`
+   passes and that each file in `examples/invalid/` fails with its expected field.
 2. Paired with S1-03: build a body from a real run and check it with the schema.
