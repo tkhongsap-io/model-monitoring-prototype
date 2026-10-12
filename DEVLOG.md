@@ -62,6 +62,33 @@ depend on. The spec is
   names) and the test-host deploy.
 - Test host: `backend:13` (`8a1c5ba`, S2-01) is deployed; readiness `ready`.
 
+### 2026-10-12 — issue deck: titles and Done status from GitHub
+
+- Changed: `build_issues_pptx.py --github` reads the issues from GitHub with the `gh` CLI.
+  The deck uses the GitHub titles, marks each closed issue "Done" (green) or "Not
+  planned", and adds the issues that are on GitHub but not in `issues.md` (S3-08a, #81,
+  under the workstream of S3-08). Without `--github`, the script works as before.
+- Evidence: the deck was built (29 and 19 rows, 10 issues Done), passed the pptx
+  validator against the template, and was rendered with LibreOffice and examined. A
+  second build gave the same text. `tests/test_docs.py` 5 passed.
+- Fixed: the GitHub titles of #25 (S3-01), #34 (S4-03) and #35 (S4-04) now say 7 use
+  cases, the same as `issues.md`. S3-08a (#81) is now in `issues.md`: in the Sprint 2
+  section (its label), in the gates 4 and 6 workstream, and S3-08 depends on it.
+- Remaining: the bodies of #25, #34 and #35 were not changed.
+
+### 2026-10-12 — S3-08a: first draft of the architecture diagrams
+
+- Added: three draw.io diagrams in `docs/architecture/` (GCP test host, AWS production,
+  AWS production detail) with a README. They are the first draft for the solution design
+  consultation with K. Wirat before gate 4 (#81, sub-issue of S3-08 #76).
+- Changed: removed the judge calls and the Token Factory box from all three diagrams, in
+  the picture and in the draw.io source, because October has no judge. The backend and
+  secret store labels no longer name the judge.
+- Evidence: the SVG text has no IP addresses, tokens or internal URLs (scripted scan). After
+  the change, no "judge" or "Token Factory" text is left, and each file is valid XML.
+- Remaining:
+  - Record the consultation date, the attendees and the comments in #81.
+
 ### 2026-10-12 — S2-01: batch use-case registry
 
 - Built (Codex from `changes/2026-10-12-s2-01-registry/plan.md`, reviewed by Claude):

@@ -15,17 +15,27 @@ PIC: the PIC of the issue's workstream on slide 1 of the template, else the PIC 
 date of a governance gate. Status, PIC, Plan Start, Plan Finish and Blocker that are
 changed in the deck are kept when the deck is built again, matched by issue ID.
 
+With --github, the GitHub issues are the tracker (the `gh` CLI must be logged in):
+- The title of each issue comes from GitHub.
+- A closed issue gets Status "Done" (or "Not planned"). An open issue loses a "Done" that
+  the deck had.
+- An issue that is on GitHub but not in issues.md is added. Its sprint and type come from
+  its labels; its phase and PIC come from the issue it belongs to (S3-08a -> S3-08).
+
 PowerPoint files are not committed (.gitignore). Put the team template in this folder as
 ai_task_template.pptx before you run the script. The deck is written next to it.
 
 Run from the repository root (python-pptx is not a project dependency):
 
-    uv run --no-project --with python-pptx python changes/2026-10-02-batch-monitoring-mvp/build_issues_pptx.py
+    uv run --no-project --with python-pptx python changes/2026-10-02-batch-monitoring-mvp/build_issues_pptx.py --github
 """
 from __future__ import annotations
 
+import argparse
 import copy
+import json
 import re
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -53,6 +63,7 @@ TITLE = ("Project Timeline – ", "Model Monitoring App")
 CODING_TITLE = ("Coding Tasks – ", "Model Monitoring App")
 COLUMNS = ["No", "Phase", "Task", "Status", "PIC", "Plan Start", "Plan Finish", "Blocker"]
 KEPT = ["Status", "PIC", "Plan Start", "Plan Finish", "Blocker"]
+CLOSED_STATUSES = {"Done": "00B050", "Not planned": "7F7F7F"}  # Status text and its colour
 ID = r"S\d-\d{2}[a-z]?"
 ISSUE_ID = re.compile(rf"\b{ID}\b")
 ISSUE_HEADING = re.compile(rf"^### ({ID}) — (.+)$")
@@ -178,15 +189,59 @@ def issue_key(issue: dict) -> tuple:
     return int(sprint), rest
 
 
-def build_slides(md: str) -> list[tuple[tuple[str, str], str, list]]:
+def github_issues() -> dict[str, dict]:
+    """ID -> title, status, sprint and type of each issue on GitHub, from the `gh` CLI."""
+    out = subprocess.run(
+        ["gh", "issue", "list", "--state", "all", "--limit", "500",
+         "--json", "number,title,state,stateReason,labels"],
+        check=True, capture_output=True, text=True, encoding="utf-8").stdout
+    found = {}
+    for item in json.loads(out):
+        m = re.match(rf"^({ID}) — (.+)$", item["title"])
+        if not m:
+            continue
+        labels = [label["name"] for label in item["labels"]]
+        sprint = next((f"Sprint {n[-1]}" for n in labels if re.fullmatch(r"sprint-\d", n)), None)
+        kind = next((n.split(": ", 1)[1].title() for n in labels if n.startswith("type: ")), "")
+        status = ""
+        if item["state"] == "CLOSED":
+            status = "Not planned" if item["stateReason"] == "NOT_PLANNED" else "Done"
+        found[m.group(1)] = {"Title": plain(m.group(2)), "Status": status, "Sprint": sprint,
+                             "Type": kind, "Number": item["number"]}
+    return found
+
+
+def merge_github(issues: list[dict], github: dict[str, dict]) -> list[dict]:
+    """GitHub titles and status on the issues of issues.md, plus the GitHub-only issues."""
+    merged = []
+    for i in issues:
+        gh = github.get(i["ID"])
+        merged.append({**i, "Title": gh["Title"], "GitHub": gh["Status"]} if gh else i)
+    known = {i["ID"] for i in issues}
+    for issue_id, gh in github.items():
+        if issue_id not in known:
+            sprint = gh["Sprint"] or f"Sprint {issue_id[1]}"
+            merged.append({"ID": issue_id, "Title": gh["Title"], "Type": gh["Type"],
+                           "Sprint": sprint, "GitHub": gh["Status"]})
+    return merged
+
+
+def build_slides(md: str, github: dict[str, dict] | None = None
+                 ) -> list[tuple[tuple[str, str], str, list]]:
     """(title, first-column header, groups) for each slide; a group is (label, rows)."""
     issues, workstreams, gates = parse(md)
+    if github is not None:
+        issues = merge_github(issues, github)
     pics, kept = template_pics(), kept_values()
     phase_of, pic_of = {}, {}
     for w in workstreams:
         for i in w["IDs"]:
             phase_of[i] = w["Phase"]
             pic_of[i] = pics.get(w["Workstream"], w["PIC"])
+    for i in issues:  # an issue such as S3-08a belongs to the workstream of S3-08
+        parent = re.sub(r"[a-z]$", "", i["ID"])
+        if i["ID"] not in phase_of and parent in phase_of:
+            phase_of[i["ID"]], pic_of[i["ID"]] = phase_of[parent], pic_of[parent]
     missing = [i["ID"] for i in issues if i["ID"] not in phase_of]
     if missing:
         raise ValueError(f"not in 'Overview by phase' of issues.md: {', '.join(missing)}")
@@ -202,6 +257,11 @@ def build_slides(md: str) -> list[tuple[tuple[str, str], str, list]]:
                   "Plan Start": fmt(start),
                   "Plan Finish": fmt(finish_of.get(i["ID"], finish)), "Blocker": ""}
         values.update({k: v for k, v in kept.get(i["ID"], {}).items() if v})
+        if "GitHub" in i:  # GitHub decides if an issue is closed
+            if i["GitHub"]:
+                values["Status"] = i["GitHub"]
+            elif values["Status"] in CLOSED_STATUSES:
+                values["Status"] = ""
         return values
 
     issues = sorted(issues, key=issue_key)
@@ -272,6 +332,14 @@ def fill_table(tbl, first_header: str, groups: list) -> None:
                         fill.remove(child)
                     clr = etree.SubElement(fill, A + "schemeClr", val="lt1")
                     etree.SubElement(clr, A + "lumMod", val=SHADES[g % 2])
+                if col == "Status" and texts.get(col) in CLOSED_STATUSES:
+                    for rpr in tc.iter(A + "rPr"):
+                        rpr.set("b", "1")
+                        for old in rpr.findall(A + "solidFill"):
+                            rpr.remove(old)
+                        colour = etree.Element(A + "solidFill")
+                        etree.SubElement(colour, A + "srgbClr", val=CLOSED_STATUSES[texts[col]])
+                        rpr.insert(0, colour)
             merged = cells[1]
             for attr in ("rowSpan", "vMerge"):
                 merged.attrib.pop(attr, None)
@@ -319,13 +387,20 @@ def build(slides: list) -> Presentation:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--github", action="store_true",
+                        help="take the titles and the closed issues from GitHub")
+    args = parser.parse_args()
     if not TEMPLATE.exists():
         print(f"Put the team template at {TEMPLATE}", file=sys.stderr)
         return 1
-    slides = build_slides(SOURCE.read_text(encoding="utf-8"))
+    github = github_issues() if args.github else None
+    slides = build_slides(SOURCE.read_text(encoding="utf-8"), github)
     build(slides).save(TARGET)
     counts = [sum(len(rows) for _, rows in groups) for _, _, groups in slides]
-    print(f"{TARGET.name}: {len(slides)} slides, issues per slide {counts}")
+    done = sum(row["Status"] == "Done" for _, _, groups in slides for _, rows in groups
+               for row in rows)
+    print(f"{TARGET.name}: {len(slides)} slides, issues per slide {counts}, done {done}")
     return 0
 
 
