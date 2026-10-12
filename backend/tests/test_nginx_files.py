@@ -32,8 +32,10 @@ def test_nginx_project_is_pinned_non_root_and_on_edge():
 
 
 def test_nginx_ports_per_host():
-    assert _load("compose.local.yaml")["services"]["nginx"]["ports"] == ["127.0.0.1:8080:8080"]
-    assert _load("compose.testhost.yaml")["services"]["nginx"]["ports"] == ["80:8080"]
+    assert _load("compose.local.yaml")["services"]["nginx"]["ports"] == [
+        "127.0.0.1:8080:8080", "127.0.0.1:3000:3000"]
+    assert _load("compose.testhost.yaml")["services"]["nginx"]["ports"] == [
+        "80:8080", "3000:3000"]
 
 
 def test_model_monitor_conf_allows_only_three_routes():
@@ -73,3 +75,13 @@ def test_nginx_files_log_no_headers():
             if path.suffix == ".conf":
                 assert "authorization" not in text.lower(), path.name
             assert "\r\n" not in text, path.name
+
+
+def test_langfuse_conf_proxies_the_ui():
+    text = (CONF / "langfuse.conf").read_text(encoding="utf-8")
+    assert re.search(r"^\s*listen 3000;", text, flags=re.MULTILINE)
+    assert "set $langfuse http://langfuse-web:3000;" in text
+    assert _locations(text) == ["/"]
+    passes = re.findall(r"proxy_pass\s+([^;]+);", text)
+    assert passes == ["$langfuse"]
+    assert "proxy_set_header Host $http_host;" in text
