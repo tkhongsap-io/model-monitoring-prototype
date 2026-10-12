@@ -1104,6 +1104,8 @@ token to a use case. Spans are not used for grades, so this risk is low.
 
 ### S2-02 — Langfuse SDK v4 in the backend, and package approval
 
+**2026-10-12:** the packages stay approved (2026-10-05); the SDK use (scores) comes with S2-05.
+
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
 | Decision + Feature | Backend + project owner | S1-05 | S2-05 | M |
@@ -1136,6 +1138,8 @@ Collector (S1-05, S1-06). Thus the Langfuse keys stay in AWS.
 3. In the local stack, send one run with a known `traceparent`. Make sure that Langfuse shows the GCP spans, `monitor.ingest`, `monitor.evaluate` and the scores in one trace.
 
 ### S2-03 — Collector exports to self-hosted Langfuse
+
+**Changed 2026-10-12 (design: changes/2026-10-12-s2-03-langfuse/):** Langfuse runs in its own Compose project with private dependencies. Engineers use Google sign-in through the IAP tunnel. The span file stays with rotation; the cleanup rule moves to when the trace check reads every item from Langfuse.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
@@ -1950,6 +1954,8 @@ test AWS cluster, before Sprint 4.
 3. If the test cluster is not available by 19 October, install the stack on a disposable local cluster (for example kind) with plan B, and record that the AWS test was not done.
 
 ### S3-07 — SSO login for the dashboard and Langfuse (Google now, Entra ID later)
+
+**2026-10-12:** the Langfuse Google sign-in is done in S2-03; S3-07 keeps the dashboard.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|

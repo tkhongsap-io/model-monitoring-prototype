@@ -47,6 +47,21 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-12 — S2-03: self-hosted Langfuse
+
+- Built (Codex from `changes/2026-10-12-s2-03-langfuse/plan.md`, reviewed by Claude):
+  `deploy/langfuse/` (own Compose project, 6 pinned services, no published port, only
+  `langfuse-web` on `edge`); `make-langfuse-env.sh` makes the secrets on the VM; nginx
+  serves the UI on port 3000; the Collector exports to Langfuse and rotates the span file;
+  the trace check tool has a 5th item, "langfuse trace", and reads the rotated files; CI
+  test `langfuse-smoke`; TESTHOST runbook "Langfuse (S2-03)".
+- Decisions: Langfuse's Redis is not shared; Google sign-in only (company domain); access
+  through an IAP tunnel to port 3000.
+- Evidence: Windows, outside the Codex sandbox: fast suite 438 passed, 9 deselected.
+- Not run here: the `langfuse-smoke` CI test (on the PR; it proves the Langfuse setting
+  names) and the test-host deploy.
+- Test host: `backend:13` (`8a1c5ba`, S2-01) is deployed; readiness `ready`.
+
 ### 2026-10-12 — S2-01: batch use-case registry
 
 - Built (Codex from `changes/2026-10-12-s2-01-registry/plan.md`, reviewed by Claude):

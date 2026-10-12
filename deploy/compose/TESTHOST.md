@@ -261,6 +261,134 @@ Token change: add a secret version, repeat steps 4, 5, 8 and 9, then restart the
 A new use case also needs its entry in `backend/registry/batch-use-cases.yaml` (pull
 request and a new image) before its key works. The tool never prints a key or a full hash.
 
+## Langfuse (S2-03)
+
+1. On the VM, check capacity: expect 4 CPUs and 32 GB RAM. If `/` has less than
+   50 GB free, grow the disk first.
+
+   ```sh
+   nproc
+   ```
+
+   ```sh
+   free -g
+   ```
+
+   ```sh
+   df -h /
+   ```
+
+   From the laptop:
+
+   ```sh
+   gcloud compute disks resize ai-ml-monitoring-dev-env --size 200 --zone asia-southeast3-c
+   ```
+
+   On the VM, check the device name before growing its partition and filesystem:
+
+   ```sh
+   lsblk
+   ```
+
+   ```sh
+   sudo growpart /dev/nvme0n1 1 && sudo resize2fs /dev/nvme0n1p1
+   ```
+
+2. In Google Cloud Console, APIs & Services ? Credentials ? OAuth client ID,
+   create a Web application client with an Internal consent screen. Set the redirect
+   URI to `http://localhost:3000/api/auth/callback/google`. On the laptop, copy the
+   template, then fill in its two values in an editor; never put them in chat.
+
+   ```powershell
+   Copy-Item deploy/langfuse/google-oauth.env.example google-oauth.tmp
+   ```
+
+3. From the laptop, allow port 3000 only from IAP:
+
+   ```sh
+   gcloud compute firewall-rules create langfuse-testhost-allow-iap --network test-true-corp-ai --direction INGRESS --action ALLOW --rules tcp:3000 --source-ranges 35.235.240.0/20 --target-tags monitor-frontdoor
+   ```
+
+4. Copy the files from the laptop, then delete the laptop's OAuth file:
+
+   ```sh
+   gcloud compute ssh ai-ml-monitoring-dev-env --zone asia-southeast3-c --tunnel-through-iap --command "mkdir -m 700 /tmp/s2-03"
+   ```
+
+   ```sh
+   gcloud compute scp --recurse google-oauth.tmp deploy/langfuse deploy/nginx/conf.d/langfuse.conf deploy/nginx/compose.testhost.yaml deploy/compose/otel-collector.yaml deploy/compose/compose.yaml ai-ml-monitoring-dev-env:/tmp/s2-03/ --zone asia-southeast3-c --tunnel-through-iap
+   ```
+
+   ```powershell
+   Remove-Item google-oauth.tmp
+   ```
+
+5. On the VM, install the copied files:
+
+   ```sh
+   sudo mv /tmp/s2-03/langfuse /opt/langfuse
+   ```
+
+   ```sh
+   sudo mv /tmp/s2-03/langfuse.conf /opt/nginx/conf.d/
+   ```
+
+   ```sh
+   sudo mv /tmp/s2-03/compose.testhost.yaml /opt/nginx/
+   ```
+
+   ```sh
+   sudo mv /tmp/s2-03/otel-collector.yaml /tmp/s2-03/compose.yaml /opt/model-monitor/compose/
+   ```
+
+6. On the VM, generate secrets once. Replace the email placeholder with your company
+   email. Expect three `600 root` lines and `LANGFUSE ENV DONE`. The script deletes
+   the copied Google file and refuses a second run.
+
+   ```sh
+   sudo bash /opt/langfuse/make-langfuse-env.sh --admin-email <your-company-email> --google-file /tmp/s2-03/google-oauth.tmp
+   ```
+
+7. On the VM, from `/opt/langfuse`, start Langfuse:
+
+   ```sh
+   sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
+   ```
+
+8. On the VM, from `/opt/model-monitor/compose`, reload the Collector exporter:
+
+   ```sh
+   sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
+   ```
+
+9. On the VM, from `/opt/nginx`, publish the UI through nginx:
+
+   ```sh
+   sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
+   ```
+
+10. On the laptop, open the IAP tunnel:
+
+    ```sh
+    gcloud compute start-iap-tunnel ai-ml-monitoring-dev-env 3000 --local-host-port=localhost:3000 --zone asia-southeast3-c
+    ```
+
+    Open `http://localhost:3000`, sign in with Google, and open project `model-monitor`.
+
+11. Add engineers in Settings ? Members using their company email. They sign in with Google.
+
+12. On the VM, verify that Langfuse publishes no port, then check a trace:
+
+    ```sh
+    sudo docker ps --format '{{.Names}} {{.Ports}}' | grep langfuse
+    ```
+
+    ```sh
+    sudo bash /opt/model-monitor/compose/check-trace.sh <trace_id>
+    ```
+
+    The output includes the fifth item, `langfuse trace`.
+
 ## Check a trace (S1-07)
 
 One time, after the files are copied (the image must contain `scripts/check_trace.py`):
