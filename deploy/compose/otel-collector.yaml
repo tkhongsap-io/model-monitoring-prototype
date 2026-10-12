@@ -1,8 +1,6 @@
-# OTel Collector for the batch MVP (S1-06). Receives OTLP/HTTP and writes the spans to
-# the log and to /data/spans.jsonl in the container (read it with `docker compose cp`).
-# The file output is temporary: S2-03 adds the export to Langfuse. S3-03 adds the memory
-# limit and the attribute filter. The OTLP token comes from the environment (OTLP_TOKEN);
-# this file contains no credential.
+# OTel Collector for the batch MVP (S1-06).
+# Writes the spans to the log, to /data/spans.jsonl (rotated) and to Langfuse (S2-03).
+# S3-03 adds the memory limit and attribute filter. Credentials come from the environment.
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
@@ -31,6 +29,17 @@ exporters:
     verbosity: basic
   file:
     path: /data/spans.jsonl
+    # The trace check tool reads this file and its rotated copies (S2-03: kept, size-limited).
+    rotation:
+      max_megabytes: 100
+      max_days: 14
+      max_backups: 5
+  # Langfuse OTLP endpoint (S2-03); the project keys come from the environment.
+  otlphttp/langfuse:
+    endpoint: http://langfuse-web:3000/api/public/otel
+    headers:
+      Authorization: "Basic ${env:LANGFUSE_OTLP_AUTH}"
+      x-langfuse-ingestion-version: "4"
 
 service:
   extensions: [health_check, bearertokenauth]
@@ -38,4 +47,4 @@ service:
     traces:
       receivers: [otlp, otlp/external]
       processors: [batch]
-      exporters: [debug, file]
+      exporters: [debug, file, otlphttp/langfuse]

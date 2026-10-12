@@ -1,0 +1,8 @@
+# Laptop and CI (S2-03): local test values from ./local.env. Never use on the test host.
+services:
+  langfuse-web: {env_file: [./local.env]}
+  langfuse-worker: {env_file: [./local.env]}
+  postgres: {env_file: [./local.env]}
+  clickhouse: {env_file: [./local.env]}
+  redis: {env_file: [./local.env]}
+  minio: {env_file: [./local.env]}

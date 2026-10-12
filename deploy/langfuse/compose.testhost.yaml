@@ -1,0 +1,13 @@
+# GCP test host (S2-03): secrets from /opt/langfuse/langfuse.env (600, made by
+# make-langfuse-env.sh). The Langfuse UI is reached through nginx port 3000 and the IAP tunnel.
+x-env: &env
+  env_file:
+    - path: /opt/langfuse/langfuse.env
+      required: true
+services:
+  langfuse-web: *env
+  langfuse-worker: *env
+  postgres: *env
+  clickhouse: *env
+  redis: *env
+  minio: *env

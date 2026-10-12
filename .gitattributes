@@ -11,3 +11,4 @@
 *.yml text eol=lf
 *.conf text eol=lf
 *.example text eol=lf
+*.env text eol=lf

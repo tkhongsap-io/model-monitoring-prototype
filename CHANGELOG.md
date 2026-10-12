@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Self-hosted Langfuse (S2-03): `deploy/langfuse/` (web, worker, PostgreSQL, ClickHouse,
+  Redis, MinIO; no published port). The Collector exports every span to it; nginx serves
+  the UI on port 3000 (IAP tunnel on the test host, Google sign-in). The trace check tool
+  shows the Langfuse trace as a 5th item and reads the rotated span files. New CI test
+  `langfuse-smoke`.
+
 - Architecture diagrams, first draft (S3-08a): `docs/architecture/` has the GCP test host,
   the AWS production and the AWS production detail diagrams (draw.io SVG), for the solution
   design consultation before gate 4.

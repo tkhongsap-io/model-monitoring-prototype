@@ -1,0 +1,131 @@
+# Self-hosted Langfuse (S2-03), its own Compose project. No service publishes a port: the
+# databases are Langfuse's own. Only langfuse-web joins the external network `edge`, for
+# nginx (UI, port 3000) and the Collector (OTLP export).
+# Run from this folder: docker compose -f compose.yaml -f compose.<local|testhost>.yaml up -d --wait
+name: langfuse
+
+x-langfuse-env: &langfuse-env
+  # Docker sets HOSTNAME to the container ID; Langfuse binds to it, so localhost health
+  # checks fail. Bind to all addresses inside the container (no port is published).
+  HOSTNAME: "0.0.0.0"
+  TELEMETRY_ENABLED: "false"
+  LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+  AUTH_DISABLE_SIGNUP: "true"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+  CLICKHOUSE_URL: http://clickhouse:8123
+  CLICKHOUSE_USER: clickhouse
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+
+x-depends: &depends
+  postgres: {condition: service_healthy}
+  clickhouse: {condition: service_healthy}
+  redis: {condition: service_healthy}
+  minio: {condition: service_healthy}
+
+services:
+  langfuse-worker:
+    image: langfuse/langfuse-worker:4.50.0
+    environment: *langfuse-env
+    depends_on: *depends
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3030/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  langfuse-web:
+    image: langfuse/langfuse:4.50.0
+    environment:
+      <<: *langfuse-env
+      LANGFUSE_INIT_ORG_ID: model-monitor
+      LANGFUSE_INIT_ORG_NAME: Model monitor
+      LANGFUSE_INIT_PROJECT_ID: model-monitor
+      LANGFUSE_INIT_PROJECT_NAME: model-monitor
+    depends_on: *depends
+    networks:
+      default: {}
+      edge:
+        aliases: [langfuse-web]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/public/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17.11-bookworm
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_DB: langfuse
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.12.11.4
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4.11
+    # Langfuse's job queue: noeviction, no persistence. Not shared with other apps.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_AUTH\" --maxmemory-policy noeviction --save '' --appendonly no"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_AUTH\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  minio:
+    image: cgr.dev/chainguard/minio@sha256:dc455cdd4db6e390b1b26514f15ff37681a777bf8dab41aac445a0259f751e56
+    entrypoint: ["sh", "-c"]
+    command: ["mkdir -p /data/langfuse && minio server --address :9000 --console-address :9001 /data"]
+    environment:
+      MINIO_ROOT_USER: langfuse
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  clickhouse-data:
+  clickhouse-logs:
+  minio-data:
+
+networks:
+  edge:
+    external: true

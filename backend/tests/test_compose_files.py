@@ -100,11 +100,17 @@ def test_collector_config_has_internal_and_token_receivers():
     assert config["extensions"]["bearertokenauth"] == {
         "scheme": "Bearer", "token": "${env:OTLP_TOKEN}"}
     assert config["service"]["extensions"] == ["health_check", "bearertokenauth"]
-    assert config["exporters"]["file"]["path"] == "/data/spans.jsonl"
+    assert config["exporters"]["file"] == {
+        "path": "/data/spans.jsonl",
+        "rotation": {"max_megabytes": 100, "max_days": 14, "max_backups": 5}}
+    assert config["exporters"]["otlphttp/langfuse"] == {
+        "endpoint": "http://langfuse-web:3000/api/public/otel",
+        "headers": {"Authorization": "Basic ${env:LANGFUSE_OTLP_AUTH}",
+                    "x-langfuse-ingestion-version": "4"}}
     traces = config["service"]["pipelines"]["traces"]
     assert traces == {"receivers": ["otlp", "otlp/external"], "processors": ["batch"],
-                      "exporters": ["debug", "file"]}
-    for word in ("password", "secret", "authorization", "local-dev-otlp-token"):
+                      "exporters": ["debug", "file", "otlphttp/langfuse"]}
+    for word in ("password", "secret", "local-dev-otlp-token", "pk-lf-", "sk-lf-"):
         assert word not in text.lower()
 
 
@@ -189,12 +195,16 @@ def test_trace_check_service_is_a_read_only_tool():
     assert base["entrypoint"] == ["python", "scripts/check_trace.py"]
     assert base["volumes"] == ["collector-data:/otel:ro"]
     assert base["restart"] == "no"
+    assert base["networks"] == ["default", "edge"]          # reaches langfuse-web (S2-03)
     for key in ("ports", "depends_on", "environment", "build"):
         assert key not in base
     local = _load("compose.local.yaml")["services"]["trace-check"]
     assert local["image"] == "model-monitor-backend:local"
     assert local["environment"] == {
-        "CHECK_DATABASE_URL": "postgresql://monitor:monitor@postgres:5432/monitor"}
+        "CHECK_DATABASE_URL": "postgresql://monitor:monitor@postgres:5432/monitor",
+        "CHECK_LANGFUSE_URL": "${CHECK_LANGFUSE_URL:-}",   # set only by langfuse-smoke
+        "CHECK_LANGFUSE_PUBLIC_KEY": "pk-lf-local-00000000-0000-0000-0000-000000000000",
+        "CHECK_LANGFUSE_SECRET_KEY": "sk-lf-local-00000000-0000-0000-0000-000000000000"}
     assert "DATABASE_URL" not in local["environment"]
     host = _load("compose.testhost.yaml")["services"]["trace-check"]
     assert host["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
@@ -239,8 +249,7 @@ def test_backend_and_collector_join_edge_with_aliases():
         "default": {}, "edge": {"aliases": ["model-monitor-backend"]}}
     assert services["collector"]["networks"] == {
         "default": {}, "edge": {"aliases": ["model-monitor-collector"]}}
-    for name in ("collector-init", "trace-check"):
-        assert "networks" not in services[name]
+    assert "networks" not in services["collector-init"]
     assert base["networks"] == {"edge": {"external": True}}
 
 
@@ -253,7 +262,9 @@ def test_port_4319_is_never_published():
 
 def test_local_collector_uses_the_local_test_token():
     local = _load("compose.local.yaml")["services"]["collector"]
-    assert local["environment"] == {"OTLP_TOKEN": "local-dev-otlp-token-not-a-secret"}
+    assert local["environment"] == {
+        "OTLP_TOKEN": "local-dev-otlp-token-not-a-secret",
+        "LANGFUSE_OTLP_AUTH": "cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA=="}
 
 
 def test_testhost_collector_requires_the_env_file():
