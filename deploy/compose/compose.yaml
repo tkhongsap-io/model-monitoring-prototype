@@ -65,6 +65,7 @@ services:
     volumes:
       - collector-data:/otel:ro
     restart: "no"
+    networks: [default, edge]   # reaches langfuse-web for the 5th item (S2-03)
 
 volumes:
   collector-data:

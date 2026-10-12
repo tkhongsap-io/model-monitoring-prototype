@@ -31,6 +31,7 @@ services:
 
   collector:
     environment:
+      LANGFUSE_OTLP_AUTH: cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA==   # local test keys
       OTLP_TOKEN: local-dev-otlp-token-not-a-secret   # local test value, not a secret
     ports:
       - "127.0.0.1:4318:4318"
@@ -38,6 +39,9 @@ services:
   trace-check:
     image: model-monitor-backend:local
     environment:
+      CHECK_LANGFUSE_URL: http://langfuse-web:3000
+      CHECK_LANGFUSE_PUBLIC_KEY: pk-lf-local-00000000-0000-0000-0000-000000000000
+      CHECK_LANGFUSE_SECRET_KEY: sk-lf-local-00000000-0000-0000-0000-000000000000   # local test value
       CHECK_DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor   # local test value
 
 volumes:
