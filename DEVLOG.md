@@ -47,6 +47,19 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-12 — S3-08a: first draft of the architecture diagrams
+
+- Added: three draw.io diagrams in `docs/architecture/` (GCP test host, AWS production,
+  AWS production detail) with a README. They are the first draft for the solution design
+  consultation with K. Wirat before gate 4 (#81, sub-issue of S3-08 #76).
+- Changed: removed the judge calls and the Token Factory box from all three diagrams, in
+  the picture and in the draw.io source, because October has no judge. The backend and
+  secret store labels no longer name the judge.
+- Evidence: the SVG text has no IP addresses, tokens or internal URLs (scripted scan). After
+  the change, no "judge" or "Token Factory" text is left, and each file is valid XML.
+- Remaining:
+  - Record the consultation date, the attendees and the comments in #81.
+
 ### 2026-10-12 — S2-01: batch use-case registry
 
 - Built (Codex from `changes/2026-10-12-s2-01-registry/plan.md`, reviewed by Claude):
