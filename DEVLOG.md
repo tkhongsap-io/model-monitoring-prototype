@@ -47,6 +47,16 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-12 — S3-08a: first draft of the architecture diagrams
+
+- Added: three draw.io diagrams in `docs/architecture/` (GCP test host, AWS production,
+  AWS production detail) with a README. They are the first draft for the solution design
+  consultation with K. Wirat before gate 4 (#81, sub-issue of S3-08 #76).
+- Evidence: the SVG text has no IP addresses, tokens or internal URLs (scripted scan).
+- Remaining:
+  - The diagrams are dated 2026-10-07 and show judge calls. October has no judge.
+  - Record the consultation date, the attendees and the comments in #81.
+
 ### 2026-10-12 — S2-01: batch use-case registry
 
 - Built (Codex from `changes/2026-10-12-s2-01-registry/plan.md`, reviewed by Claude):
