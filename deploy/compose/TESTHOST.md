@@ -204,6 +204,63 @@ sudo docker compose -f compose.yaml -f compose.testhost.yaml down
 
 Token change: add a secret version, repeat steps 4, 5, 8 and 9, then restart the jobs.
 
+## Add or rotate an API key (S2-01)
+
+1. On the laptop (PowerShell, repository root), write the key and hash line to files:
+
+   ```powershell
+   backend\.venv\Scripts\python.exe backend\scripts\batch_keys.py make --use-case <use_case_id> --key-out key.tmp --hash-out hash.tmp
+   ```
+
+2. For a new use case, put the key in GCP Secret Manager:
+
+   ```powershell
+   gcloud secrets create batch-api-key-<use_case_id> --data-file key.tmp
+   ```
+
+   For rotation, add a version instead:
+
+   ```powershell
+   gcloud secrets versions add batch-api-key-<use_case_id> --data-file key.tmp
+   ```
+
+3. Copy only the hash line and script to the VM, then delete the local key file:
+
+   ```powershell
+   gcloud compute scp hash.tmp backend/scripts/batch_keys.py ai-ml-monitoring-dev-env:/tmp/ --zone asia-southeast3-c --tunnel-through-iap
+   ```
+
+   ```powershell
+   Remove-Item key.tmp
+   ```
+
+4. On the VM, add the hash entry to the backend env file:
+
+   ```bash
+   sudo python3 /tmp/batch_keys.py add --env-file /opt/model-monitor/backend.env --hash-file /tmp/hash.tmp
+   ```
+
+5. On the VM, in `/opt/model-monitor/compose`, recreate the backend to load the setting:
+
+   ```bash
+   sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --force-recreate --wait backend
+   ```
+
+6. For rotation only, after one successful run with the new key, list the prefixes:
+
+   ```bash
+   sudo python3 /tmp/batch_keys.py list --env-file /opt/model-monitor/backend.env
+   ```
+
+   Remove the old entry, then repeat step 5:
+
+   ```bash
+   sudo python3 /tmp/batch_keys.py remove --env-file /opt/model-monitor/backend.env --use-case <use_case_id> --hash-prefix <old prefix>
+   ```
+
+A new use case also needs its entry in `backend/registry/batch-use-cases.yaml` (pull
+request and a new image) before its key works. The tool never prints a key or a full hash.
+
 ## Check a trace (S1-07)
 
 One time, after the files are copied (the image must contain `scripts/check_trace.py`):

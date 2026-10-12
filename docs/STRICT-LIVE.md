@@ -155,7 +155,10 @@ It is available in demo and strict live mode. It stores the run in `batch_runs`
   `BATCH_API_KEY_SHA256` as comma-separated `USE_CASE_ID:<64 hex>` entries. Two entries for
   one use case are allowed during a key rotation. If the setting is empty, every request
   is `401`. A malformed entry is listed by position in `GET /api/readiness`. The source
-  registry (S2-01) replaces this setting.
+  registry (S2-01) lists the use cases; the hashes stay in this setting.
+- Registry: `backend/registry/batch-use-cases.yaml` contains the October settings; a bad
+  registry prevents startup. A key for an unregistered use case gives `403` before the
+  body is read; readiness reports any key entry whose use case is not in the registry.
 - `BATCH_MAX_BODY_BYTES`: the body limit, default 10 MB (`413` above it).
 - Responses: `201` stored, `200` the same body again (no change), `409` the same
   `(use_case_id, run_id)` with other content (the stored run does not change), `400` with
