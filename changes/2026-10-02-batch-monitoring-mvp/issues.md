@@ -1763,8 +1763,22 @@ diagram and the plan and deploy files. The record of version `0001` lists them.
 - [ ] CI runs the structural check. No existing test, workflow or application file changes.
 - [ ] #81 has a comment with the differences and the links.
 
-**Follow-up (not in the first pull request):** the `data-flow` diagram of a batch run, and
-the `sequence` diagram of the ingest of one run.
+**Added 2026-10-13:** architecture `0002` (more detail) and every Must and Nice-to-have type
+of `docs/diagram/README.md`. A `current` version is drawn from the repository; a `proposed`
+version is drawn from the plan for a part that is not built.
+
+| Type / subject | Version | Status |
+|---|---|---|
+| `architecture` | `0002` (replaces `0001`) | proposed |
+| `data-flow` / `batch-run` | `0001` | current |
+| `sequence` / `batch-run-ingest` | `0001` | current |
+| `deployment` / `gcp-test-host` | `0001` | current |
+| `deployment` / `aws-production` | `0001` | proposed |
+| `er` / `monitor-database` | `0001` | current |
+| `state` / `use-case-delivery` | `0001` | proposed |
+| `decision` / `run-grade` | `0001` | proposed |
+| `workflow` | `0001` | current |
+| `use-case` / `monitor` | `0001` | proposed |
 
 **How to test**
 1. Run `uv run .agents/skills/diagram/scripts/check_diagrams.py`. It exits with 0.

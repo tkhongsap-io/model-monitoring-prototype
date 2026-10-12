@@ -41,7 +41,11 @@ drafts, corrects them and adds the missing detail.
 - `git diff --stat dev` shows no file under `backend/app`, `artifacts/`, `deploy/` or the
   existing workflows.
 
+## Added 2026-10-13 (@Prakasit-Iss)
+
+Architecture `0002` with more detail, and the first version of every Must and Nice-to-have
+type. The skill is used by its path (`.agents/skills/diagram/SKILL.md`).
+
 ## Not in scope
 
-The `data-flow` and `sequence` diagrams (Must, follow-up in #85). The Nice-to-have types.
 The consultation with K. Wirat (S3-08a). The AF Slide (S3-08).

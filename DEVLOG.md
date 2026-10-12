@@ -63,8 +63,24 @@ depend on. The spec is
   values, no IP address, no URL, no "Token Factory"; "judge" only in "There is no judge".
   The PNG preview was read in six parts after two layout corrections. `tests/test_docs.py`
   5 passed (`uvx`, `--noconftest`), with no change to the test.
+- Added later the same day, with the skill used by its path: architecture `0002` (ports,
+  the Collector pipeline, volumes, secret files, database accounts, the ingress rules as
+  edges; `0001` is `superseded by 0002`) and the first version of `data-flow/batch-run`,
+  `sequence/batch-run-ingest`, `deployment/gcp-test-host`, `er/monitor-database` and
+  `workflow` (all `current`, drawn from the code and the deploy files), and of
+  `deployment/aws-production`, `state/use-case-delivery`, `decision/run-grade` and
+  `use-case/monitor` (`proposed`, drawn from the plan).
+- Found while drawing: `0001` did not show the backend spans to the Collector (OTLP 4318);
+  `0002` does. The docstring of `batch_routes.py` puts `413` and `400` before the registry
+  `403`, but the code examines the registry first; the sequence diagram follows the code.
+  The span outcome `unregistered` is not in the S1-05 spec list. No code was changed.
+- Evidence for the 11 versions: `check_diagrams.py` exit 0; label scan with no old value,
+  no IP address and no URL; each PNG preview read after its layout corrections;
+  `tests/test_docs.py` 5 passed.
 - Not run locally: the fast backend suite (`.venv` is not set up on this host); CI runs it.
   How GitHub shows the SVG is examined on the pull request.
+- Not done: the push and the pull request. The account has read-only access to the
+  repository; the 10 commits are local on `feat/s3-08b-diagram-skill`.
 - Remaining:
   - A maintainer sets the labels, the assignee and the parent link (#81) of #85. The account
     that opened it has no permission for them.
