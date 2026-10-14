@@ -24,7 +24,7 @@ internal URL.
 ## What changed since the previous version
 
 First recorded version. It starts from the two hand-drawn drafts of S3-08a in
-[`docs/architecture/`](../../architecture/README.md) and differs from them as follows.
+[`docs/architecture/`](../../../architecture/README.md) and differs from them as follows.
 
 Phase 1, corrected to agree with the plan and the deploy files:
 

@@ -47,6 +47,71 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-14 — S3-08b: diagram review after PR #87
+
+- PR #87 was merged into `dev` (`fde97dc`) and #85 is closed. This review is a new branch
+  from `dev`, `docs/s3-08b-diagram-review`. When the review was drawn, `dev` had not
+  changed since #87, so every finding was a drawing mistake or a change of framing.
+- Test host (reported by the project team on 2026-10-14): Langfuse is installed, all of
+  S2-03, including the Collector's export to Langfuse. This replaces "Not run yet: the
+  test-host deploy" in the S2-03 entry. No command output for it is in this repository.
+- Decisions (owner, 2026-10-14):
+  - The GCP architecture is `current` and shows the test host as it runs. AWS is the
+    `proposed` future.
+  - The prototype tables get their own `er` subject.
+  - A proposal with mistakes gets a new number.
+- Recorded, one commit per group:
+  - `116702c`: architecture `0003` (current, the GCP test host today) and `0004`
+    (proposed, AWS production). `0002` is superseded by `0004`.
+    - `0003` leaves out what is not on the host: the dashboard and host port 8080
+      (S2-07), and the backend's spans and scores to Langfuse (S2-05).
+    - `0003` draws what was missing: the trace check tool's reads, the jobs in the same
+      VPC, `clickhouse-logs`, and the `postgres` account and the group `monitor_read`.
+    - In `0004` the secrets are in the Kubernetes secret store, as the plan says; `0002`
+      had Secrets Manager.
+  - `c253ae0`: fixed in place in three `current` versions:
+    - deployment `gcp-test-host`: the trace-check paths, `collector-init`, and the job
+      inside the VPC;
+    - data-flow `batch-run`: the traces reach the engineers through the front door;
+    - sequence `batch-run-ingest`: nginx answers 413 before the backend.
+  - `58f99cc`: the new subject `er/prototype-tables` `0001`, with all 16 prototype tables
+    and their 115 columns. `monitor-database` `0001` now names that subject.
+  - `adb6e60`: `0002` proposals for `state/use-case-delivery`, `use-case/monitor` and
+    `deployment/aws-production`.
+- No change: `decision/run-grade` `0001`. Its sources disagree on `turnaround_s`:
+  `core-metrics.md` puts it in the Delivery lane, and S2-05 puts it in the grade. RAI
+  decides.
+- Found while reviewing, not changed here:
+  - Bug: `backend/app/trace_check.py:100` tests `outcome == "stored"`, but the
+    backend writes `"created"`. The test uses `"stored"` too.
+  - The `batch_routes.py` docstring gives the wrong order of the checks.
+  - `docs/adr/0002-batch-push-ingest.md` still says HTTPS 443 on the test host.
+- Evidence (Windows, draw.io 29.6.1):
+  - Each new or fixed version was exported, and its PNG preview was read until it had no
+    overlap and no crossing through a box.
+  - `check_diagrams.py` exit 0. 106 script tests passed. `tests/test_docs.py`: 5 passed.
+  - A label scan of all diagrams found no IP address, URL or token.
+  - Only `docs/diagram/` and `docs/architecture/README.md` changed.
+- S2-05 merged into `dev` (#88, `fe307d7`) after this review was drawn: `batch_evaluations`
+  (migrations 9 and 10), the evaluator and the Langfuse scores. It is not deployed on the
+  test host yet. Decided (owner, 2026-10-14): the pictures wait for that deploy, except
+  the ER (below). The record of architecture `0003` now says "merged, not deployed" in
+  place of "not built".
+- eatrabyo reviewed `15a3065` (7 findings, 3 notes). Each finding and its fix:
+
+  | # | Finding | Fix |
+  |---|---|---|
+  | 1 | Architecture `0003` said S2-05 was not built | Fixed already in `15a3065` |
+  | 2 | A `current` ER is drawn from the repository, so it is wrong as soon as S2-05 is merged | `4f78b07`: `er/monitor-database` 0002 (current) adds `batch_evaluations`. The owner chose to add it now, not after the deploy. |
+  | 3, 4 | Data-flow, sequence and `run-grade` for S2-05 | Deferred to the S2-05 deploy; the review accepts it |
+  | 5 | With one line of versions, AWS becoming `current` would supersede the test host while it is still the fallback | `fd03963`: architecture has two subjects (owner). `gcp-test-host` holds 0001 to 0003, and 0002 is superseded by 0003. `aws-production` 0001 is the former 0004. |
+  | 6 | No `CHANGELOG.md` update | One sentence added to the S3-08b item |
+  | 7 | The sequence note said the backend's limit always equals nginx's | `cdcebac`: the note names `BATCH_MAX_BODY_BYTES` (10 MiB by default) |
+
+- Remaining, after the S2-05 deploy: draw the evaluator in a new `gcp-test-host`
+  architecture version, in deployment `gcp-test-host` and in data-flow `batch-run`; compare
+  `run-grade` with `backend/app/engines/batch_grading.py`.
+
 ### 2026-10-14 — S2-05: batch evaluator
 
 - Built (Codex from `changes/2026-10-14-s2-05-batch-evaluator/plan.md`, reviewed by

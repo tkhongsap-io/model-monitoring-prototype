@@ -1,10 +1,16 @@
 # Architecture
 
-Components and the boundaries between them. One picture holds both phases of the batch
-monitoring MVP: phase 1 (the GCP test host) on the left and phase 2 (AWS production) on the
-right. Policy: [`.agents/rules/diagram.md`](../../../.agents/rules/diagram.md).
+Components and the boundaries between them. One picture per subject: the GCP test host and
+AWS production run side by side during the cut-over week (S4-02), so each has its own line
+of versions. Policy: [`.agents/rules/diagram.md`](../../../.agents/rules/diagram.md).
 
-| # | Shows | Status | Date |
-|---|---|---|---|
-| [0001](0001-gcp-test-host-and-aws-production.md) | Phase 1 (GCP test host) and phase 2 (AWS production) | superseded by 0002 | 2026-10-13 |
-| [0002](0002-both-phases-with-ports-and-stores.md) | Both phases, with ports, pipelines and stores | proposed | 2026-10-13 |
+| Subject | About |
+|---|---|
+| [`gcp-test-host`](gcp-test-host/README.md) | Phase 1: the GCP test host (Sprints 1 to 3), as it runs. Versions 0001 and 0002 show both phases in one picture. |
+| [`aws-production`](aws-production/README.md) | Phase 2: AWS production (Sprint 4). |
+
+Until 2026-10-14 this type held one picture of the whole project. The review of #89 split
+it into the two subjects above, as in `deployment/`: with one line of versions, AWS
+becoming `current` would supersede the test host while it still runs as the fallback. The
+versions moved into `gcp-test-host/` with their numbers; the AWS picture became
+`aws-production` 0001.

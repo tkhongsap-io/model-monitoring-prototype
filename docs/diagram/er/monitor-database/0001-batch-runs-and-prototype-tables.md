@@ -1,5 +1,5 @@
 ---
-status: current
+status: superseded by 0002
 date: 2026-10-13
 author: Prakasit Issanapong <prakasit.tar@outlook.com>
 related: []
@@ -14,7 +14,8 @@ related: []
 The tables that the migrations in `backend/app/db.py` make. `batch_runs` and
 `schema_migrations` are the tables of the batch MVP and show every column. The 16 prototype
 tables are in the same database; the batch MVP API does not use them, so they are shown by
-name only.
+name only. Their keys and columns are in
+[`prototype-tables` 0001](../prototype-tables/0001-live-and-demo-tables.md).
 
 The schema declares no foreign key, so the picture has no relationship line. The Langfuse
 database is a different database and is not in this picture.
@@ -23,13 +24,18 @@ database is a different database and is not in this picture.
 
 First recorded version.
 
+Corrected in place on 2026-10-14 (the schema did not change): the rule asks for every
+column of every table, and this picture shows the 16 prototype tables by name only. Their
+columns are now in the subject `prototype-tables`, and the box of the prototype tables
+here names that subject. `er.md` allows a table of another subject as a header-only box.
+
 ## Key
 
 | Mark | Means |
 |---|---|
 | **PK** | Primary key |
 | **UK** | Part of the unique key `uq_batch_run (use_case_id, run_id)` |
-| Grey header box | A prototype table, shown by name only |
+| Grey header box | A prototype table, shown by name only; its columns are in `prototype-tables` |
 
 Keys of the prototype tables:
 
