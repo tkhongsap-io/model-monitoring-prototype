@@ -1,0 +1,11 @@
+# Build context of deploy/dashboard/Dockerfile (S2-07). Keep secrets and bulk out.
+.git
+.claude
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+backend
+docs
+changes
+attached_assets
