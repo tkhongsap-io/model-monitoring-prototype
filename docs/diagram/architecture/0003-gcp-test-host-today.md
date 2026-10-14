@@ -30,7 +30,7 @@ Removed, because it is not on the test host:
 | Removed | Why |
 |---|---|
 | The staff dashboard, host port 8080, its firewall rule, and the RAI team | Not built (S2-07) |
-| The backend's spans and scores to Langfuse | Not built (S2-05). The backend sends its spans to the Collector. |
+| The batch evaluator and its scores to Langfuse | Merged into `dev` (S2-05, #88), not deployed on the test host yet. The backend sends its spans to the Collector. |
 | Daily disk snapshots | Planned in S1-04; no record that they run |
 
 Port 8080 still appears once: nginx listens on 8080 inside its container, because the

@@ -93,8 +93,13 @@ depend on. The spec is
   - A label scan of all diagrams found no IP address, URL or token.
   - Only `docs/diagram/` and `docs/architecture/README.md` changed.
 - S2-05 merged into `dev` (#88, `fe307d7`) after this review was drawn: `batch_evaluations`
-  (migrations 9 and 10), the evaluator and the Langfuse scores. The `er`, architecture,
-  deployment and `run-grade` pictures are not yet checked against it.
+  (migrations 9 and 10), the evaluator and the Langfuse scores. It is not deployed on the
+  test host yet. Decided (owner, 2026-10-14): the pictures wait for that deploy. The
+  record of architecture `0003` now says "merged, not deployed" in place of "not built".
+- Remaining, after the S2-05 deploy: a new `er/monitor-database` version with
+  `batch_evaluations`; the evaluator in architecture `0003`'s successor, deployment
+  `gcp-test-host` and data-flow `batch-run`; compare `run-grade` with
+  `backend/app/engines/batch_grading.py`.
 
 ### 2026-10-14 — S2-05: batch evaluator
 
