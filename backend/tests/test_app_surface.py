@@ -17,6 +17,9 @@ ALLOWLIST = {
     ("/api/healthz", "get"),
     ("/api/readiness", "get"),
     ("/api/version", "get"),
+    ("/api/live/portfolio", "get"),
+    ("/api/live/use-case/{use_case_id}", "get"),
+    ("/api/live/alerts", "get"),
 }
 
 
@@ -37,7 +40,7 @@ def test_served_routes_are_exactly_the_allowlist():
 @pytest.mark.parametrize("mode", ["demo", "live"])
 @pytest.mark.parametrize("method, path", [
     ("GET", "/"), ("GET", "/docs"), ("GET", "/redoc"), ("GET", "/openapi.json"),
-    ("GET", "/api/live/portfolio"), ("POST", "/api/live/poll"),
+    ("POST", "/api/live/poll"),
     ("POST", "/api/live/sources/AICT-L01/skip"), ("GET", "/api/registry"),
     ("GET", "/api/scenario/state"), ("GET", "/api/board"), ("GET", "/heatmap"),
 ])
