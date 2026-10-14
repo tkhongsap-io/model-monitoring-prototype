@@ -96,6 +96,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `failed_count`. Identity-only bodies (`records: []`) do not change. The schema file and
   its examples moved to `backend/schemas/batch-run/1/`.
 
+- Batch MVP plan, S1-08: the security approval moved from Sprint 1 to Sprint 3. Security
+  Compliance approves the four S1 items (the identity-only run, the API key path, plain
+  HTTP on the test host, the OTLP endpoint) in governance gates 4 and 6 (S3-08, S3-09).
+  It is needed before S4-02, not on the test host. The record items wait until after October.
+
 - Batch MVP plan, S1-09: the inventory has 7 GCP use cases, not 10. The other 3 run on
   NotebookLM and Gemini Enterprise and have no job code. Network ranges, egress IPs, the
   order of the use cases and the RAI profile confirmation are no longer in the inventory.
