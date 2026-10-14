@@ -226,7 +226,7 @@ uv run .agents/skills/diagram/scripts/render.py export <scratch>/new.drawio \
 shapes, icons that failed to load (an empty square), anything outside its container, and
 the points under "Check the preview" in the type's reference. Fix and re-render until it
 reads cleanly. The export stops with a message when draw.io is missing, when an icon is
-linked by URL or path, or when the file would exceed the 500 KB limit.
+linked by URL or path, or when the file would exceed the 1024 KB limit.
 
 An export that fails when `doctor` found draw.io (on headless Linux, an export without
 `xvfb-run` in front) is a failure to report, not a reason to record Mermaid.

@@ -8,8 +8,9 @@ The gate runs this (the ``check-diagrams`` hook in .pre-commit-config.yaml), so 
 nothing but the standard library: no draw.io, no network. It checks what the rule in
 .agents/rules/diagram.md makes checkable:
 
-- a type directory holds either versions or subject directories, never both; a subject
-  directory is named like a slug and holds versions
+- a type directory holds either versions or subject directories, never both: beside its
+  subjects it holds only its ``README.md``; a subject directory is named like a slug and
+  holds versions
 - every ``NNNN-slug.drawio.svg`` has its ``NNNN-slug.md`` beside it and the other way
   round, and no number is used twice in one directory
 - a record with ``format: mermaid`` (a version recorded without draw.io) has no
@@ -22,11 +23,11 @@ nothing but the standard library: no draw.io, no network. It checks what the rul
   at least one of the two unless every version is ``withdrawn``
 - the ``README.md`` beside the versions links every one of them, and a type's
   ``README.md`` links every subject's index
-- each ``.drawio.svg`` embeds an uncompressed draw.io model whose images are all data
-  URIs or draw.io's own ``img/lib/...``
+- each ``.drawio.svg`` is at most ``MAX_KB`` (1024 KB) and embeds an uncompressed draw.io
+  model whose images are all data URIs or draw.io's own ``img/lib/...``
 - every file in ``icons/`` passes the icon check: it is an ``.svg`` or a ``.png`` that
-  ``icon_safety.py`` accepts, and its row in ``icons/README.md`` carries its SHA-256, so a
-  file changed after review fails
+  ``icon_safety.py`` accepts, and its table row in ``icons/README.md`` carries its SHA-256,
+  so a file changed after review fails
 
     uv run .agents/skills/diagram/scripts/check_diagrams.py [--root docs/diagram]
 
@@ -43,7 +44,11 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-SUBJECT = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+from icon_safety import icon_problems  # beside this script, as in fetch_icon.py
+from mermaid_block import record_problems as mermaid_problems
+
+MAX_KB = 1024  # the largest .drawio.svg the gate accepts; render.py refuses to write more
+SUBJECT =re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION = re.compile(r"^(\d{4})-([a-z0-9]+(?:-[a-z0-9]+)*)\.(drawio\.svg|md)$")
 SUPERSEDED = re.compile(r"^superseded by (\d{4})$")
 AUTHOR = re.compile(r"^[^<>]+ <[^<>@\s]+@[^<>\s]+>$")
@@ -55,7 +60,11 @@ LIVE = ("current", "proposed")
 
 
 def frontmatter(path: Path) -> dict:
-    """Return the ``key: value`` pairs between the leading ``---`` lines of path."""
+    """Return the ``key: value`` pairs between the leading ``---`` lines of path.
+
+    A value in matching quotes (``"current"``, ``'2026-10-13'``) is returned without them,
+    as YAML reads it.
+    """
     lines = path.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
         return {}
@@ -65,12 +74,18 @@ def frontmatter(path: Path) -> dict:
             return fields
         key, sep, value = line.partition(":")
         if sep:
-            fields[key.strip()] = value.strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            fields[key.strip()] = value
     return {}
 
 
 def model_problems(svg: Path) -> list:
-    """Return what is wrong with the draw.io model embedded in svg."""
+    """Return what is wrong with svg: its size, and the draw.io model embedded in it."""
+    size = svg.stat().st_size
+    if size > MAX_KB * 1024:
+        return [f"{size // 1024} KB; a version may be at most {MAX_KB} KB"]
     match = CONTENT.search(svg.read_text(encoding="utf-8"))
     if not match:
         return ["no embedded draw.io model (export with render.py)"]
@@ -135,9 +150,10 @@ def check_type(directory: Path) -> list:
     if not subjects:
         return check_versions(directory, directory.name)
     problems = []
-    if any(VERSION.match(p.name) for p in directory.iterdir() if p.is_file()):
+    for path in sorted(p for p in directory.iterdir() if p.is_file() and p.name != "README.md"):
         problems.append(
-            f"{directory}: holds both versions and subject directories; a type is one or the other"
+            f"{path}: this type has subject directories, so its versions live in them;"
+            " beside them it holds only README.md"
         )
     index_path = directory / "README.md"
     index = index_path.read_text(encoding="utf-8") if index_path.is_file() else None
@@ -154,9 +170,6 @@ def check_type(directory: Path) -> list:
 
 def check_versions(directory: Path, diagram_type: str) -> list:
     """Return the problems in one directory of versions, each prefixed with its path."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from mermaid_block import record_problems as mermaid_problems  # beside this script
-
     problems = []
     stems = {}
     for path in sorted(directory.iterdir()):
@@ -217,9 +230,6 @@ def check_versions(directory: Path, diagram_type: str) -> list:
 
 def check_icons(directory: Path) -> list:
     """Return the icons that fail the icon check: unsafe content, or no row with their hash."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from icon_safety import icon_problems  # beside this script; pre-commit runs it by path
-
     icons = sorted(p for p in directory.iterdir() if p.is_file() and p.name != "README.md")
     if not icons:
         return []
@@ -228,7 +238,9 @@ def check_icons(directory: Path) -> list:
     problems = []
     for icon in icons:
         problems += [f"{icon}: {problem}" for problem in icon_problems(icon)]
-        rows = [line for line in lines if f"`{icon.name}`" in line]
+        # Only a table row counts: a note that names the icon, or quotes an old hash, does not.
+        row = re.compile(rf"^\|\s*`{re.escape(icon.name)}`\s*\|")
+        rows = [line for line in lines if row.match(line)]
         if not rows:
             problems.append(
                 f"{icon}: no row in {readme} (source URL, license, date retrieved, SHA-256)"

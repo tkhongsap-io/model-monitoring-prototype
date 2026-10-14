@@ -22,7 +22,8 @@ version diffs as text and its labels can be searched without draw.io. It is draw
 light theme on a white background: draw.io otherwise exports adaptive light-dark colours
 on a transparent background, which a dark page can turn unreadable. It ends the file
 with a newline (the gate's end-of-file-fixer would otherwise rewrite it), refuses a
-result the gate's 500 KB limit would reject, and optionally writes a PNG preview.
+result over the gate's 1024 KB limit (``check_diagrams.MAX_KB``), and optionally writes
+a PNG preview.
 ``extract`` recovers the uncompressed model from a recorded version, which is where the
 next version starts; it only reads the recorded file, and needs draw.io only for a
 compressed model. ``labels`` prints every cell's label as plain text, one per line,
@@ -51,13 +52,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+from check_diagrams import MAX_KB  # beside this script
+
 log = logging.getLogger("render")
 
 PATH_NAMES = ("drawio", "draw.io", "com.jgraph.drawio.desktop")  # the last is the Flatpak
 INSTALL_URL = "https://github.com/jgraph/drawio-desktop/releases"
 CONTENT = re.compile(r'<svg\b[^>]*?\scontent="([^"]*)"', re.DOTALL)
 TIMEOUT_SECONDS = 180
-MAX_KB = 500  # check-added-large-files in .pre-commit-config.yaml
 TRANSPARENT = "background: transparent; background-color: transparent;"
 WHITE = "background-color: #ffffff;"
 
@@ -200,9 +202,9 @@ def export(source: Path, output: Path, preview: Path | None) -> None:
         raise SystemExit(f"{output} embeds a compressed model; draw.io ignored -u")
     output.write_text(rendered.replace(TRANSPARENT, WHITE, 1), encoding="utf-8", newline="")
     end_with_newline(output)
-    size_kb = output.stat().st_size // 1024
-    if size_kb > MAX_KB:
-        raise SystemExit(f"{output} is {size_kb} KB; the gate refuses files over {MAX_KB} KB")
+    size = output.stat().st_size
+    if size > MAX_KB * 1024:
+        raise SystemExit(f"{output} is {size // 1024} KB; the gate refuses files over {MAX_KB} KB")
     if preview is not None:
         run_drawio(["-x", "-f", "png", "-b", "20", "-s", "1.5", "-o", str(preview), str(source)])
     log.info("wrote %s", output)
