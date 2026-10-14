@@ -23,6 +23,11 @@ services:
     environment:
       DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor
       BATCH_API_KEY_SHA256: rtr-fraud-validation:ca9263478834f0d9f054e84eda1a55dee86d8a6551f27aa8a2c751a4b541b200
+      BATCH_EVALUATOR_INTERVAL_S: "5"
+      # Empty unless langfuse-smoke sets it: the plain smoke test has no Langfuse (skipped).
+      LANGFUSE_HOST: ${BACKEND_LANGFUSE_HOST:-}
+      LANGFUSE_PUBLIC_KEY: pk-lf-local-00000000-0000-0000-0000-000000000000
+      LANGFUSE_SECRET_KEY: sk-lf-local-00000000-0000-0000-0000-000000000000   # local test value
     depends_on:
       postgres:
         condition: service_healthy

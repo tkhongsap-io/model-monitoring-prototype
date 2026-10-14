@@ -2,7 +2,7 @@
 # Smoke test of the local Compose stack (S1-06, S1-07). macOS and Linux.
 # Starts the edge network, the monitor stack (backend + PostgreSQL + OTel Collector) and the
 # nginx front door. Through nginx it checks the routes, the OTLP token, one batch run with a
-# known traceparent, and fake GCP job spans; then the trace check tool finds all four items.
+# known traceparent, and fake GCP job spans; then the trace check tool finds all the items, and the worker grades the run (S2-05).
 # KEEP=1 keeps the stacks running afterwards. Needs: docker (Compose v2), curl, python3.
 set -euo pipefail
 
@@ -129,4 +129,22 @@ code "200" -X POST "$FRONT/otlp/v1/traces" -H "Content-Type: application/json" \
 
 STEP="check-trace"
 bash "$ROOT/deploy/compose/check-trace.sh" "$TRACE_ID" --wait 30
+STEP="batch evaluation"
+# S2-05: the worker grades the run within a few cycles (interval 5 s locally). No Langfuse
+# here, so the score status is "skipped". The example body has no baseline and no
+# submitted_at, so both grades are Unknown.
+for i in $(seq 1 30); do
+  if curl -fsS "$BASE_URL/api/readiness" | python3 -c '
+import json, sys
+e = json.load(sys.stdin)["batch_evaluator"]
+sys.exit(0 if e["unevaluated"] == 0 and e["last_cycle_at"] else 1)'; then
+    break
+  fi
+  [ "$i" = "30" ] && { echo "the run was not graded in 60 s"; exit 1; }
+  sleep 2
+done
+GRADE="$("${COMPOSE[@]}" exec -T postgres psql -U monitor -d monitor -tAc \
+  "select grade, delivery_grade, langfuse_status from batch_evaluations where run_id = '$RUN_ID'")"
+[ "$GRADE" = "Unknown|Unknown|skipped" ] || { echo "unexpected evaluation: $GRADE"; exit 1; }
+
 echo "SMOKE PASS: run $RUN_ID, trace $TRACE_ID"
