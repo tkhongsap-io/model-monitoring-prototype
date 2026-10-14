@@ -50,8 +50,8 @@ depend on. The spec is
 ### 2026-10-14 — S3-08b: diagram review after PR #87
 
 - PR #87 was merged into `dev` (`fde97dc`) and #85 is closed. This review is a new branch
-  from `dev`, `docs/s3-08b-diagram-review`. `dev` did not change between the drawing and
-  the review, so every finding is a drawing mistake or a change of framing.
+  from `dev`, `docs/s3-08b-diagram-review`. When the review was drawn, `dev` had not
+  changed since #87, so every finding was a drawing mistake or a change of framing.
 - Test host (reported by the project team on 2026-10-14): Langfuse is installed, all of
   S2-03, including the Collector's export to Langfuse. This replaces "Not run yet: the
   test-host deploy" in the S2-03 entry. No command output for it is in this repository.
@@ -94,12 +94,23 @@ depend on. The spec is
   - Only `docs/diagram/` and `docs/architecture/README.md` changed.
 - S2-05 merged into `dev` (#88, `fe307d7`) after this review was drawn: `batch_evaluations`
   (migrations 9 and 10), the evaluator and the Langfuse scores. It is not deployed on the
-  test host yet. Decided (owner, 2026-10-14): the pictures wait for that deploy. The
-  record of architecture `0003` now says "merged, not deployed" in place of "not built".
-- Remaining, after the S2-05 deploy: a new `er/monitor-database` version with
-  `batch_evaluations`; the evaluator in architecture `0003`'s successor, deployment
-  `gcp-test-host` and data-flow `batch-run`; compare `run-grade` with
-  `backend/app/engines/batch_grading.py`.
+  test host yet. Decided (owner, 2026-10-14): the pictures wait for that deploy, except
+  the ER (below). The record of architecture `0003` now says "merged, not deployed" in
+  place of "not built".
+- eatrabyo reviewed `15a3065` (7 findings, 3 notes). Each finding and its fix:
+
+  | # | Finding | Fix |
+  |---|---|---|
+  | 1 | Architecture `0003` said S2-05 was not built | Fixed already in `15a3065` |
+  | 2 | A `current` ER is drawn from the repository, so it is wrong as soon as S2-05 is merged | `4f78b07`: `er/monitor-database` 0002 (current) adds `batch_evaluations`. The owner chose to add it now, not after the deploy. |
+  | 3, 4 | Data-flow, sequence and `run-grade` for S2-05 | Deferred to the S2-05 deploy; the review accepts it |
+  | 5 | With one line of versions, AWS becoming `current` would supersede the test host while it is still the fallback | `fd03963`: architecture has two subjects (owner). `gcp-test-host` holds 0001 to 0003, and 0002 is superseded by 0003. `aws-production` 0001 is the former 0004. |
+  | 6 | No `CHANGELOG.md` update | One sentence added to the S3-08b item |
+  | 7 | The sequence note said the backend's limit always equals nginx's | `cdcebac`: the note names `BATCH_MAX_BODY_BYTES` (10 MiB by default) |
+
+- Remaining, after the S2-05 deploy: draw the evaluator in a new `gcp-test-host`
+  architecture version, in deployment `gcp-test-host` and in data-flow `batch-run`; compare
+  `run-grade` with `backend/app/engines/batch_grading.py`.
 
 ### 2026-10-14 — S2-05: batch evaluator
 
