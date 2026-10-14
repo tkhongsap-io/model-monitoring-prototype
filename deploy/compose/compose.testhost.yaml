@@ -1,7 +1,7 @@
 # GCP test host settings (S1-04): VM ai-ml-monitoring-dev-env, Cloud SQL sandbox-pg17-db.
 # Never use this file on a laptop. On the VM, run from /opt/model-monitor/compose:
 #   docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
-# BACKEND_IMAGE comes from the .env file in that folder (an image name, not a secret).
+# BACKEND_IMAGE and DASHBOARD_IMAGE come from the .env file in that folder (image names, not secrets); use the same run number for both.
 # Every secret comes from /opt/model-monitor/backend.env on the VM (chmod 600), never from
 # git. See deploy/compose/TESTHOST.md.
 services:
@@ -21,6 +21,9 @@ services:
       # OTLP_TOKEN of the GCP jobs (S1-06); made by make-collector-env.sh, mode 600
       - path: /opt/model-monitor/collector.env
         required: true
+
+  dashboard:
+    image: ${DASHBOARD_IMAGE:?DASHBOARD_IMAGE is not set}
 
   trace-check:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set}

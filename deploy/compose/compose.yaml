@@ -67,6 +67,19 @@ services:
     restart: "no"
     networks: [default, edge]   # reaches langfuse-web for the 5th item (S2-03)
 
+  # Dashboard (S2-07): the built UI files, handed out by the dashboard file server on 8090.
+  # No published port: the front door (deploy/nginx, port 8082) is the only way in.
+  dashboard:
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8090/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    networks:
+      edge:
+        aliases: [model-monitor-dashboard]
+
 volumes:
   collector-data:
 

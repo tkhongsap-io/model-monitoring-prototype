@@ -33,7 +33,7 @@ def test_images_are_pinned():
 
 def test_base_file_has_no_local_settings():
     base = _load("compose.yaml")["services"]
-    assert set(base) == {"backend", "collector", "collector-init", "trace-check"}
+    assert set(base) == {"backend", "collector", "collector-init", "trace-check", "dashboard"}
     for service in base.values():
         assert "build" not in service and "ports" not in service
     backend = base["backend"]
@@ -170,7 +170,7 @@ def test_ci_workflow_paths():
 
 def test_testhost_file_uses_registry_image_and_host_secrets():
     host = _load("compose.testhost.yaml")["services"]
-    assert set(host) == {"backend", "collector", "trace-check"}   # no database on the VM
+    assert set(host) == {"backend", "collector", "trace-check", "dashboard"}   # no database on the VM
     backend = host["backend"]
     assert backend["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
     assert "build" not in backend and "environment" not in backend
@@ -318,3 +318,16 @@ def test_compose_smoke_waits_for_the_evaluation():
     text = (ROOT / "scripts" / "compose-smoke.sh").read_text(encoding="utf-8")
     assert "batch_evaluator" in text and "unevaluated" in text
     assert "Unknown|Unknown|skipped" in text
+
+
+def test_dashboard_service():
+    base = _load("compose.yaml")["services"]["dashboard"]
+    assert "ports" not in base and "build" not in base
+    assert base["networks"] == {"edge": {"aliases": ["model-monitor-dashboard"]}}
+    assert "127.0.0.1:8090/healthz" in " ".join(base["healthcheck"]["test"])
+    assert base["restart"] == "unless-stopped"
+    local = _load("compose.local.yaml")["services"]["dashboard"]
+    assert local["build"] == {"context": "../..", "dockerfile": "deploy/dashboard/Dockerfile"}
+    assert local["image"] == "model-monitor-dashboard:local"
+    host = _load("compose.testhost.yaml")["services"]["dashboard"]
+    assert host == {"image": "${DASHBOARD_IMAGE:?DASHBOARD_IMAGE is not set}"}
