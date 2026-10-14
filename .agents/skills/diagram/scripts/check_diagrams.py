@@ -54,6 +54,7 @@ SUPERSEDED = re.compile(r"^superseded by (\d{4})$")
 AUTHOR = re.compile(r"^[^<>]+ <[^<>@\s]+@[^<>\s]+>$")
 CONTENT = re.compile(r'<svg\b[^>]*?\scontent="([^"]*)"', re.DOTALL)
 IMAGE = re.compile(r"(?:^|;)image=([^;]*)")
+ALLOWED_IMAGE = ("data:", "img/lib/")  # an embedded icon, or draw.io's own image libraries
 SHA256 = re.compile(r"\b[0-9a-f]{64}\b")
 NOT_TYPES = {"icons"}
 LIVE = ("current", "proposed")
@@ -81,6 +82,24 @@ def frontmatter(path: Path) -> dict:
     return {}
 
 
+def outside_images(model: str) -> list:
+    """Return the images in the cell styles of a draw.io model that are not allowed.
+
+    Allowed: a data URI and ``img/lib/...``. ``render.py export`` runs this on its source
+    and the gate on every recorded version, so the two agree. Raises ET.ParseError when
+    model is not well-formed XML.
+    """
+    root = ET.fromstring(model)
+    return sorted(
+        {
+            image
+            for cell in root.iter()
+            for image in IMAGE.findall(cell.get("style", ""))
+            if not image.startswith(ALLOWED_IMAGE)
+        }
+    )
+
+
 def model_problems(svg: Path) -> list:
     """Return what is wrong with svg: its size, and the draw.io model embedded in it."""
     size = svg.stat().st_size
@@ -93,17 +112,9 @@ def model_problems(svg: Path) -> list:
     if "<mxGraphModel" not in model:
         return ["the embedded model is compressed (export with render.py, which passes -u)"]
     try:
-        root = ET.fromstring(model)
+        linked = outside_images(model)
     except ET.ParseError as error:
         return [f"the embedded model is not well-formed XML: {error}"]
-    linked = sorted(
-        {
-            image
-            for cell in root.iter()
-            for image in IMAGE.findall(cell.get("style", ""))
-            if not image.startswith(("data:", "img/lib/"))
-        }
-    )
     return [f"image linked by URL or path, not embedded: {image}" for image in linked]
 
 

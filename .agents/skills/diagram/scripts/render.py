@@ -50,18 +50,19 @@ import re
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from check_diagrams import MAX_KB  # beside this script
+from check_diagrams import CONTENT, MAX_KB, outside_images  # beside this script
 
 log = logging.getLogger("render")
 
 PATH_NAMES = ("drawio", "draw.io", "com.jgraph.drawio.desktop")  # the last is the Flatpak
 INSTALL_URL = "https://github.com/jgraph/drawio-desktop/releases"
-CONTENT = re.compile(r'<svg\b[^>]*?\scontent="([^"]*)"', re.DOTALL)
 TIMEOUT_SECONDS = 180
-TRANSPARENT = "background: transparent; background-color: transparent;"
-WHITE = "background-color: #ffffff;"
+SVG_START = re.compile(r"<svg\b[^>]*>")
+STYLE = re.compile(r'\sstyle="([^"]*)"')
+WHITE = "background-color: #ffffff"
 
 
 class DrawioBinError(Exception):
@@ -168,13 +169,38 @@ def end_with_newline(path: Path) -> None:
 def linked_images(source: Path) -> list[str]:
     """Return the image references in source that point outside the file and draw.io.
 
-    Allowed: a data URI (an icon from docs/diagram/icons/) and ``img/lib/...`` (draw.io's
-    own image libraries, which ship with every copy of draw.io). A URL or a file path
-    makes the next edit depend on the network or on one machine's disk.
+    The same rule as the gate (``check_diagrams.outside_images``): a data URI (an icon
+    from docs/diagram/icons/) and ``img/lib/...`` (draw.io's own image libraries) are
+    allowed. A URL or a file path makes the next edit depend on the network or on one
+    machine's disk.
     """
-    styles = re.findall(r'style="([^"]*)"', source.read_text(encoding="utf-8"))
-    images = [m for style in styles for m in re.findall(r"(?:^|;)image=([^;]*)", style)]
-    return [i for i in images if not i.startswith(("data:", "img/lib/"))]
+    try:
+        return outside_images(source.read_text(encoding="utf-8"))
+    except ET.ParseError as error:
+        raise SystemExit(f"{source} is not a draw.io model: {error}") from error
+
+
+def white_background(rendered: str) -> str:
+    """Return the exported SVG with a white background on its root ``<svg>``.
+
+    draw.io exports a transparent background, which a dark page turns unreadable. Every
+    ``background`` declaration in the root's style is replaced by one white background,
+    so the result does not depend on how a draw.io version orders or spaces the style.
+    Only the root's ``style`` attribute changes; the embedded model is left alone.
+    """
+    start = SVG_START.search(rendered)
+    if start is None:
+        raise SystemExit("the export holds no <svg> element")
+    tag = start.group(0)
+    style = STYLE.search(tag)
+    declarations = (style.group(1) if style else "").split(";")
+    kept = [d.strip() for d in declarations if d.strip() and not d.strip().startswith("background")]
+    value = "; ".join([WHITE, *kept]) + ";"
+    if style:
+        tag = tag[: style.start(1)] + value + tag[style.end(1) :]
+    else:
+        tag = f'<svg style="{value}"' + tag[4:]
+    return rendered[: start.start()] + tag + rendered[start.end() :]
 
 
 def export(source: Path, output: Path, preview: Path | None) -> None:
@@ -200,7 +226,7 @@ def export(source: Path, output: Path, preview: Path | None) -> None:
         raise SystemExit(f"{output} has no embedded diagram; draw.io did not embed the model")
     if "&lt;mxGraphModel" not in rendered:
         raise SystemExit(f"{output} embeds a compressed model; draw.io ignored -u")
-    output.write_text(rendered.replace(TRANSPARENT, WHITE, 1), encoding="utf-8", newline="")
+    output.write_text(white_background(rendered), encoding="utf-8", newline="")
     end_with_newline(output)
     size = output.stat().st_size
     if size > MAX_KB * 1024:
