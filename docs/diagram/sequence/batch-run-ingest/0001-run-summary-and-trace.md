@@ -26,8 +26,9 @@ First recorded version.
 
 Corrected in place on 2026-10-14 (the note only; the code did not change): the front door
 refuses a body over 10 MiB itself, with 413, before message 2
-(`deploy/nginx/conf.d/model-monitor.conf`, `client_max_body_size 10m`). The backend's own
-413 has the same limit, so it is reached only from inside the VM.
+(`deploy/nginx/conf.d/model-monitor.conf`, `client_max_body_size 10m`). The backend's limit
+is `BATCH_MAX_BODY_BYTES`, 10 MiB by default (`backend/app/config.py`); with the default,
+the backend's 413 is reached only from inside the VM.
 
 ## Key
 
