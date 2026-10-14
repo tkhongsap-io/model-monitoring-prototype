@@ -4,11 +4,12 @@
 # ///
 """The content half of the icon check: is one file in docs/diagram/icons/ safe to keep?
 
-An icon may come from any website that licenses it (.agents/rules/diagram.md, ADR-0010),
-so its bytes are untrusted. An SVG can carry script, event handlers, HTML, and links that
-fetch other files; a PNG can carry location data or bytes hidden after the image. A file
-that fails is refused, never repaired: the agent picks another source. Findings and their
-sources: docs/research/2026-10-11-svg-and-png-icon-safety.md.
+An icon may come from any website that licenses it (.agents/rules/diagram.md), so its
+bytes are untrusted. An SVG can carry script, event handlers, HTML, links that fetch
+other files, and XMP metadata; a PNG can carry location data, free text, or bytes hidden
+after the image. A file that fails is refused, never repaired: the agent picks another
+source. The comments on SVG_ELEMENTS, PNG_CHUNKS and PNG_REFUSED say what is refused and
+why; tests/test_icon_safety.py gives one hostile file for each reason.
 
     uv run .agents/skills/diagram/scripts/icon_safety.py FILE [FILE ...]
 

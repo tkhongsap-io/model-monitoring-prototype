@@ -4,8 +4,9 @@
 # ///
 """Check the structure of the recorded diagram versions in docs/diagram/.
 
-The gate runs this (the ``check-diagrams`` hook in .pre-commit-config.yaml), so it needs
-nothing but the standard library: no draw.io, no network. It checks what the rule in
+The gate runs this (the ``check-diagrams`` workflow, .github/workflows/check-diagrams.yml,
+on Linux, macOS and Windows), so it needs nothing but the standard library: no draw.io,
+no network. It checks what the rule in
 .agents/rules/diagram.md makes checkable:
 
 - a type directory holds either versions or subject directories, never both: beside its

@@ -4,13 +4,13 @@
 # ///
 """Download one icon into docs/diagram/icons/, and keep it only if it passes the icon check.
 
-The only way an icon from the internet enters the repository (.agents/rules/diagram.md,
-ADR-0010). The file is fetched over HTTPS, written beside its final name, and checked
-with ``icon_safety.py``; a refused file is deleted and the reasons are printed, so the
-next source can be tried. A file that passes is kept as downloaded, with two exceptions:
-an SVG's end is set to exactly one newline (the gate's end-of-file-fixer would do it
-anyway), and ``--fill`` adds the brand colour to the root ``<svg>`` of a Simple Icons file
-at a pinned version, which ships without one.
+The only way an icon from the internet enters the repository (.agents/rules/diagram.md).
+The file is fetched over HTTPS, written beside its final name, and checked with
+``icon_safety.py``; a refused file is deleted and the reasons are printed, so the next
+source can be tried. A file that passes is kept as downloaded, with two exceptions: an
+SVG's end is set to exactly one newline (so an editor that adds one does not change the
+file and its SHA-256), and ``--fill`` adds the brand colour to the root ``<svg>`` of a
+Simple Icons file at a pinned version, which ships without one.
 
     uv run .agents/skills/diagram/scripts/fetch_icon.py URL NAME [--fill '#RRGGBB']
 

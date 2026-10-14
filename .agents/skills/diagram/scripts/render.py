@@ -21,9 +21,9 @@ viewers fall back to their own sans-serif). The model is embedded uncompressed, 
 version diffs as text and its labels can be searched without draw.io. It is drawn in the
 light theme on a white background: draw.io otherwise exports adaptive light-dark colours
 on a transparent background, which a dark page can turn unreadable. It ends the file
-with a newline (the gate's end-of-file-fixer would otherwise rewrite it), refuses a
-result over the gate's 1024 KB limit (``check_diagrams.MAX_KB``), and optionally writes
-a PNG preview.
+with a newline (so an editor that adds one does not change the file), refuses a result
+over the gate's 1024 KB limit (``check_diagrams.MAX_KB``), and optionally writes a PNG
+preview.
 ``extract`` recovers the uncompressed model from a recorded version, which is where the
 next version starts; it only reads the recorded file, and needs draw.io only for a
 compressed model. ``labels`` prints every cell's label as plain text, one per line,
