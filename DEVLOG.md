@@ -58,8 +58,10 @@ depend on. The spec is
   file server, dashboard API, job API).
 - Evidence: Windows, outside the Codex sandbox: fast suite 549 passed, 9 deselected.
   The design was previewed before the build with the real frontend and a mock API.
-- Not run here: the dashboard image build, `smoke` on port 8082 and `strict-live-frontend`
-  (CI, on the PR), and the test-host deploy. On the test host, the monitor stack needs
+- CI on #90: `smoke` passed (the dashboard image built with `build:live` and
+  `check:strict-live`; port 8082 served the page, the graded run and its `trace_id`, and
+  refused the job API); `langfuse-smoke` and `test-migrate-and-configure` passed.
+- Not run yet: the test-host deploy. On the test host, the monitor stack needs
   `DASHBOARD_IMAGE` in `.env` from this change on.
 
 ### 2026-10-14 — S3-08b: diagram review after PR #87
