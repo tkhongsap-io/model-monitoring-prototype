@@ -13,6 +13,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/health-grid" component={Heatmap} />
       <Route path="/heatmap" component={Heatmap} />
       <Route path="/use-case/:id" component={UseCase} />
       <Route component={NotFound} />

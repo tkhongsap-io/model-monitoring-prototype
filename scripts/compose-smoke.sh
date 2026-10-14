@@ -152,7 +152,8 @@ GRADE="$("${COMPOSE[@]}" exec -T postgres psql -U monitor -d monitor -tAc \
 STEP="dashboard through the front door (S2-07)"
 code "200" "$DASH/"
 curl -fsS "$DASH/" | grep -q '<div id="root">'
-code "200" "$DASH/heatmap"
+code "200" "$DASH/health-grid"
+code "200" "$DASH/heatmap"   # old link, kept as an alias
 curl -fsS "$DASH/api/live/portfolio" | python3 -c '
 import json, sys
 rows = {r["registry_id"]: r for r in json.load(sys.stdin)["rows"]}

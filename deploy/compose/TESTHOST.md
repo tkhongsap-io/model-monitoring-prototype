@@ -430,7 +430,7 @@ built UI; its **dashboard file server** listens on 8090 inside Docker only.
 1. From the laptop, open port 8082 to IAP (the same rule as Langfuse):
 
    ```sh
-   gcloud compute firewall-rules update langfuse-testhost-allow-iap --rules tcp:3000,tcp:8082
+   gcloud compute firewall-rules update langfuse-testhost-allow-iap --rules "tcp:3000,tcp:8082"
    ```
 
 2. Copy `deploy/nginx/conf.d/dashboard.conf` to `/opt/nginx/conf.d/`,
@@ -455,7 +455,7 @@ built UI; its **dashboard file server** listens on 8090 inside Docker only.
    gcloud compute start-iap-tunnel ai-ml-monitoring-dev-env 8082 --local-host-port=localhost:8082 --zone asia-southeast3-c
    ```
 
-   Open `http://localhost:8082`. The heatmap shows `rtr-fraud-validation` only.
+   Open `http://localhost:8082/health-grid`. The health grid shows `rtr-fraud-validation` only.
 
 ## Check a trace (S1-07)
 

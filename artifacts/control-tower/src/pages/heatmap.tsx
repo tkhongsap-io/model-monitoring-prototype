@@ -16,7 +16,7 @@ export default function Heatmap() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-bold">Monitoring Lane Heatmap</h1>
+        <h1 className="text-lg font-bold">Health Grid</h1>
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${stateTone(effectiveState)}`}>{stateLabel(effectiveState)}</span>
         {error && <span className="text-xs font-semibold text-red-700">{error}</span>}
       </div>

@@ -45,8 +45,8 @@ export default function UseCase() {
 
   return (
     <div>
-      <button className="mb-2 text-xs font-semibold text-slate-400 hover:text-[#E60012]" onClick={() => router.push("/heatmap")}>
-        Heatmap › {uc.use_case_name}
+      <button className="mb-2 text-xs font-semibold text-slate-400 hover:text-[#E60012]" onClick={() => router.push("/health-grid")}>
+        Health grid › {uc.use_case_name}
       </button>
       {resource.error && (
         <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-sm font-semibold text-red-800" role="alert">

@@ -3,7 +3,7 @@ import { formatAge, shortId, stateLabel, stateTone, useLive, useLiveResource } f
 
 const TABS = [
   { href: "/", label: "At A Glance" },
-  { href: "/heatmap", label: "Heatmap" },
+  { href: "/health-grid", label: "Health grid" },
 ];
 
 export function LiveMasthead() {
