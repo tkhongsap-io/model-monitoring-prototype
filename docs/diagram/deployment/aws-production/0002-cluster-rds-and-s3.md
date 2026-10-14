@@ -23,7 +23,7 @@ note.
 
 | Version 0001 | This version | Source |
 |---|---|---|
-| No path from the monitor backend to `langfuse-web` | HTTP 3000, the spans and scores of the backend (Langfuse SDK) | `plan.md`, decision of 2026-10-03; `issues.md` S2-05; architecture 0004 |
+| No path from the monitor backend to `langfuse-web` | HTTP 3000, the spans and scores of the backend (Langfuse SDK) | `plan.md`, decision of 2026-10-03; `issues.md` S2-05; architecture `aws-production` 0001 |
 | oauth2-proxy to the backend: "HTTP" | HTTP 8000 | `deploy/compose/compose.yaml` (the backend port) |
 | Backend to the Collector: "OTLP/HTTP" | OTLP/HTTP 4318 | `deploy/compose/compose.yaml` |
 
@@ -42,4 +42,4 @@ note.
 - `changes/2026-10-02-batch-monitoring-mvp/issues.md`: S2-05, S3-06, S3-07, S4-01, S4-02, the fixed versions
 - `changes/2026-10-02-batch-monitoring-mvp/plan.md`, the decisions of 2026-10-03, 2026-10-04 and 2026-10-05
 - `deploy/compose/compose.yaml` (the ports of the backend and the Collector)
-- Architecture 0004
+- [Architecture, `aws-production` 0001](../../architecture/aws-production/0001-aws-production.md)
