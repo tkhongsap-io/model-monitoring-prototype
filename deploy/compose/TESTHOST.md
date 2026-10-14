@@ -294,7 +294,7 @@ request and a new image) before its key works. The tool never prints a key or a 
    sudo growpart /dev/nvme0n1 1 && sudo resize2fs /dev/nvme0n1p1
    ```
 
-2. In Google Cloud Console, APIs & Services ? Credentials ? OAuth client ID,
+2. In Google Cloud Console, APIs & Services → Credentials → OAuth client ID,
    create a Web application client with an Internal consent screen. Set the redirect
    URI to `http://localhost:3000/api/auth/callback/google`. On the laptop, copy the
    template, then fill in its two values in an editor; never put them in chat.
@@ -355,29 +355,36 @@ request and a new image) before its key works. The tool never prints a key or a 
    sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
    ```
 
-8. On the VM, from `/opt/model-monitor/compose`, reload the Collector exporter:
+8. On the VM, set `BACKEND_IMAGE` in `/opt/model-monitor/compose/.env` to the build that
+   contains S2-03 (`backend:14` or later), then run
+   `sudo docker compose -f compose.yaml -f compose.testhost.yaml pull`.
+
+9. On the VM, from `/opt/model-monitor/compose`, reload the Collector exporter:
 
    ```sh
    sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
    ```
 
-9. On the VM, from `/opt/nginx`, publish the UI through nginx:
+10. On the VM, from `/opt/nginx`, publish the UI through nginx:
 
    ```sh
    sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
    ```
 
-10. On the laptop, open the IAP tunnel:
+11. On the laptop, open the IAP tunnel:
 
     ```sh
     gcloud compute start-iap-tunnel ai-ml-monitoring-dev-env 3000 --local-host-port=localhost:3000 --zone asia-southeast3-c
     ```
 
+    Or, when you connect to the VM with VS Code Remote-SSH, forward port 3000 in the
+    **Ports** panel. The local port must be 3000.
+
     Open `http://localhost:3000`, sign in with Google, and open project `model-monitor`.
 
-11. Add engineers in Settings ? Members using their company email. They sign in with Google.
+12. Add engineers in Settings → Members using their company email. They sign in with Google.
 
-12. On the VM, verify that Langfuse publishes no port, then check a trace:
+13. On the VM, verify that Langfuse publishes no port, then check a trace:
 
     ```sh
     sudo docker ps --format '{{.Names}} {{.Ports}}' | grep langfuse
@@ -388,6 +395,32 @@ request and a new image) before its key works. The tool never prints a key or a 
     ```
 
     The output includes the fifth item, `langfuse trace`.
+
+## Batch evaluator (S2-05)
+
+1. Copy `deploy/compose/add-langfuse-backend-env.sh` to `/opt/model-monitor/compose/`.
+2. On the VM, give the backend the Langfuse keys. Expect `600 root` and `BACKEND LANGFUSE ENV DONE`.
+
+   ```sh
+   sudo bash /opt/model-monitor/compose/add-langfuse-backend-env.sh
+   ```
+
+3. Set `BACKEND_IMAGE` in `/opt/model-monitor/compose/.env` to the build that contains
+   S2-05, then from `/opt/model-monitor/compose`:
+
+   ```sh
+   sudo docker compose -f compose.yaml -f compose.testhost.yaml pull && sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
+   ```
+
+4. Check readiness. `batch_evaluator.unevaluated` and `langfuse_pending` must be `0`
+   after one or two minutes.
+
+   ```sh
+   curl -s http://127.0.0.1:8000/api/readiness
+   ```
+
+5. In Langfuse, open the trace of the latest RTR run. It must show the `grade` and
+   `delivery_grade` scores.
 
 ## Check a trace (S1-07)
 

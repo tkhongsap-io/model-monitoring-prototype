@@ -27,7 +27,7 @@ def test_migration_eight_is_recorded_and_idempotent(isolated_db):
         versions = list(cx.execute(db.select(db.schema_migrations.c.version)).scalars())
         names = dict(cx.execute(db.select(db.schema_migrations.c.version,
                                           db.schema_migrations.c.name)).all())
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     assert names[8] == "batch run summaries"
 
 
@@ -77,3 +77,11 @@ def test_unique_pair_is_enforced_by_the_database(isolated_db):
 
 def test_get_missing_run_is_none(isolated_db):
     assert db.get_batch_run("GCP-UC-03", "nope") is None
+
+
+def test_put_makes_a_uuid7_from_the_receive_time(isolated_db):
+    from app import ids
+    import uuid
+    stored, _ = db.put_batch_run(row())
+    assert ids.is_uuid7(stored["batch_run_id"])
+    assert uuid.UUID(stored["batch_run_id"]).int >> 80 == int(stored["received_at"] * 1000)

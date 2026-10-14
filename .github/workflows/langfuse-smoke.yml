@@ -10,6 +10,9 @@ on:
       - ".github/workflows/langfuse-smoke.yml"
       - "backend/app/trace_check.py"
       - "backend/scripts/check_trace.py"
+      - "backend/app/batch_evaluator.py"
+      - "backend/app/adapters/langfuse_scores.py"
+      - "backend/app/engines/batch_grading.py"
   push:
     branches: [dev]
     paths:
@@ -20,6 +23,9 @@ on:
       - ".github/workflows/langfuse-smoke.yml"
       - "backend/app/trace_check.py"
       - "backend/scripts/check_trace.py"
+      - "backend/app/batch_evaluator.py"
+      - "backend/app/adapters/langfuse_scores.py"
+      - "backend/app/engines/batch_grading.py"
 
 permissions:
   contents: read

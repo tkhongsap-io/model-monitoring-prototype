@@ -42,6 +42,8 @@ trap cleanup EXIT
 
 # The trace check reads Langfuse only when this is set (compose.local.yaml).
 export CHECK_LANGFUSE_URL="http://langfuse-web:3000"
+# The backend sends its scores to Langfuse only when this is set (compose.local.yaml, S2-05).
+export BACKEND_LANGFUSE_HOST="http://langfuse-web:3000"
 
 STEP="edge network"
 if ! docker network inspect edge >/dev/null 2>&1; then
@@ -99,6 +101,23 @@ STEP="trace check with Langfuse"
 OUT="$(bash "$ROOT/deploy/compose/check-trace.sh" "$TRACE_ID" --wait 90 || true)"
 echo "$OUT"
 grep -q "RESULT: OK (5 of 5 found)" <<<"$OUT"
+
+STEP="grade score in Langfuse"
+AUTH="$(python3 -c 'import base64; print(base64.b64encode(b"pk-lf-local-00000000-0000-0000-0000-000000000000:sk-lf-local-00000000-0000-0000-0000-000000000000").decode())')"
+for i in $(seq 1 45); do
+  FOUND="$(curl -sS -H "Authorization: Basic $AUTH" \
+    "http://127.0.0.1:3000/api/public/v3/scores?traceId=$TRACE_ID&name=grade" \
+    | python3 -c 'import json, sys
+try:
+    print(len(json.load(sys.stdin).get("data", [])))
+except Exception:
+    print(0)')"
+  [ "$FOUND" = "1" ] && break
+  [ "$i" = "45" ] && { echo "no grade score on the trace after 90 s"; exit 1; }
+  sleep 2
+done
+PENDING="$(curl -fsS http://127.0.0.1:8000/api/readiness | python3 -c 'import json, sys; print(json.load(sys.stdin)["batch_evaluator"]["langfuse_pending"])')"
+[ "$PENDING" = "0" ] || { echo "langfuse_pending is $PENDING"; exit 1; }
 
 STEP="langfuse restart"
 "${LANGFUSE[@]}" restart

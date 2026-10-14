@@ -92,9 +92,27 @@ depend on. The spec is
   - `check_diagrams.py` exit 0. 106 script tests passed. `tests/test_docs.py`: 5 passed.
   - A label scan of all diagrams found no IP address, URL or token.
   - Only `docs/diagram/` and `docs/architecture/README.md` changed.
-- Next check: when S2-05 merges (`feat/s2-05-evaluator`: `batch_evaluations`, the
-  evaluator and the Langfuse scores), check the `er`, architecture, deployment and
-  `run-grade` pictures again.
+- S2-05 merged into `dev` (#88, `fe307d7`) after this review was drawn: `batch_evaluations`
+  (migrations 9 and 10), the evaluator and the Langfuse scores. The `er`, architecture,
+  deployment and `run-grade` pictures are not yet checked against it.
+
+### 2026-10-14 — S2-05: batch evaluator
+
+- Built (Codex from `changes/2026-10-14-s2-05-batch-evaluator/plan.md`, reviewed by
+  Claude): `engines/batch_grading.py`, `batch_evaluator.py` (lease `batch-evaluator`),
+  `adapters/langfuse_scores.py`, table `batch_evaluations` (migrations 9 and 10), uuid7 IDs
+  (`ids.py`, `uuid-utils`), readiness `batch_evaluator`, smoke checks,
+  `add-langfuse-backend-env.sh`.
+- Decisions: run status in S2-05, missing-run check in S3-02; `no_baseline` stays in the
+  rollup; two grades; `band_overrides` stops the start; uuid7 for the MVP tables.
+- Evidence: Windows, outside the Codex sandbox: fast suite 522 passed, 9 deselected.
+- Review fixes: removed a Codex-only `os.mkdir` patch from `conftest.py`; three old
+  tests expected migrations 1-8 and now expect 1-10.
+- CI on #88: `smoke` passed (the run was graded, `Unknown|Unknown|skipped`),
+  `langfuse-smoke` passed (the `grade` score is on the trace in Langfuse; 5 of 5 also after a
+  restart), `test-migrate-and-configure` passed.
+- Not run yet: the test-host deploy.
+- New package: `uuid-utils>=1.0,<2` (approved 2026-10-14).
 
 ### 2026-10-14 — S3-08b: review fixes (PR #87)
 

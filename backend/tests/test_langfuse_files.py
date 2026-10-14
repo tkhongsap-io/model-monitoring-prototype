@@ -122,6 +122,8 @@ WORKFLOW = ROOT / ".github" / "workflows" / "langfuse-smoke.yml"
 
 def test_langfuse_smoke_script():
     text = SMOKE.read_text(encoding="utf-8")
+    assert 'export BACKEND_LANGFUSE_HOST="http://langfuse-web:3000"' in text
+    assert "/api/public/v3/scores" in text and "name=grade" in text
     assert text.startswith("#!/usr/bin/env bash\n")
     assert "set -euo pipefail" in text and "trap cleanup EXIT" in text and "\r\n" not in text
     assert "deploy/langfuse/compose.yaml" in text and "deploy/langfuse/compose.local.yaml" in text
@@ -137,10 +139,15 @@ def test_langfuse_smoke_script():
 
 
 def test_langfuse_smoke_workflow():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    for path in ("backend/app/batch_evaluator.py", "backend/app/adapters/langfuse_scores.py"):
+        assert text.count(path) == 2
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     paths = {"deploy/langfuse/**", "deploy/nginx/**", "deploy/compose/otel-collector.yaml",
              "scripts/langfuse-smoke.sh", ".github/workflows/langfuse-smoke.yml",
-             "backend/app/trace_check.py", "backend/scripts/check_trace.py"}
+             "backend/app/trace_check.py", "backend/scripts/check_trace.py",
+             "backend/app/batch_evaluator.py", "backend/app/adapters/langfuse_scores.py",
+             "backend/app/engines/batch_grading.py"}
     triggers = workflow[True]
     assert set(triggers["pull_request"]["paths"]) == paths
     assert set(triggers["push"]["paths"]) == paths and triggers["push"]["branches"] == ["dev"]
