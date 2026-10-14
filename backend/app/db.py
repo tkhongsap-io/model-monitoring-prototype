@@ -19,12 +19,12 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean, Column, Float, Integer, LargeBinary, MetaData, String, Table, Text,
-    UniqueConstraint, create_engine, delete, event, false, insert, inspect, or_, select,
+    UniqueConstraint, create_engine, delete, event, false, func, insert, inspect, or_, select,
     update,
 )
 from sqlalchemy.exc import IntegrityError
 
-from . import config
+from . import config, ids
 
 metadata = MetaData()
 
@@ -267,6 +267,27 @@ batch_runs = Table(
     UniqueConstraint("use_case_id", "run_id", name="uq_batch_run"),
 )
 
+# One evaluation of a stored batch run (S2-05). The grade fields never change after the
+# insert; only the three langfuse_* fields do. `evaluation_id` is a uuid7.
+batch_evaluations = Table(
+    "batch_evaluations", metadata,
+    Column("evaluation_id", String, primary_key=True),
+    Column("batch_run_id", String, nullable=False, index=True),
+    Column("use_case_id", String, nullable=False, index=True),
+    Column("run_id", String, nullable=False),
+    Column("trace_id", String, nullable=False),
+    Column("bands_version", String, nullable=False),
+    Column("metrics", Text, nullable=False),
+    Column("delivery_grade", String, nullable=False),
+    Column("grade", String, nullable=False),
+    Column("baseline_run_ids", Text, nullable=False),
+    Column("evaluated_at", Float, nullable=False),
+    Column("langfuse_status", String, nullable=False),     # pending | sent | skipped | failed
+    Column("langfuse_attempts", Integer, nullable=False, default=0),
+    Column("langfuse_error", String),
+    UniqueConstraint("batch_run_id", "bands_version", name="uq_batch_evaluation"),
+)
+
 live_worker_leases = Table(
     "live_worker_leases", metadata,
     Column("lease_name", String, primary_key=True),
@@ -299,6 +320,14 @@ def migrate_engine(bind) -> list[int]:
             live_realized_metrics.c.status.in_(sorted(REALIZED_FINAL_STATUSES))).values(
                 final=True))
 
+    def uuid7_batch_run_ids(cx) -> None:
+        rows = cx.execute(select(batch_runs.c.batch_run_id, batch_runs.c.received_at)).all()
+        for old_id, received_at in rows:
+            if ids.is_uuid7(old_id):
+                continue
+            cx.execute(update(batch_runs).where(batch_runs.c.batch_run_id == old_id).values(
+                batch_run_id=ids.new_id(received_at)))
+
     migrations = [
         (1, "initial monitor schema", lambda cx: metadata.create_all(bind=cx)),
         (2, "durable live artifact blobs",
@@ -313,6 +342,9 @@ def migrate_engine(bind) -> list[int]:
          lambda cx: live_baselines.create(bind=cx, checkfirst=True)),
         (8, "batch run summaries",
          lambda cx: batch_runs.create(bind=cx, checkfirst=True)),
+        (9, "batch evaluations",
+         lambda cx: batch_evaluations.create(bind=cx, checkfirst=True)),
+        (10, "uuid7 batch run IDs", uuid7_batch_run_ids),
     ]
     applied_now: list[int] = []
     # The local lock also makes SQLite thread-contention tests deterministic. Managed
@@ -1159,8 +1191,8 @@ def put_batch_run(row: dict) -> tuple[dict, str]:
     `BatchRunConflict`.  A stored row is never updated or deleted.
     """
     use_case_id, run_id = row["use_case_id"], row["run_id"]
-    new = {**row, "received_at": time.time(), "batch_run_id": str(uuid.uuid5(
-        uuid.NAMESPACE_URL, f"batch-run/{use_case_id}/{run_id}"))}
+    received_at = time.time()
+    new = {**row, "received_at": received_at, "batch_run_id": ids.new_id(received_at)}
     with engine().begin() as cx:
         existing = cx.execute(select(batch_runs).where(
             _batch_run_where(use_case_id, run_id))).mappings().fetchone()
@@ -1192,6 +1224,68 @@ def list_batch_runs(use_case_id: str | None = None, limit: int = 100) -> list[di
         q = q.where(batch_runs.c.use_case_id == use_case_id)
     with engine().begin() as cx:
         return [dict(r) for r in cx.execute(q).mappings().all()]
+
+
+# ---------------------------------------------------------------- batch evaluations (S2-05)
+
+def runs_without_evaluation(bands_version: str, limit: int = 50) -> list[dict]:
+    """Stored runs with no evaluation for `bands_version`, oldest received first."""
+    done = select(batch_evaluations.c.batch_run_id).where(
+        batch_evaluations.c.bands_version == bands_version)
+    q = (select(batch_runs).where(batch_runs.c.batch_run_id.not_in(done))
+         .order_by(batch_runs.c.received_at).limit(max(1, min(limit, 500))))
+    with engine().begin() as cx:
+        return [dict(r) for r in cx.execute(q).mappings().all()]
+
+
+def batch_run_history(use_case_id: str, limit: int = 1000) -> list[dict]:
+    """ID, completion time and request count of the newest runs of one use case.
+
+    The caller selects the baseline by parsed time (`batch_grading.select_baseline`):
+    `completed_at` may have fractional seconds, so SQL text order is not time order."""
+    q = (select(batch_runs.c.batch_run_id, batch_runs.c.completed_at,
+                batch_runs.c.request_count)
+         .where(batch_runs.c.use_case_id == use_case_id)
+         .order_by(batch_runs.c.received_at.desc()).limit(max(1, min(limit, 5000))))
+    with engine().begin() as cx:
+        return [dict(r) for r in cx.execute(q).mappings().all()]
+
+
+def put_batch_evaluation(row: dict) -> bool:
+    """Insert one evaluation. False when the run already has one for these bands."""
+    with engine().begin() as cx:
+        try:
+            with cx.begin_nested():
+                cx.execute(insert(batch_evaluations), row)
+        except IntegrityError:
+            return False
+    return True
+
+
+def evaluations_for_langfuse(limit: int = 50) -> list[dict]:
+    q = (select(batch_evaluations).where(batch_evaluations.c.langfuse_status == "pending")
+         .order_by(batch_evaluations.c.evaluated_at).limit(max(1, min(limit, 500))))
+    with engine().begin() as cx:
+        return [dict(r) for r in cx.execute(q).mappings().all()]
+
+
+def set_langfuse_result(evaluation_id: str, status: str, error: str | None) -> None:
+    with engine().begin() as cx:
+        cx.execute(update(batch_evaluations).where(
+            batch_evaluations.c.evaluation_id == evaluation_id).values(
+                langfuse_status=status, langfuse_error=error,
+                langfuse_attempts=batch_evaluations.c.langfuse_attempts + 1))
+
+
+def evaluator_counts(bands_version: str) -> dict:
+    done = select(batch_evaluations.c.batch_run_id).where(
+        batch_evaluations.c.bands_version == bands_version)
+    with engine().begin() as cx:
+        unevaluated = cx.execute(select(func.count()).select_from(batch_runs).where(
+            batch_runs.c.batch_run_id.not_in(done))).scalar_one()
+        pending = cx.execute(select(func.count()).select_from(batch_evaluations).where(
+            batch_evaluations.c.langfuse_status == "pending")).scalar_one()
+    return {"unevaluated": int(unevaluated), "langfuse_pending": int(pending)}
 
 
 def clear_live_state(source_id: str | None = None) -> None:
