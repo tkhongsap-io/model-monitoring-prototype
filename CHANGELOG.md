@@ -26,7 +26,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   in the version's `.md` (`format: mermaid`), which GitHub draws; `render.py doctor` says
   whether draw.io was found. Claude Code finds the rule and the skill from a clone through
   pointers in `.claude/rules/` and `.claude/skills/`. The check and the tests of the
-  scripts run on Linux, macOS and Windows.
+  scripts run on Linux, macOS and Windows. The icon check refuses PNG text chunks and XMP
+  in an SVG, and the check refuses a diagram file over 1024 KB.
 
 - Architecture diagrams, first draft (S3-08a): `docs/architecture/` has the GCP test host,
   the AWS production and the AWS production detail diagrams (draw.io SVG), for the solution

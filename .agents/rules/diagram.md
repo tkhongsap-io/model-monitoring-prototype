@@ -162,8 +162,9 @@ A component with no product icon is a plain labelled shape, never an unrelated l
 - It is an SVG or a PNG of at most 100 KB, and a PNG is at most 1024 px on each side.
 - It enters only through the skill's `fetch_icon.py`.
 - It passes the **icon check** (`icon_safety.py`), at download and in CI. The check
-  refuses script, event handlers, HTML, and DTDs; links that leave the file; and PNG
-  location data, unknown chunks, and bytes after the image. A file that fails is
+  refuses script, event handlers, HTML, and DTDs; links that leave the file; XMP and other
+  metadata from outside SVG; and PNG location data, text chunks, unknown chunks, and bytes
+  after the image. A file that fails is
   refused, never repaired: try the next source.
 - It is kept byte for byte as downloaded, except that an SVG ends in exactly one
   newline. A Simple Icons SVG may also get the brand `fill` on its root element. A file

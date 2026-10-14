@@ -47,6 +47,48 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-14 — S3-08b: review fixes (PR #87)
+
+- PR #87 is open into `dev` with @eatrabyo as reviewer. #85 has its labels, assignee and
+  parent. This closes "Not done" and the first item of "Remaining" in the entry below.
+- eatrabyo's review had 10 findings on the scripts, the tests and `.gitignore`. Each one
+  was checked against the code, and all 10 were correct. Six of them (1, 5, 7, 8, 9, 10)
+  are in `project-template` (`9b1339d`) too.
+- Fixed, one commit for each group:
+  - `4da7d0b`: the icon check refuses PNG `tEXt`, `zTXt` and `iTXt`, and SVG elements
+    from another namespace, inside `<metadata>` too. Both can hold XMP with a location.
+    New tests give one hostile file for each refusal reason, and test `add_fill`.
+  - `de0a83d`: `.gitignore` shares only `.claude/rules/diagram.md` and
+    `.claude/skills/diagram/`. Every other skill and rule under `.claude/` stays local.
+  - `a284fc4`: the icon hash is read from its table row only. A file beside subject
+    directories is reported. The imports are at module level. Quoted frontmatter values
+    pass. The gate refuses a `.drawio.svg` over 1024 KB (the owner's choice; it was a
+    500 KB limit that only `render.py` applied). The largest file is 407 KB.
+  - `ca6f219`: `render.py` sets the white background on the root `<svg>` style itself,
+    in place of an exact string replacement that could fail silently. `render.py` and
+    the gate share one image allowlist (`check_diagrams.outside_images`).
+  - `6f85910`: the docstrings name this repository's CI workflow and rule. Before, they
+    named the template's pre-commit hook, its ADR-0010 and a research file.
+- Evidence (Windows, Python 3.11, and `uv` for `render.py`):
+  - 106 tests passed (49 before). `check_diagrams.py` exit 0 on the 10 versions and the
+    8 icons.
+  - On a scratch copy of `docs/diagram/`, three cases:
+    - a stray `sequence/0002-Batch-Run.drawio.svg`: exit 1;
+    - a note above the icon table that names `docker.svg` with an old hash: exit 0;
+    - the same note, with the table row changed: exit 1.
+  - `git check-ignore`:
+    - ignored: `.claude/skills/other/SKILL.md`, `.claude/settings.local.json` and
+      `.claude/rules/personal.md`;
+    - not ignored: the two diagram pointers.
+  - draw.io 29.6.1 exported architecture `0002` again from its extracted model. The root
+    style (`background-color: #ffffff; color-scheme: light;`) and the size (407 KB) are
+    the same as in the recorded version.
+  - `tests/test_docs.py`: 5 passed.
+  - No file under `backend/app`, `artifacts/` or `deploy/` changed.
+- Not available locally: macOS and Linux. CI on the pull request runs them.
+- Remaining: send the 6 inherited fixes to `project-template`, together with the script
+  changes listed below.
+
 ### 2026-10-13 — S3-08b: diagram skill and architecture 0001
 
 - Recheck of S3-08a (#81): the judge item is done (`862a964`). The GCP test host draft had
