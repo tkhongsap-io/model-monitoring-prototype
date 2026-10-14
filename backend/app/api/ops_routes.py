@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from .. import config, db, registry
+from .. import batch_evaluator, config, db, registry
 from ..batch_schema import SCHEMA_VERSION
 
 router = APIRouter(prefix="/api")
@@ -50,7 +50,8 @@ def readiness():
         errors.append("database is not reachable")
     body = {"status": "ready" if not errors else "not_ready", "database": database,
             "batch_api_keys": len(config.batch_api_key_hashes()),
-            "use_cases": len(use_cases), "errors": errors}
+            "use_cases": len(use_cases), "errors": errors,
+            "batch_evaluator": batch_evaluator.status()}
     return JSONResponse(body, status_code=200 if not errors else 503)
 
 

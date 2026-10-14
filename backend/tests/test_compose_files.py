@@ -291,3 +291,30 @@ def test_make_collector_env_refuses_short_tokens():
     for line in text.splitlines():
         if "echo" in line:
             assert "TOKEN" not in line.replace("OTLP_TOKEN", ""), line
+
+
+def test_local_backend_langfuse_is_opt_in():
+    env = _load("compose.local.yaml")["services"]["backend"]["environment"]
+    assert env["LANGFUSE_HOST"] == "${BACKEND_LANGFUSE_HOST:-}"      # only langfuse-smoke sets it
+    assert env["LANGFUSE_PUBLIC_KEY"] == "pk-lf-local-00000000-0000-0000-0000-000000000000"
+    assert env["LANGFUSE_SECRET_KEY"] == "sk-lf-local-00000000-0000-0000-0000-000000000000"
+    assert env["BATCH_EVALUATOR_INTERVAL_S"] == "5"
+
+
+def test_add_langfuse_backend_env_script():
+    text = (COMPOSE / "add-langfuse-backend-env.sh").read_text(encoding="utf-8")
+    assert text.startswith("#!/usr/bin/env bash\n") and "\r\n" not in text
+    assert "set -euo pipefail" in text
+    for word in ("/opt/langfuse/langfuse.env", "/opt/model-monitor/backend.env",
+                 "LANGFUSE_INIT_PROJECT_PUBLIC_KEY", "LANGFUSE_INIT_PROJECT_SECRET_KEY",
+                 '"LANGFUSE_HOST": "http://langfuse-web:3000"', "chmod 600"):
+        assert word in text
+    for line in text.splitlines():
+        if line.lstrip().startswith(("echo", "print")):
+            assert "SECRET_KEY}" not in line and "$SECRET" not in line
+
+
+def test_compose_smoke_waits_for_the_evaluation():
+    text = (ROOT / "scripts" / "compose-smoke.sh").read_text(encoding="utf-8")
+    assert "batch_evaluator" in text and "unevaluated" in text
+    assert "Unknown|Unknown|skipped" in text

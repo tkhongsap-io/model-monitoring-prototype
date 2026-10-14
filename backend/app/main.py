@@ -8,6 +8,7 @@ the old composition from `tests/prototype_app.py`.
 
 Startup loads the batch use-case registry (S2-01; a bad registry stops the start) and runs
 the ordered migrations (`db.engine()`); shutdown sends the remaining spans.
+When `BATCH_EVALUATOR_ENABLED` is true, the lifespan also runs the batch evaluator (S2-05).
 """
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from . import config, db, logging_setup, registry, tracing
+from . import batch_evaluator, config, db, logging_setup, registry, tracing
 from .api import batch_routes, ops_routes
 
 logging_setup.configure(config.LOG_FORMAT)
@@ -25,9 +26,12 @@ logging_setup.configure(config.LOG_FORMAT)
 async def lifespan(app: FastAPI):
     registry.set_current(registry.load(config.BATCH_REGISTRY_PATH))   # error: no start
     db.engine()
+    if config.BATCH_EVALUATOR_ENABLED:
+        batch_evaluator.start()                                       # S2-05
     try:
         yield
     finally:
+        await batch_evaluator.stop()
         tracing.shutdown()
 
 

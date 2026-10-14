@@ -47,6 +47,24 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-14 — S2-05: batch evaluator
+
+- Built (Codex from `changes/2026-10-14-s2-05-batch-evaluator/plan.md`, reviewed by
+  Claude): `engines/batch_grading.py`, `batch_evaluator.py` (lease `batch-evaluator`),
+  `adapters/langfuse_scores.py`, table `batch_evaluations` (migrations 9 and 10), uuid7 IDs
+  (`ids.py`, `uuid-utils`), readiness `batch_evaluator`, smoke checks,
+  `add-langfuse-backend-env.sh`.
+- Decisions: run status in S2-05, missing-run check in S3-02; `no_baseline` stays in the
+  rollup; two grades; `band_overrides` stops the start; uuid7 for the MVP tables.
+- Evidence: Windows, outside the Codex sandbox: fast suite 522 passed, 9 deselected.
+- Review fixes: removed a Codex-only `os.mkdir` patch from `conftest.py`; three old
+  tests expected migrations 1-8 and now expect 1-10.
+- CI on #88: `smoke` passed (the run was graded, `Unknown|Unknown|skipped`),
+  `langfuse-smoke` passed (the `grade` score is on the trace in Langfuse; 5 of 5 also after a
+  restart), `test-migrate-and-configure` passed.
+- Not run yet: the test-host deploy.
+- New package: `uuid-utils>=1.0,<2` (approved 2026-10-14).
+
 ### 2026-10-14 — S3-08b: review fixes (PR #87)
 
 - PR #87 is open into `dev` with @eatrabyo as reviewer. #85 has its labels, assignee and
