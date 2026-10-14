@@ -1,6 +1,6 @@
-name: Build backend image
+name: Build images
 
-# Pushes the backend image to Artifact Registry for the GCP test host (S1-04).
+# Pushes the backend and dashboard images (one run number for both).
 # Auth is Workload Identity Federation: no service-account key exists anywhere.
 # Repository variables: GCP_PROJECT_ID, GCP_REGION, GAR_REPO, WIF_PROVIDER, WIF_SERVICE_ACCOUNT.
 on:
@@ -8,6 +8,10 @@ on:
     branches: [dev]
     paths:
       - "backend/**"
+      - "artifacts/control-tower/**"
+      - "deploy/dashboard/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/build-image.yml"
   workflow_dispatch:
 
@@ -26,6 +30,7 @@ jobs:
     env:
       REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev
       IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPO }}/dev/backend
+      DASHBOARD_IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPO }}/dev/dashboard
       TAG: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +49,21 @@ jobs:
             -t "$IMAGE:$TAG" backend
       - name: Smoke test the image
         run: docker run --rm "$IMAGE:$TAG" python -c "import app.main"
+      - name: Build dashboard
+        run: |
+          docker build -f deploy/dashboard/Dockerfile \
+            --label org.opencontainers.image.revision="${{ github.sha }}" \
+            --label org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}" \
+            -t "$DASHBOARD_IMAGE:$TAG" .
+      - name: Smoke test the dashboard image
+        run: |
+          docker run -d --name dash -p 127.0.0.1:18090:8090 "$DASHBOARD_IMAGE:$TAG"
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:18090/healthz && break; sleep 1; done
+          curl -fsS http://127.0.0.1:18090/ | grep -q '<div id="root">'
+          curl -fsS http://127.0.0.1:18090/heatmap | grep -q '<div id="root">'
+          docker rm -f dash
       - name: Push
-        run: docker push "$IMAGE:$TAG"
-      - run: echo "Pushed $IMAGE:$TAG (${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          docker push "$IMAGE:$TAG"
+          docker push "$DASHBOARD_IMAGE:$TAG"
+      - run: echo "Pushed $IMAGE:$TAG and $DASHBOARD_IMAGE:$TAG (${{ github.sha }})" >> "$GITHUB_STEP_SUMMARY"

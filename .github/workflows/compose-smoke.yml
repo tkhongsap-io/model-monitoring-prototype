@@ -3,6 +3,9 @@ name: Compose smoke test
 on:
   pull_request:
     paths:
+      - "artifacts/control-tower/**"
+      - "deploy/dashboard/**"
+      - "pnpm-lock.yaml"
       - "deploy/compose/**"
       - "deploy/nginx/**"
       - "backend/**"
@@ -11,6 +14,9 @@ on:
   push:
     branches: [dev]
     paths:
+      - "artifacts/control-tower/**"
+      - "deploy/dashboard/**"
+      - "pnpm-lock.yaml"
       - "deploy/compose/**"
       - "deploy/nginx/**"
       - "backend/**"

@@ -157,7 +157,8 @@ def test_ci_workflow_paths():
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     triggers = workflow[True]                       # PyYAML reads the key `on` as True
     paths = {"deploy/compose/**", "deploy/nginx/**", "backend/**", "scripts/compose-smoke.sh",
-             ".github/workflows/compose-smoke.yml"}
+             ".github/workflows/compose-smoke.yml", "artifacts/control-tower/**",
+             "deploy/dashboard/**", "pnpm-lock.yaml"}
     assert set(triggers["pull_request"]["paths"]) == paths
     assert set(triggers["push"]["paths"]) == paths
     assert triggers["push"]["branches"] == ["dev"]
@@ -331,3 +332,23 @@ def test_dashboard_service():
     assert local["image"] == "model-monitor-dashboard:local"
     host = _load("compose.testhost.yaml")["services"]["dashboard"]
     assert host == {"image": "${DASHBOARD_IMAGE:?DASHBOARD_IMAGE is not set}"}
+
+
+def test_build_image_builds_backend_and_dashboard():
+    text = (ROOT / ".github" / "workflows" / "build-image.yml").read_text(encoding="utf-8")
+    assert "/dev/backend" in text and "/dev/dashboard" in text
+    assert "-f deploy/dashboard/Dockerfile" in text
+    for path in ('"artifacts/control-tower/**"', '"deploy/dashboard/**"', '"pnpm-lock.yaml"'):
+        assert path in text
+    assert text.count("github.run_number") >= 1
+
+
+def test_compose_smoke_reaches_the_dashboard():
+    text = (ROOT / "scripts" / "compose-smoke.sh").read_text(encoding="utf-8")
+    assert 'DASH="http://127.0.0.1:8082"' in text
+    for check in ('"$DASH/"', '"$DASH/api/live/portfolio"',
+                  '"$DASH/api/live/use-case/rtr-fraud-validation"',
+                  '-X POST "$DASH/api/batch/runs"', '"$DASH/api/readiness"'):
+        assert check in text, check
+    workflow = (ROOT / ".github" / "workflows" / "compose-smoke.yml").read_text(encoding="utf-8")
+    assert '"artifacts/control-tower/**"' in workflow and '"deploy/dashboard/**"' in workflow
