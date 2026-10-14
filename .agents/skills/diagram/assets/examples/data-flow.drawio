@@ -1,0 +1,52 @@
+<mxfile host="drawio">
+  <diagram id="data-flow" name="Data flow example">
+    <mxGraphModel background="#FFFFFF" grid="1" gridSize="10" page="0" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="&lt;b&gt;Data flow checkout 0001: placing and paying for an order&lt;/b&gt;&lt;br&gt;2026-01-15" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="20" y="10" width="460" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="trust" value="Trust boundary: application network" style="html=1;fontColor=#DD344C;fontStyle=1;fontSize=10;align=left;verticalAlign=top;spacingLeft=6;spacingTop=2;fillColor=none;dashed=1;strokeWidth=2;strokeColor=#DD344C;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="260" y="70" width="440" height="370" as="geometry"/>
+        </mxCell>
+        <mxCell id="customer" value="Customer" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="40" y="140" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="provider" value="Payment provider" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="800" y="310" width="130" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1" value="1.0&lt;br&gt;Place order" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="310" y="125" width="90" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="p2" value="2.0&lt;br&gt;Charge payment" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="310" y="295" width="90" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1" value="D1&amp;nbsp; orders" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="530" y="150" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="f1" value="order details" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;entryX=0;entryY=0.3;" edge="1" parent="1" source="customer" target="p1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f2" value="confirmation" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.7;entryX=1;entryY=0.7;" edge="1" parent="1" source="p1" target="customer">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f3" value="order record" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="p1" target="d1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f4" value="order id, amount" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="p1" target="p2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f5" value="payment status" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="p2" target="d1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f6" value="charge request" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.4;entryX=0;entryY=0.3;" edge="1" parent="1" source="p2" target="provider">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f7" value="charge result" style="endArrow=classic;html=1;rounded=0;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.7;entryX=1;entryY=0.65;" edge="1" parent="1" source="provider" target="p2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
