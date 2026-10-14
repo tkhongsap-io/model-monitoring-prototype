@@ -59,7 +59,10 @@ depend on. The spec is
 - Evidence: Windows, outside the Codex sandbox: fast suite 522 passed, 9 deselected.
 - Review fixes: removed a Codex-only `os.mkdir` patch from `conftest.py`; three old
   tests expected migrations 1-8 and now expect 1-10.
-- Not run here: `smoke` and `langfuse-smoke` (CI, on the PR) and the test-host deploy.
+- CI on #88: `smoke` passed (the run was graded, `Unknown|Unknown|skipped`),
+  `langfuse-smoke` passed (the `grade` score is on the trace in Langfuse; 5 of 5 also after a
+  restart), `test-migrate-and-configure` passed.
+- Not run yet: the test-host deploy.
 - New package: `uuid-utils>=1.0,<2` (approved 2026-10-14).
 
 ### 2026-10-14 — S3-08b: review fixes (PR #87)
