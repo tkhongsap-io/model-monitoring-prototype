@@ -101,6 +101,12 @@ BATCH_MAX_BODY_BYTES = int(_env("BATCH_MAX_BODY_BYTES", str(10 * 1024 * 1024)))
 BATCH_REGISTRY_PATH = (os.getenv("BATCH_REGISTRY_PATH", "").strip()
                        or str(BACKEND_DIR / "registry" / "batch-use-cases.yaml"))
 
+# Batch evaluator (S2-05). Scores go only to the self-hosted Langfuse in the raw
+# LANGFUSE_HOST setting; never to the prototype default (cloud.langfuse.com).
+BATCH_EVALUATOR_ENABLED = _env("BATCH_EVALUATOR_ENABLED", "true").lower() in ("1", "true", "yes")
+BATCH_EVALUATOR_INTERVAL_S = float(_env("BATCH_EVALUATOR_INTERVAL_S", "30"))
+EVALUATOR_LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "").strip().rstrip("/")
+
 
 _BUILD_SHA_FILE = BACKEND_DIR / ".build-sha"
 
