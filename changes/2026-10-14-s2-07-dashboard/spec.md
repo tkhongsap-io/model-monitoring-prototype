@@ -2,6 +2,19 @@
 
 Intent: [intent.md](intent.md). Issue: S2-07 (#21).
 
+## Names (use exactly these words in code comments, docs and logs)
+
+| Name | What it is | Where |
+|---|---|---|
+| **front door** | The existing nginx that routes every request on the VM (S1-06). It does not serve app files. | Compose project `nginx`, service `nginx`, config `deploy/nginx/conf.d/*.conf`; host ports 80 (jobs), 3000 (Langfuse UI), **8082 (dashboard, new)** |
+| **dashboard** | The new Compose service that holds the built dashboard files | Compose project `model-monitor`, service `dashboard`, network alias `model-monitor-dashboard`, image `…/dev/dashboard:<run number>` |
+| **dashboard file server** | The small web server **inside** the dashboard image (nginx-unprivileged). It only hands out `dist/`. Never call it "the nginx". | `deploy/dashboard/file-server.conf`; port **8090**, inside Docker only, no published port |
+| **dashboard API** | The 3 read-only routes `/api/live/*` of the backend | `backend/app/api/dashboard_routes.py`, view in `backend/app/dashboard_view.py` |
+| **job API** | `POST /api/batch/runs` (S1-02), on front-door port 80 only | unchanged |
+
+Ports in one place: front door 80 / 3000 / 8082 (host) and 8080 / 3000 / 8082 (container;
+`127.0.0.1:8081` is its own health check); backend 8000; dashboard file server 8090;
+Langfuse web 3000 (inside Docker).
 ## Files
 
 | File | Change |
@@ -11,7 +24,7 @@ Intent: [intent.md](intent.md). Issue: S2-07 (#21).
 | `backend/app/db.py` | New read functions for the dashboard (no schema change). |
 | `backend/app/main.py` | Mount `dashboard_routes.router`; docstring names the new routes. |
 | `deploy/dashboard/Dockerfile` | New. Multi-stage build of `artifacts/control-tower` (build context: repository root). |
-| `deploy/dashboard/nginx.conf` | New. The static server inside the dashboard image (port 8080). |
+| `deploy/dashboard/file-server.conf` | New. The configuration of the **dashboard file server** inside the dashboard image (port 8090). |
 | `.dockerignore` | New or changed: keep `node_modules`, `.git`, `.env*`, `backend/.venv` out of the build context. |
 | `deploy/nginx/conf.d/dashboard.conf` | New. Port 8082: the dashboard and the read-only API paths. |
 | `deploy/nginx/compose.local.yaml`, `compose.testhost.yaml` | Publish port 8082 (`127.0.0.1:8082:8082` locally, `8082:8082` on the test host). |
@@ -143,14 +156,14 @@ state: `stale` > `idle` > `at_tail`; `idle` with no rows), `generated_at` (ISO U
 1. Stage `build`: a pinned Node 24 Alpine image (the plan names the exact tag, checked to
    exist), `corepack enable`, pnpm 10.15.1, copy the
    workspace files and `artifacts/control-tower`, `pnpm install --frozen-lockfile`, then
-   `PORT=8080 BASE_PATH=/ CONTROL_TOWER_MODE=live pnpm run build:live` and
+   `PORT=8090 BASE_PATH=/ CONTROL_TOWER_MODE=live pnpm run build:live` and
    `pnpm run check:strict-live`.
 2. Stage `serve`: `nginxinc/nginx-unprivileged:1.28.0-alpine` (the same pin as the front
    door), copy `artifacts/control-tower/dist/public` to `/usr/share/nginx/html` and
-   `deploy/dashboard/nginx.conf` to `/etc/nginx/conf.d/default.conf`. Port 8080, non-root.
+   `deploy/dashboard/file-server.conf` to `/etc/nginx/conf.d/default.conf`. Port 8090, non-root.
 
-`nginx.conf` (inside the image):
-- `listen 8080; server_tokens off;`
+`file-server.conf` (the dashboard file server, inside the image):
+- `listen 8090; server_tokens off;`
 - `location = /index.html` and `location /`: `try_files $uri $uri/ /index.html;` with
   `Cache-Control: no-cache` for `index.html`.
 - `location /assets/`: `try_files $uri =404;` with `Cache-Control: public, max-age=31536000, immutable`.
@@ -165,7 +178,7 @@ server {
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     set $mm_backend http://model-monitor-backend:8000;
-    set $mm_dashboard http://model-monitor-dashboard:8080;
+    set $mm_dashboard http://model-monitor-dashboard:8090;
 
     location = /api/live/portfolio { limit_except GET { deny all; } proxy_pass $mm_backend; }
     location ^~ /api/live/use-case/ { limit_except GET { deny all; } proxy_pass $mm_backend; }
@@ -181,7 +194,7 @@ denied method gives `403`. `deny` is the nginx way; the spec accepts `403` for "
 
 ## Compose
 
-- `compose.yaml`: service `dashboard` with a health check (`wget` on `127.0.0.1:8080/healthz`),
+- `compose.yaml`: service `dashboard` with a health check (`wget` on `127.0.0.1:8090/healthz`),
   `restart: unless-stopped`, networks `edge` with alias `model-monitor-dashboard`. No port.
 - `compose.local.yaml`: `dashboard` builds `context: ../..`, `dockerfile: deploy/dashboard/Dockerfile`,
   image `model-monitor-dashboard:local`.
@@ -222,7 +235,7 @@ TESTHOST "Dashboard (S2-07)":
 | `test_app_surface.py` | The allowlist has the 3 new GET paths |
 | `test_nginx_files.py` | `dashboard.conf`: port 8082, the 4 API paths, `location /api/ { return 404; }`, `limit_except GET` in each location; local `127.0.0.1:8082:8082`, test host `8082:8082` |
 | `test_compose_files.py` | The `dashboard` service in the three files; no published port in `compose.yaml` |
-| `test_dashboard_files.py` | Dockerfile: two pinned stages, `--frozen-lockfile`, `check:strict-live`, non-root base; `nginx.conf`: SPA fallback, cache headers, `/assets/` `=404` |
+| `test_dashboard_files.py` | Dockerfile: two pinned stages, `--frozen-lockfile`, `check:strict-live`, non-root base; `file-server.conf`: SPA fallback, cache headers, `/assets/` `=404` |
 
 ## Not in scope
 
