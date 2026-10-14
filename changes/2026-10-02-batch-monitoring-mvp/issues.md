@@ -1381,6 +1381,10 @@ For each job, do these steps:
 metrics of S2-05) and the trace ID of each run. The record and judge columns show
 "Unknown — records not approved" or are hidden.
 
+**Design 2026-10-14:** `changes/2026-10-14-s2-07-dashboard/` (intent, spec, plan). The
+dashboard is on front-door port 8082 (IAP tunnel), not 8080. The Delivery metrics show on
+the detail page only; the list pages keep the five existing lanes.
+
 
 **Decision (2026-10-03):** The dashboard shows only the GCP batch use cases. The UI does not
 change. The dashboard shows no record text.
@@ -1401,7 +1405,7 @@ of the chatbot uses now. The frontend code does not change.
 
 - On the test host and on AWS, the three prototype use cases are not configured. `LIVE_CHURN_URL`, `LIVE_CHATBOT_URL` and `LIVE_NBA_URL` are not set. Thus they do not appear on the dashboard.
 - The dashboard is for the RAI team. It has no Langfuse link, because Langfuse is for engineers. The API returns `trace_id`, so an engineer can find the trace in Langfuse.
-- The dashboard uses port 8080 on the test host (Sprint 2 prerequisites).
+- The dashboard uses front-door port 8082 on the test host (IAP tunnel).
 
 **Acceptance criteria**
 - [ ] On the test host, the portfolio shows only the GCP use cases.
@@ -1415,7 +1419,7 @@ of the chatbot uses now. The frontend code does not change.
 1. API tests for each state: scored, each "Unknown" reason, stale, identity-only.
 2. Search all API responses for the text in the S1-01 examples. Make sure that the text is not found.
 3. Run the pnpm checks. `build:live` and `check:strict-live` run in CI on Linux.
-4. Paired with S2-06: open the dashboard on port 8080. Make sure that the onboarded use cases show the correct freshness and grades.
+4. Paired with S2-06: open the dashboard on port 8082. Make sure that the onboarded use cases show the correct freshness and grades.
 
 ### S2-08 — One run as a single trace, GCP job to score
 

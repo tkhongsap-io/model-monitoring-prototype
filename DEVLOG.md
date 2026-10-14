@@ -47,6 +47,21 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-14 — S2-07: dashboard for the GCP use cases
+
+- Built (Codex task by task from `changes/2026-10-14-s2-07-dashboard/plan.md`, reviewed
+  by Claude after each task): `dashboard_view.py`, `api/dashboard_routes.py`,
+  `deploy/dashboard/` (image and dashboard file server), front-door `dashboard.conf`
+  (port 8082), Compose service `dashboard`, CI image build and smoke checks.
+- Decisions: serving option A (dashboard image, front door routes); port 8082; the
+  frontend does not change (lane mapping A); fixed names (front door, dashboard, dashboard
+  file server, dashboard API, job API).
+- Evidence: Windows, outside the Codex sandbox: fast suite 549 passed, 9 deselected.
+  The design was previewed before the build with the real frontend and a mock API.
+- Not run here: the dashboard image build, `smoke` on port 8082 and `strict-live-frontend`
+  (CI, on the PR), and the test-host deploy. On the test host, the monitor stack needs
+  `DASHBOARD_IMAGE` in `.env` from this change on.
+
 ### 2026-10-14 — S2-05: batch evaluator
 
 - Built (Codex from `changes/2026-10-14-s2-05-batch-evaluator/plan.md`, reviewed by

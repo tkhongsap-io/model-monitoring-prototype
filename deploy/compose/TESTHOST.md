@@ -422,6 +422,41 @@ request and a new image) before its key works. The tool never prints a key or a 
 5. In Langfuse, open the trace of the latest RTR run. It must show the `grade` and
    `delivery_grade` scores.
 
+## Dashboard (S2-07)
+
+The **front door** (the nginx project) gets port 8082. The **dashboard** service holds the
+built UI; its **dashboard file server** listens on 8090 inside Docker only.
+
+1. From the laptop, open port 8082 to IAP (the same rule as Langfuse):
+
+   ```sh
+   gcloud compute firewall-rules update langfuse-testhost-allow-iap --rules tcp:3000,tcp:8082
+   ```
+
+2. Copy `deploy/nginx/conf.d/dashboard.conf` to `/opt/nginx/conf.d/`,
+   `deploy/nginx/compose.testhost.yaml` to `/opt/nginx/`, and `deploy/compose/compose.yaml`
+   and `deploy/compose/compose.testhost.yaml` to `/opt/model-monitor/compose/`.
+3. In `/opt/model-monitor/compose/.env`, set `BACKEND_IMAGE` and `DASHBOARD_IMAGE` to the same
+   run number of "Build images", then from `/opt/model-monitor/compose`:
+
+   ```sh
+   sudo docker compose -f compose.yaml -f compose.testhost.yaml pull && sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
+   ```
+
+4. From `/opt/nginx`, recreate the front door to load the copied configuration:
+
+   ```sh
+   sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --force-recreate --wait nginx
+   ```
+
+5. On the laptop, open the tunnel, or forward port 8082 in the VS Code **Ports** panel:
+
+   ```sh
+   gcloud compute start-iap-tunnel ai-ml-monitoring-dev-env 8082 --local-host-port=localhost:8082 --zone asia-southeast3-c
+   ```
+
+   Open `http://localhost:8082`. The heatmap shows `rtr-fraud-validation` only.
+
 ## Check a trace (S1-07)
 
 One time, after the files are copied (the image must contain `scripts/check_trace.py`):

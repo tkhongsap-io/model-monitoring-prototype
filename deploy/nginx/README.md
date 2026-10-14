@@ -6,8 +6,8 @@ so two apps with a service named `backend` cannot collide. nginx finds the apps 
 time: if an app is down, nginx still starts, and only that app gives `502`.
 
 There is no DNS name on the test host, so each app has its own port (one `server` block for
-each port): 80 = model-monitor job paths (`conf.d/model-monitor.conf`). Sprint 2 adds the
-dashboard and Langfuse.
+each port): 80 = model-monitor job paths (`conf.d/model-monitor.conf`);
+8082 — dashboard (S2-07, `conf.d/dashboard.conf`). Sprint 2 also adds Langfuse.
 
 ## Start
 
