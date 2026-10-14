@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Batch evaluator (S2-05): a worker in the backend grades each stored run one time with the
+  core metrics (`run_status`, `turnaround_s`, `failure_rate`, `volume_change`; bands
+  `core-2026-10-12`, RAI approved), stores the result in `batch_evaluations` and sends the
+  scores to the run's trace in Langfuse. Readiness shows `batch_evaluator`. The IDs of the
+  MVP tables are uuid7 (`uuid-utils`); a migration changes the existing `batch_run_id`s.
+
 - Self-hosted Langfuse (S2-03): `deploy/langfuse/` (web, worker, PostgreSQL, ClickHouse,
   Redis, MinIO; no published port). The Collector exports every span to it; nginx serves
   the UI on port 3000 (IAP tunnel on the test host, Google sign-in). The trace check tool

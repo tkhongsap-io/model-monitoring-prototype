@@ -1239,6 +1239,10 @@ judge (S2-09 and S2-10 move after October), no task description and no
 `batch_record_judgments`. Size: M. Depends on: S2-01, S2-02, S2-03; RAI approves the core
 bands before the work starts.
 
+**Design 2026-10-14:** `changes/2026-10-14-s2-05-batch-evaluator/` (intent, spec, plan).
+RAI approved the core bands (`core-2026-10-12`). "Run on time" is split: the run status
+is graded here; the missing-run check stays in S3-02.
+
 New acceptance criteria for October (they replace the criteria below that need records or
 the judge):
 - [ ] The worker grades each new run one time with `failure_rate`, `volume_change` and `turnaround_s`. The `POST` request does not wait.
