@@ -42,16 +42,24 @@ SVG_ELEMENTS = {
 # fmt: on
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-# The critical chunks, colour and transparency information, and text (W3C PNG 3). Absent
-# on purpose: eXIf (it can hold a GPS location), the animation chunks, and any chunk type
-# the specification does not define.
+# The critical chunks and the colour and transparency information (W3C PNG 3). Absent on
+# purpose: eXIf and the text chunks (below), the animation chunks, and any chunk type the
+# specification does not define.
 # fmt: off
 PNG_CHUNKS = {
     b"IHDR", b"PLTE", b"IDAT", b"IEND", b"tRNS", b"cHRM", b"gAMA", b"iCCP", b"sBIT",
     b"sRGB", b"cICP", b"mDCV", b"cLLI", b"bKGD", b"hIST", b"pHYs", b"sPLT", b"tIME",
-    b"tEXt", b"zTXt", b"iTXt",
 }
 # fmt: on
+# Chunks refused with their reason: eXIf holds Exif, which can hold a GPS location; the
+# text chunks hold free text, and iTXt with keyword XML:com.adobe.xmp holds XMP, which can
+# hold one too (exif:GPSLatitude). An icon needs none of them.
+PNG_REFUSED = {
+    b"eXIf": "it can hold a location",
+    b"tEXt": "it holds free text, which can hold a location",
+    b"zTXt": "it holds free text, which can hold a location",
+    b"iTXt": "it holds free text or XMP, which can hold a location",
+}
 
 DTD = re.compile(rb"<!(DOCTYPE|ENTITY)", re.IGNORECASE)
 PROCESSING_INSTRUCTION = re.compile(r"<\?(?!xml\s)", re.IGNORECASE)
@@ -117,23 +125,24 @@ def svg_problems(data: bytes) -> list:
 
     problems = []
 
-    def walk(element: ET.Element, in_metadata: bool) -> None:
+    def walk(element: ET.Element) -> None:
         namespace, local = split_name(element.tag)
         where = f"<{local}>"
         if namespace == SVG_NS and local not in SVG_ELEMENTS:
             problems.append(f"{where}: element is not allowed")
         elif namespace == XHTML_NS:
             problems.append(f"{where}: HTML element is not allowed")
-        elif namespace != SVG_NS and not in_metadata:
+        elif namespace != SVG_NS:
+            # Inside <metadata> too: XMP and RDF (as editors write them) can hold a location.
             source = namespace or "no namespace"
-            problems.append(f"{where}: element from {source} is only allowed inside <metadata>")
+            problems.append(f"{where}: element from {source} is not allowed")
         problems.extend(attribute_problems(element, where))
         if namespace == SVG_NS and local == "style":
             problems.extend(css_problems(element.text or "", where))
         for child in element:
-            walk(child, in_metadata or (namespace == SVG_NS and local == "metadata"))
+            walk(child)
 
-    walk(root, False)
+    walk(root)
     return problems
 
 
@@ -162,8 +171,8 @@ def png_problems(data: bytes) -> list:
             if not (1 <= width <= MAX_PNG_SIDE and 1 <= height <= MAX_PNG_SIDE):
                 return [f"{width}x{height} px: each side must be 1 to {MAX_PNG_SIDE} px"]
             first = False
-        elif kind == b"eXIf":
-            return ["chunk eXIf is not allowed: it can hold a location"]
+        elif kind in PNG_REFUSED:
+            return [f"chunk {name} is not allowed: {PNG_REFUSED[kind]}"]
         elif kind not in PNG_CHUNKS:
             return [f"chunk {name} is not allowed"]
         position = end
