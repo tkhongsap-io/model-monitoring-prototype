@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-09 |
-| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. S3-08a (#81, the architecture draft for gate 4) added on 2026-10-12. S3-08b (#85, the diagram skill and the versioned architecture diagram) added on 2026-10-13. |
+| **Date** | 2026-10-14 |
+| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. S3-08a (#81, the architecture draft for gate 4) added on 2026-10-12. S3-08b (#85, the diagram skill and the versioned architecture diagram) added on 2026-10-13. S1-08 (#10) moved to Sprint 3 on 2026-10-14: security approves it through governance gates 4 and 6. |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
@@ -13,6 +13,19 @@ is proven by a real sender. One shared tool, the trace check tool (S1-07), follo
 trace ID through all the locations. Thus each paired test ends with the same question:
 did the data of this run arrive in the monitor database and in Langfuse with the same
 trace ID?
+
+## Changes on 2026-10-14: S1-08 goes through the governance gates
+
+The project owner moved S1-08 (#10) from Sprint 1 to Sprint 3. Security approves the four
+**S1** items of S1-08 in the governance process, not in a separate request. The items go
+into the Security Assessment of gate 4 (S3-08, submitted 19 October). Security Compliance
+decides in gate 6 (S3-09, by 23 October). The gate 6 decision is the written approval.
+
+S1-08 does not block Sprint 1. The test host does not need it, because the data stays in
+the same GCP VPC (2026-10-09). It is needed before S4-02, when the run data first goes from
+GCP to AWS. The S3-09 hard stop already covers this order. The other rows of S1-08 (the
+records, the PII list, the retention, the LiteLLM proxy logs, the readers of real data)
+wait until `SEND_RECORDS` goes on, after October. Changed: S1-08, S3-08, S3-09.
 
 ## Changes on 2026-10-09: AI governance document track
 
@@ -176,7 +189,7 @@ remaining prototype-only code.
 | S1-05 | OTel in the GCP job and the backend: one trace for each run | Feature | Part A: GCP job developer. Part B: backend. | S1-06 | M + M |
 | S1-06 | Minimal OTel Collector and front door (local stack and test host) | Infrastructure | Platform | S1-05 | M |
 | S1-07 | Trace check tool | Feature | Backend | S1-05 + S1-06 | S |
-| S1-08 | Security approval for the Sprint 1 data flow | Decision | Security + platform | — | S |
+| S1-08 | Security approval for the Sprint 1 data flow (moved to Sprint 3, through gates 4 and 6) | Decision | Project owner + platform. Approver: Security Compliance (S3-09). | S3-09 | S |
 | S1-09 | Inventory of the 7 use cases and October run dates | Discovery | PM + source owners | — | M |
 | S1-10 | First real run end to end | Verification | Backend + GCP job developer | S1-07 (trace check tool) | S |
 | S1-11 | Database accounts for the backend and the developers | Infrastructure | Platform + backend | S1-02, S1-07 | S |
@@ -271,7 +284,7 @@ stores the trace ID with the run.
 | GCP side | S1-01, S1-03, S1-05 part A | GCP job developer |
 | Monitor side | S1-02, S1-05 part B, S1-07 | Backend |
 | Infrastructure | S1-04, S1-06, S1-11 | Platform. The firewall and the certificates: your team. |
-| Decisions and discovery | S1-08, S1-09, S1-12 | Security, PM, backend |
+| Decisions and discovery | S1-09, S1-12. S1-08 moved to Sprint 3 (2026-10-14). | PM, backend |
 
 The two tracks start on Monday with the draft schema from S1-01. They meet on the test host.
 
@@ -734,7 +747,15 @@ product.
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
-| Decision | Security + platform | S1-01 | — | S |
+| Decision | Project owner + platform. Approver: Security Compliance (S3-09). | S1-01, S3-08, S3-09 | — | S |
+
+**Moved to Sprint 3 (decided 2026-10-14): the approval goes through the governance
+process.** The four **S1** items in the table below go into the Security Assessment of
+gate 4 (S3-08, submitted 19 October). Security Compliance decides in gate 6 (S3-09, by 23
+October). The gate 6 decision is the written approval for criterion 1. This issue does not
+block Sprint 1 or the GCP job developer. The other rows wait until `SEND_RECORDS` goes on,
+after October.
+
 **Changed 2026-10-09 (identity-only MVP):** the MVP sends `records: []` for all of October. No customer text leaves a
 GCP job. The approval now covers only the run identity (IDs, counts, status, times, model
 name) and the OTel spans. It is not needed on the test host, because the data stays in the
@@ -772,16 +793,19 @@ Security must approve these items:
 | Database accounts, and who can read real data | S1-11 |
 
 **Acceptance criteria**
-- [ ] Each **S1** item in the table is approved in writing, or blocked with an owner and a date (Sprint 1).
-- [ ] Each other item is approved in writing, or blocked with an owner and a date, before Sprint 2 sends records.
-- [ ] The list of PII types is written down.
-- [ ] The name of a security contact is in this issue.
+- [ ] Each **S1** item in the table is approved in writing, or blocked with an owner and a date. The gate 6 decision (S3-09) is the approval. Before S4-02.
+- [ ] The name of the security reviewer (Security Compliance) is in this issue.
+- [ ] After October, before `SEND_RECORDS` goes on: each other item is approved in writing, or blocked with an owner and a date.
+- [ ] After October, before `SEND_RECORDS` goes on: the list of PII types is written down.
+
+The last two criteria stay open when this issue closes in October. They move to a new
+issue for the records approval, with gates 3, 6 and 7 again.
 
 **How to test**
-1. Link the approval in this issue.
+1. Link the gate 6 decision (S3-09) in this issue.
 2. Compare the S1-01 schema with the approved fields, one field at a time.
-3. Compare the S1-03 placeholder list with the approved PII types.
-4. If the approval is not complete by 8 October, the job does not send records. All five metrics show "Unknown".
+3. Until the records are approved, the job sends no records (`SEND_RECORDS` off). The record and profile metrics show "Unknown".
+4. After October: compare the S1-03 placeholder list with the approved PII types.
 
 ### S1-09 — Inventory of the 7 use cases and October run dates
 
@@ -2170,7 +2194,7 @@ Monday 19 October. The IT Solution Architect examines the solution design.
 | Document | Source |
 |---|---|
 | AF Slide | The architecture in [plan](plan.md): GCP job → front door → backend → PostgreSQL; OTel Collector → Langfuse; SSO (S3-07). The test host in GCP (S1-04) and production in AWS (S3-06, plan A or plan B). The ports table in "Sprint 2 prerequisites". The fixed versions table. |
-| Security Assessment, first version | The S1-08 approval, ADR 0002 (push ingestion), the API key and the OTLP token, plain HTTP inside the VPC on the test host (S1-04), the SSO design (S3-07), the IP allowlist for AWS (S4-01), and S2-11 if it is done |
+| Security Assessment, first version | The four **S1** items of S1-08, for approval in gate 6 (2026-10-14), ADR 0002 (push ingestion), the API key and the OTLP token, plain HTTP inside the VPC on the test host (S1-04), the SSO design (S3-07), the IP allowlist for AWS (S4-01), and S2-11 if it is done |
 
 Gate 5 (implementation) has no review. The development issues are the gate 5 work. After
 gate 4 says "Yes", set the platform status to "In Development".
@@ -2201,12 +2225,13 @@ October. Security Compliance examines the security and the infrastructure readin
 | SSO results on the local stack, and each exception (for example no SSO on the test host) | S3-07 |
 | Attribute filter in the Collector | S3-03 |
 | Failure and recovery drills | S3-04 |
-| The approved data flow (identity-only) | S1-08, S2-14 |
+| The data flow (identity-only): the four **S1** items of S1-08 | S1-08, S2-14 |
 | The threat model, if it is done | S2-11 |
 
 **Acceptance criteria**
 - [ ] The updated Security Assessment is submitted. The link is in this issue.
 - [ ] The decision, the reviewer name and the date are in this issue, by Friday 23 October.
+- [ ] The decision covers the four **S1** items of S1-08. The link to the decision is also in S1-08 (2026-10-14).
 - [ ] Each open security exception has an owner and a date.
 
 **How to test**
