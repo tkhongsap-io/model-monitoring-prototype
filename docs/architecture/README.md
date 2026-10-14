@@ -24,10 +24,10 @@ ports, the VM size, and the Langfuse database). The corrected architecture is in
 [`docs/diagram/`](../diagram/README.md) (S3-08b), in two pictures. Use them for the
 consultation:
 
-- [Architecture 0003](../diagram/architecture/0003-gcp-test-host-today.md): the GCP test
-  host (phase 1) as it runs today.
-- [Architecture 0004](../diagram/architecture/0004-aws-production.md): AWS production
-  (phase 2), proposed.
+- [Architecture, gcp-test-host 0003](../diagram/architecture/gcp-test-host/0003-gcp-test-host-today.md):
+  the GCP test host (phase 1) as it runs today.
+- [Architecture, aws-production 0001](../diagram/architecture/aws-production/0001-aws-production.md):
+  AWS production (phase 2), proposed.
 
 ## Check during the consultation
 

@@ -5,9 +5,9 @@ author: Prakasit Issanapong <prakasit.tar@outlook.com>
 related: [ADR-0002]
 ---
 
-# Architecture 0003: the GCP test host (phase 1), as it runs today
+# Architecture, gcp-test-host 0003: the GCP test host (phase 1), as it runs today
 
-![Architecture 0003](0003-gcp-test-host-today.drawio.svg)
+![Architecture, gcp-test-host 0003](0003-gcp-test-host-today.drawio.svg)
 
 ## What it shows
 
@@ -16,14 +16,15 @@ VM with three Docker Compose projects (`nginx`, `model-monitor`, `langfuse`), Cl
 and the GCP batch jobs in the same VPC. It shows who connects, the front door and its
 routes, the components, the stores, and the ports between them.
 
-The picture leaves out AWS production (architecture 0004), the content of a run summary,
+The picture leaves out AWS production ([`aws-production`](../aws-production/README.md)), the content of a run summary,
 the grading logic, the prototype code that is not mounted, and the local stack. It contains
 no IP address, token or internal URL.
 
 ## What changed since the previous version
 
 Version 0002 showed both phases in one picture, as a proposal. This version shows only
-phase 1, and only what runs on the test host. Phase 2 is now architecture 0004.
+phase 1, and only what runs on the test host. Phase 2 is now the subject
+`aws-production` (its version 0001).
 
 Removed, because it is not on the test host:
 

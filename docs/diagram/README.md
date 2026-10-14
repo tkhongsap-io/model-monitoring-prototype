@@ -12,7 +12,7 @@ governance gate or a release check. **Nice to have** types are recorded when som
 
 | Priority | Type | Subject | Shows | Needed by | Index |
 |---|---|---|---|---|---|
-| **Must** | `architecture` | Whole project: `current` is the GCP test host (phase 1) as it runs; `proposed` is AWS production (phase 2) | Components, boundaries, flows, ports | Gate 4 AF Slide (S3-08), S3-08a | [architecture/](architecture/README.md) |
+| **Must** | `architecture` | `gcp-test-host` (phase 1, as it runs), `aws-production` (phase 2) | Components, boundaries, flows, ports | Gate 4 AF Slide (S3-08), S3-08a | [architecture/](architecture/README.md) |
 | **Must** | `data-flow` | `batch-run` | The data that leaves GCP, the processes and stores, the trust boundaries | Security Assessment (gates 4 and 6), DPO (gate 3), S2-11 | [data-flow/](data-flow/README.md) |
 | **Must** | `sequence` | `batch-run-ingest` | One run from the job to the database and to Langfuse, with one trace ID | S2-08, S4-04 | [sequence/](sequence/README.md) |
 | Nice to have | `deployment` | `gcp-test-host`, `aws-production` | Where each container runs, with protocol and port | S3-06, S4-01 | [deployment/](deployment/README.md) |

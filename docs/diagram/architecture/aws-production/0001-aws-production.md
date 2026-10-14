@@ -5,9 +5,9 @@ author: Prakasit Issanapong <prakasit.tar@outlook.com>
 related: [ADR-0002]
 ---
 
-# Architecture 0004: AWS production (phase 2), with ports, pipelines and stores
+# Architecture, aws-production 0001: AWS production (phase 2), with ports, pipelines and stores
 
-![Architecture 0004](0004-aws-production.drawio.svg)
+![Architecture, aws-production 0001](0001-aws-production.drawio.svg)
 
 ## What it shows
 
@@ -16,21 +16,23 @@ Thailand region, with two availability zones (plan A of S3-06). It shows the GCP
 jobs that send to it over the internet, the staff and operators who connect, the edge
 services, the cluster and its services, the stores, logging, and the change from phase 1.
 
-The picture leaves out the GCP test host (architecture 0003), the content of a run
+The picture leaves out the GCP test host ([`gcp-test-host`](../gcp-test-host/README.md)), the content of a run
 summary, the grading logic, and the local stack. It contains no IP address, token or
 internal URL.
 
 ## What changed since the previous version
 
-Version 0002 showed both phases in one picture. This version is phase 2 of 0002 on its
-own, and the GCP test host as it runs today is now architecture 0003.
+First version of this subject. Before it, `gcp-test-host` 0002 showed both phases in one
+picture. This version is phase 2 of that picture on its own; the GCP test host as it runs
+today is `gcp-test-host` 0003.
 
-| Version 0002 | This version | Source |
+| `gcp-test-host` 0002 | This version | Source |
 |---|---|---|
 | Secrets Manager in the region, with a "secrets" edge to the cluster | Removed. The secrets are in the Kubernetes secret store, as the plan says; item 4 of the assumptions says so. The AWS deployment diagram already drew it this way. | `issues.md` S3-06 (decisions, acceptance criteria) |
 | "Fixed versions" for both phases | Only the phase 2 versions; the backend image is `python:3.12-slim` | `backend/Dockerfile`, `issues.md` fixed versions |
 
-Nothing else changed: the components, the flows and the notes are those of 0002 phase 2.
+Nothing else changed: the components, the flows and the notes are those of phase 2 of
+`gcp-test-host` 0002.
 
 ## Key
 
@@ -47,4 +49,4 @@ Nothing else changed: the components, the flows and the notes are those of 0002 
 - `changes/2026-10-02-batch-monitoring-mvp/issues.md`: the changes of 2026-10-09, the fixed
   versions, S3-06, S3-07, S4-01, S4-02
 - `docs/adr/0002-batch-push-ingest.md`
-- Version 0002 and the AWS draft in `docs/architecture/`
+- `gcp-test-host` 0002 and the AWS draft in `docs/architecture/`
