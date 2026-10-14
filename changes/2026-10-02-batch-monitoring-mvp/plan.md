@@ -51,6 +51,7 @@ ready, we report the result as a pilot, with each blocker. We do not report a re
 | 2026-10-08 | **Sprint 1 sends identity-only bodies** (`records: []`, `records_reason: records_not_approved`). The job keeps `SEND_RECORDS` off. The record fixes (no system prompt in `question`, one `[IMAGE]` for each image, `retrieval_context: []` for images) move to Sprint 2. | The trace needs no record text. No customer text leaves GCP in Sprint 1. | S1-01, S1-03, S1-10 |
 | 2026-10-08 | **S1-08 for Sprint 1** approves only the run identity, the API key path, the certificate and the OTLP endpoint. The records, the PII list and the LiteLLM proxy logs are approved before Sprint 2 needs them. | Sprint 1 sends no text | S1-08 |
 | 2026-10-08 | **Backlog:** a reporter library for other teams (one Python file, one function `report_run()`, also a command-line tool) that builds, samples, redacts and sends the run summary. Not in October. | Teams outside the GCP batch jobs need a minimal way to register | — |
+| 2026-10-14 | **S1-08 moves to Sprint 3.** Security approves its four S1 items in the governance process: the Security Assessment of gate 4 (S3-08), and the decision of gate 6 (S3-09). | The approval must pass the governance process anyway. The test host does not need it; S4-02 does. | S1-08, S3-08, S3-09 |
 
 ## Sprints at a glance
 
@@ -69,7 +70,7 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 |---|---|---|---|
 | Test host VM and Cloud SQL instance in GCP, with the private VPC path from the first job (S1-04) | Platform + network team | Tue 6 October | Replay a saved real body into the local stack |
 | JSON body v1 | GCP job developer + backend | Wed 7 October | The Sprint 1 demo moves |
-| Security approval of the records, the PII list and the data flow | Security | Thu 8 October | Identity-only mode. A use case cannot pass the release without records. |
+| Security approval of the identity-only data flow (S1-08, through gate 6 since 2026-10-14). The records and the PII list: after October. | Security Compliance | Fri 23 October (S3-09) | S4-02 does not send runs to AWS. Identity-only mode stays. |
 | Inventory of the 7 use cases and their October run dates | PM + owners | Fri 9 October | Sprint 2 cannot select the jobs |
 | LiteLLM proxy access: URL, virtual keys, model alias, log policy (S1-12) | LiteLLM proxy owner | Fri 9 October | S2-09 is tested only on the local stack. No scores on the test host. |
 | Langfuse SDK v4 and the OTel packages approved | Backend + project owner | Mon 12 October | The tracing work waits |
@@ -93,7 +94,7 @@ Send the long-lead requests in Sprint 1. Their approval can take a long time.
 | S1-05 | OTel in the GCP job and the backend | GCP job developer + backend | M + M |
 | S1-06 | Minimal Collector and front door | Platform | M |
 | S1-07 | Trace check tool | Backend | S |
-| S1-08 | Security approval for the Sprint 1 data flow | Security | S |
+| S1-08 | Security approval for the Sprint 1 data flow (moved to Sprint 3, through gates 4 and 6) | Project owner; approver Security Compliance | S |
 | S1-09 | Inventory of the 7 use cases | PM + owners | M |
 | S1-10 | First real run from start to end | Backend + GCP job developer | S |
 | S1-11 | Database accounts | Platform + backend | S |

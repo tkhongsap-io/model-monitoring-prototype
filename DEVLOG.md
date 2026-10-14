@@ -47,6 +47,30 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-14 — S1-08 moves to Sprint 3, through the governance gates
+
+- Decided (project owner): security approves the four S1 items of S1-08 (#10) in the
+  governance process. They go into the Security Assessment of gate 4 (S3-08, #76,
+  19 October); the gate 6 decision (S3-09, #77, by 23 October) is the written approval.
+  S1-08 does not block Sprint 1 or the GCP job developer; it is needed before S4-02.
+- Changed: `issues.md` (a "Changes on 2026-10-14" section, the S1-08 section and its
+  criteria, the S3-08 and S3-09 rows, a new S3-09 criterion), `plan.md` (a decision row,
+  the S1-08 date row and the Sprint 1 table). No code change.
+- GitHub: #10 label `sprint-1` → `sprint-3`, and a comment that explains the move.
+- Sprint 1 issue review for the handoff to the GCP job developer (read-only checks on the
+  test host, 2026-10-14):
+  - S1-04 test 3: `POST /api/batch/runs` without a key → `401`, with a wrong key → `401`;
+    `/api/health` → `200` (from the VM).
+  - VM `ai-ml-monitoring-dev-env`: no external IP; Shielded VM has integrity monitoring and
+    vTPM on, **Secure Boot off**; **no snapshot schedule** (the project has no resource
+    policy); the service account `model-monitoring-service` has only
+    `roles/artifactregistry.reader`.
+  - The secrets `batch-api-key-rtr-fraud-validation` and `otlp-token` have no secret-level
+    IAM binding, so no job service account can read them yet. `rtr-fraud-validation` is not
+    a Cloud Run job in this project, so the job's project and service account are needed.
+- Remaining: the S1-04 Secure Boot and snapshot decisions (project owner); the secret
+  grants for the job; the first real run (S1-02a, S1-03, S1-05, S1-10).
+
 ### 2026-10-14 — S2-07: dashboard for the GCP use cases
 
 - Built (Codex task by task from `changes/2026-10-14-s2-07-dashboard/plan.md`, reviewed
