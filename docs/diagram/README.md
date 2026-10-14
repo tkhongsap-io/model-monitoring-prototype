@@ -16,7 +16,7 @@ governance gate or a release check. **Nice to have** types are recorded when som
 | **Must** | `data-flow` | `batch-run` | The data that leaves GCP, the processes and stores, the trust boundaries | Security Assessment (gates 4 and 6), DPO (gate 3), S2-11 | [data-flow/](data-flow/README.md) |
 | **Must** | `sequence` | `batch-run-ingest` | One run from the job to the database and to Langfuse, with one trace ID | S2-08, S4-04 | [sequence/](sequence/README.md) |
 | Nice to have | `deployment` | `gcp-test-host`, `aws-production` | Where each container runs, with protocol and port | S3-06, S4-01 | [deployment/](deployment/README.md) |
-| Nice to have | `er` | `monitor-database` | The tables and their keys | S1-11, S3-05 | [er/](er/README.md) |
+| Nice to have | `er` | `monitor-database`, `prototype-tables` | The tables and their keys | S1-11, S3-05 | [er/](er/README.md) |
 | Nice to have | `state` | `use-case-delivery` | The delivery health of a use case, and what changes it | RAI team, S3-02 | [state/](state/README.md) |
 | Nice to have | `decision` | `run-grade` | Which grade a run gets, and by which questions | Gate 7 (S4-08), S2-05 | [decision/](decision/README.md) |
 | Nice to have | `use-case` | `monitor` | The actors and what each can do | VRO Template, BRD | [use-case/](use-case/README.md) |
