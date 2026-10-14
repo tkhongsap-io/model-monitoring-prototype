@@ -26,12 +26,23 @@ not built.
 
 First recorded version.
 
+Corrected in place on 2026-10-14 (drawing mistakes; the code did not change):
+
+- The traces go from 4.0 to the engineers through 1.0 Route request: nginx serves the
+  Langfuse UI on port 3000 (`deploy/nginx/conf.d/langfuse.conf`). The flow went from 4.0
+  to the engineers directly. Engineers is drawn a second time at the left edge, so that
+  the flow does not cross the picture.
+- The trace ID goes from the engineers into 5.0 Check a trace: the tool takes it as its
+  argument (`backend/scripts/check_trace.py`).
+- 1.0 sends the spans to 3.0 from its right side, so the bottom of 1.0 is free for the
+  traces. The flow is the same.
+
 ## Key
 
 | Mark | Means |
 |---|---|
 | Circle | A process, numbered |
-| Box | An external entity |
+| Box | An external entity; Engineers is drawn twice, at the left and the right edge |
 | Two parallel lines | A data store, numbered `D1` to `D4` |
 | Arrow | A data flow, named by the data that moves |
 | Red dashed box | A trust boundary: what is inside is trusted together |
@@ -47,6 +58,7 @@ First recorded version.
 
 - `backend/app/api/batch_routes.py`, `backend/app/batch_schema.py`, `backend/app/registry.py`, `backend/app/tracing.py`
 - `backend/app/trace_check.py`
-- `deploy/nginx/conf.d/model-monitor.conf`, `deploy/compose/otel-collector.yaml`, `deploy/langfuse/compose.yaml`
+- `deploy/nginx/conf.d/model-monitor.conf`, `deploy/nginx/conf.d/langfuse.conf`, `deploy/compose/otel-collector.yaml`, `deploy/langfuse/compose.yaml`
+- `backend/scripts/check_trace.py`
 - `docs/adr/0002-batch-push-ingest.md`
 - `changes/2026-10-02-batch-monitoring-mvp/schema/README.md`

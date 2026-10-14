@@ -17,11 +17,20 @@ the Cloud SQL instance, Artifact Registry, and the nodes outside (the Cloud Run 
 Actions, an engineer's laptop). Each artifact names its image and its ports and volumes.
 
 The picture leaves out what the components do (the architecture) and the machine size. It
-is drawn from the deploy files; the Langfuse project is not yet installed on the VM.
+is drawn from the deploy files.
 
 ## What changed since the previous version
 
 First recorded version.
+
+Corrected in place on 2026-10-14 (drawing mistakes; the deploy files did not change):
+
+- The Cloud Run job is inside the VPC: the jobs run in the same VPC as the VM (S1-04).
+- `trace-check` has its paths: TLS 5432 to Cloud SQL and HTTP 3000 to `langfuse-web`, and
+  its read-only mount of `collector-data`.
+- `collector-init` (`busybox` 1.37.0), which sets the owner of `collector-data`, is drawn.
+- `clickhouse` lists both of its volumes, `clickhouse-data` and `clickhouse-logs`.
+- The secrets note names the S1-11 password files.
 
 ## Key
 
@@ -38,5 +47,6 @@ First recorded version.
 - `deploy/compose/compose.yaml`, `compose.testhost.yaml`, `otel-collector.yaml`
 - `deploy/nginx/compose.yaml`, `compose.testhost.yaml`, `conf.d/`
 - `deploy/langfuse/compose.yaml`, `compose.testhost.yaml`
+- `deploy/sql/s1-11/`; `DEVLOG.md` (S1-04: the jobs in the same VPC)
 - `.github/workflows/build-image.yml`
 - `changes/2026-10-02-batch-monitoring-mvp/issues.md`, S1-04 (Cloud SQL, IAP)
