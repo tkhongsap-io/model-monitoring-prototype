@@ -1,0 +1,61 @@
+<mxfile host="drawio">
+  <diagram id="state" name="State example">
+    <mxGraphModel background="#FFFFFF" grid="1" gridSize="10" page="0" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="&lt;b&gt;State order 0001: the life of an order&lt;/b&gt;&lt;br&gt;2026-01-15" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="20" y="10" width="420" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="initial" value="" style="ellipse;html=1;aspect=fixed;fillColor=#232F3E;strokeColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="50" y="115" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="pending" value="Pending" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="140" y="100" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="paid" value="Paid" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="400" y="100" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="shipped" value="Shipped" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="620" y="100" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="delivered" value="Delivered" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="840" y="100" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="cancelled" value="Cancelled" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#232F3E;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="400" y="260" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="final-delivered" value="" style="ellipse;html=1;shape=endState;aspect=fixed;fillColor=#232F3E;strokeColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="113" width="24" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="final-cancelled" value="" style="ellipse;html=1;shape=endState;aspect=fixed;fillColor=#232F3E;strokeColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="620" y="273" width="24" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="t0" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;strokeColor=#232F3E;" edge="1" parent="1" source="initial" target="pending">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t1" value="pay [authorised]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;verticalAlign=bottom;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="pending" target="paid">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t2" value="ship" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;verticalAlign=bottom;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="paid" target="shipped">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t3" value="deliver" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;verticalAlign=bottom;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="shipped" target="delivered">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;strokeColor=#232F3E;" edge="1" parent="1" source="delivered" target="final-delivered">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t5" value="cancel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="pending" target="cancelled">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t6" value="refund / release stock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;fontSize=10;strokeColor=#232F3E;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="paid" target="cancelled">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="t7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endSize=8;strokeColor=#232F3E;" edge="1" parent="1" source="cancelled" target="final-cancelled">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

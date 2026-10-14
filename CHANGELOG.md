@@ -22,6 +22,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   shows the Langfuse trace as a 5th item and reads the rotated span files. New CI test
   `langfuse-smoke`.
 
+- Diagram skill and versioned diagrams (S3-08b): the `diagram` skill in
+  `.agents/skills/diagram/` records each diagram as a numbered draw.io version in
+  `docs/diagram/`. Architecture `0001` shows phase 1 (the GCP test host) and phase 2 (AWS
+  production) in one picture, and corrects the first drafts; `0002` adds ports, pipelines and
+  stores. Also recorded: data flow, sequence, deployment, ER, state, decision and
+  use-case diagrams. New CI check `check-diagrams`. No change to the backend, the frontend or the deploy files.
+  On a machine without draw.io desktop, the skill records the version as a Mermaid block
+  in the version's `.md` (`format: mermaid`), which GitHub draws; `render.py doctor` says
+  whether draw.io was found. Claude Code finds the rule and the skill from a clone through
+  pointers in `.claude/rules/` and `.claude/skills/`. The check and the tests of the
+  scripts run on Linux, macOS and Windows. The icon check refuses PNG text chunks and XMP
+  in an SVG, and the check refuses a diagram file over 1024 KB.
+
 - Architecture diagrams, first draft (S3-08a): `docs/architecture/` has the GCP test host,
   the AWS production and the AWS production detail diagrams (draw.io SVG), for the solution
   design consultation before gate 4.

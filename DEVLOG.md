@@ -62,6 +62,129 @@ depend on. The spec is
 - Not run here: `smoke` and `langfuse-smoke` (CI, on the PR) and the test-host deploy.
 - New package: `uuid-utils>=1.0,<2` (approved 2026-10-14).
 
+### 2026-10-14 — S3-08b: review fixes (PR #87)
+
+- PR #87 is open into `dev` with @eatrabyo as reviewer. #85 has its labels, assignee and
+  parent. This closes "Not done" and the first item of "Remaining" in the entry below.
+- eatrabyo's review had 10 findings on the scripts, the tests and `.gitignore`. Each one
+  was checked against the code, and all 10 were correct. Six of them (1, 5, 7, 8, 9, 10)
+  are in `project-template` (`9b1339d`) too.
+- Fixed, one commit for each group:
+  - `4da7d0b`: the icon check refuses PNG `tEXt`, `zTXt` and `iTXt`, and SVG elements
+    from another namespace, inside `<metadata>` too. Both can hold XMP with a location.
+    New tests give one hostile file for each refusal reason, and test `add_fill`.
+  - `de0a83d`: `.gitignore` shares only `.claude/rules/diagram.md` and
+    `.claude/skills/diagram/`. Every other skill and rule under `.claude/` stays local.
+  - `a284fc4`: the icon hash is read from its table row only. A file beside subject
+    directories is reported. The imports are at module level. Quoted frontmatter values
+    pass. The gate refuses a `.drawio.svg` over 1024 KB (the owner's choice; it was a
+    500 KB limit that only `render.py` applied). The largest file is 407 KB.
+  - `ca6f219`: `render.py` sets the white background on the root `<svg>` style itself,
+    in place of an exact string replacement that could fail silently. `render.py` and
+    the gate share one image allowlist (`check_diagrams.outside_images`).
+  - `6f85910`: the docstrings name this repository's CI workflow and rule. Before, they
+    named the template's pre-commit hook, its ADR-0010 and a research file.
+- Evidence (Windows, Python 3.11, and `uv` for `render.py`):
+  - 106 tests passed (49 before). `check_diagrams.py` exit 0 on the 10 versions and the
+    8 icons.
+  - On a scratch copy of `docs/diagram/`, three cases:
+    - a stray `sequence/0002-Batch-Run.drawio.svg`: exit 1;
+    - a note above the icon table that names `docker.svg` with an old hash: exit 0;
+    - the same note, with the table row changed: exit 1.
+  - `git check-ignore`:
+    - ignored: `.claude/skills/other/SKILL.md`, `.claude/settings.local.json` and
+      `.claude/rules/personal.md`;
+    - not ignored: the two diagram pointers.
+  - draw.io 29.6.1 exported architecture `0002` again from its extracted model. The root
+    style (`background-color: #ffffff; color-scheme: light;`) and the size (407 KB) are
+    the same as in the recorded version.
+  - `tests/test_docs.py`: 5 passed.
+  - No file under `backend/app`, `artifacts/` or `deploy/` changed.
+- Not available locally: macOS and Linux. CI on the pull request runs them.
+- Remaining: send the 6 inherited fixes to `project-template`, together with the script
+  changes listed below.
+
+### 2026-10-13 — S3-08b: diagram skill and architecture 0001
+
+- Recheck of S3-08a (#81): the judge item is done (`862a964`). The GCP test host draft had
+  7 differences from the plan and the deploy files (ports, HTTPS, SSO, DNS, VM size,
+  Langfuse database, IAP path). The record of architecture `0001` lists them.
+- Added: the `diagram` skill from `project-template` (`9b1339d`) in `.agents/skills/diagram/`,
+  the rule `.agents/rules/diagram.md`, `docs/diagram/` with the types for this repository
+  (Must: `architecture`, `data-flow`, `sequence`), `.claude-plugin/` for Claude Code (removed later, see below), and the
+  CI workflow `check-diagrams`. Design: `changes/2026-10-13-s3-08b-diagram-skill/`.
+- Added: architecture `0001`, one picture with phase 1 (GCP test host) and phase 2 (AWS
+  production), status `proposed`. It is built from the models of the two drafts. The three
+  drafts in `docs/architecture/` are unchanged.
+- Evidence (Windows): `check_diagrams.py` exit 0. Label scan of `0001`: none of the 7 old
+  values, no IP address, no URL, no "Token Factory"; "judge" only in "There is no judge".
+  The PNG preview was read in six parts after two layout corrections. `tests/test_docs.py`
+  5 passed (`uvx`, `--noconftest`), with no change to the test.
+- Added later the same day, with the skill used by its path: architecture `0002` (ports,
+  the Collector pipeline, volumes, secret files, database accounts, the ingress rules as
+  edges; `0001` is `superseded by 0002`) and the first version of `data-flow/batch-run`,
+  `sequence/batch-run-ingest`, `deployment/gcp-test-host` and `er/monitor-database` (all
+  `current`, drawn from the code and the deploy files), and of
+  `deployment/aws-production`, `state/use-case-delivery`, `decision/run-grade` and
+  `use-case/monitor` (`proposed`, drawn from the plan).
+- Found while drawing: `0001` did not show the backend spans to the Collector (OTLP 4318);
+  `0002` does. The docstring of `batch_routes.py` puts `413` and `400` before the registry
+  `403`, but the code examines the registry first; the sequence diagram follows the code.
+  The span outcome `unregistered` is not in the S1-05 spec list. No code was changed.
+- Evidence for the 10 versions: `check_diagrams.py` exit 0; label scan with no old value,
+  no IP address and no URL; each PNG preview read after its layout corrections;
+  `tests/test_docs.py` 5 passed.
+- Icons (the owner asked for them where a licence allows): draw.io built-in icons for Cloud
+  Run, Compute Engine, Artifact Registry, Cloud SQL, RDS, S3 and the load balancer; 8 files
+  from Simple Icons 16.35.0 through `fetch_icon.py` (nginx, OpenTelemetry, PostgreSQL, Redis,
+  ClickHouse, MinIO, Docker, Kubernetes), each with source, licence and SHA-256 in
+  `docs/diagram/icons/README.md`. No icon: Langfuse (its brand page grants no licence),
+  OAuth2 Proxy, Google Workspace. Architecture `0002` and the two deployment diagrams were
+  exported again in place (a drawing fix; the system did not change).
+- Removed: the `workflow` diagram of the governance gates and the sprints. The owner
+  rejected it: it shows the project schedule, not this system. A recheck of the other
+  diagrams found that each one shows a part of the system (built, or planned in this repo).
+- Added (the owner asked for it): a version can be recorded without draw.io desktop.
+  `render.py doctor` exits 0 (found), 1 (not installed) or 2 (`DRAWIO_BIN` names no file).
+  On 1 the skill records a Mermaid version: one `.md` with `format: mermaid` and one
+  `mermaid` block, no `.drawio.svg`. On 2, or when an export fails with draw.io installed,
+  it stops. `render.py` searches the install places of Windows, macOS and Linux, and
+  `extract` reads the embedded model with no draw.io. `mermaid_block.py` is new;
+  `check_diagrams.py` accepts a Mermaid version and refuses a directive, a link, a URL and
+  an HTML image in the block. `references/mermaid.md` has one example for each type.
+- Changed behavior: a `DRAWIO_BIN` that names no file was ignored before; it is now an
+  error. The scripts now differ from `project-template` (`9b1339d`).
+- Added: `.claude/rules/diagram.md` and `.claude/skills/diagram/SKILL.md` are in git, as
+  pointers to `.agents/`. `.gitignore` still ignores every other file in `.claude/`.
+  Removed: `.claude-plugin/`. The plugin was not installed on this host, and a plugin at
+  the repository root copies the working tree to the home directory.
+- Added: 49 `unittest` tests in `.agents/skills/diagram/tests/`. `check-diagrams.yml` runs
+  them and the check on `ubuntu-latest`, `macos-latest` and `windows-latest`.
+- Evidence (Windows, Python 3.12 through `uv`): 49 tests passed. `check_diagrams.py` exit 0
+  on the 10 versions and the 8 icons. `doctor`: exit 0 with draw.io installed, exit 2 with
+  a wrong `DRAWIO_BIN`, exit 1 with the Windows install variables removed. `extract` on
+  architecture `0001` with no draw.io, then an export of that model to a scratch file:
+  the same 121 labels and the same file size as the recorded version. `tests/test_docs.py`
+  5 passed (`--noconftest`).
+- Not available locally: macOS and Linux (the CI matrix shows them after a push). No
+  Mermaid block was rendered: the check proves the structure, and GitHub is the first
+  rendered view of the examples in `references/mermaid.md`. A new Claude Code session
+  that lists the `diagram` skill was not opened. No Mermaid version is recorded, because
+  no picture changed.
+- Not run locally: the fast backend suite (`.venv` is not set up on this host); CI runs it.
+  How GitHub shows the SVG is examined on the pull request.
+- Not done: the push and the pull request. The account has read-only access to the
+  repository; the 10 commits are local on `feat/s3-08b-diagram-skill`.
+- Remaining:
+  - A maintainer sets the labels, the assignee and the parent link (#81) of #85. The account
+    that opened it has no permission for them.
+  - A person who turned the plugin on has `enabledPlugins` and `extraKnownMarketplaces`
+    for `model-monitoring-prototype` in a personal `.claude/settings.json`. Remove the two
+    entries: the plugin is gone, and the pointer in `.claude/skills/` replaces it.
+  - Send the script changes (`render.py`, `check_diagrams.py`, `mermaid_block.py`, the
+    tests) to `project-template`, or the next copy from it removes them.
+  - The `data-flow` and `sequence` diagrams (Must).
+
 ### 2026-10-12 — S2-03: self-hosted Langfuse
 
 - Built (Codex from `changes/2026-10-12-s2-03-langfuse/plan.md`, reviewed by Claude):

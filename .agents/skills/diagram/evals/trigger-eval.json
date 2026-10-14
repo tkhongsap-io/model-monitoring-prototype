@@ -1,0 +1,23 @@
+[
+  {"query": "we just merged the notifications service (services/notify, talks to SES and reads from the orders topic). the architecture picture in docs/diagram is from before that, can you bring it up to date", "should_trigger": true},
+  {"query": "need an ERD of the billing schema for the onboarding doc. tables are in db/migrations/, about 9 of them. put it wherever our diagrams go", "should_trigger": true},
+  {"query": "before I start coding the checkout retry thing, can you sketch out the sequence between web, api and the payment provider so the team can review it tomorrow? spec is docs/specs/checkout-retry.md", "should_trigger": true},
+  {"query": "what states can an Order actually be in?? I keep finding new ones. look at orders/models.py and orders/services.py and draw me the state machine", "should_trigger": true},
+  {"query": "security review next week wants a DFD with trust boundaries for the file upload path (upload-api -> scanner -> s3). can you produce that from the code in services/upload", "should_trigger": true},
+  {"query": "can you make a picture of who uses the admin portal and what each role is allowed to do, based on the routes in admin/routes.ts and the permissions in admin/roles.ts", "should_trigger": true},
+  {"query": "the discount eligibility logic in pricing/eligibility.py is a mess of nested ifs. chart it as a decision tree so product can check it against the policy", "should_trigger": true},
+  {"query": "i added a redis cache and moved the worker to its own container in docker-compose.prod.yml. does any of our recorded diagrams need a new version?", "should_trigger": true},
+  {"query": "the password reset feature we proposed a sequence diagram for last sprint is merged now (PR 212). update docs/diagram accordingly", "should_trigger": true},
+  {"query": "draw.io diagram of where everything runs in prod please - the k8s manifests are under deploy/k8s and the terraform under infra/", "should_trigger": true},
+  {"query": "no draw.io on this machine and I can't install it. still need the state diagram of a batch run recorded in docs/diagram today, mermaid is fine", "should_trigger": true},
+  {"query": "can you explain how the request flows from the api gateway to the orders service? just walk me through it in text, I'm new to this codebase", "should_trigger": false},
+  {"query": "we decided to move session storage from postgres to redis after the incident on tuesday. write that down properly so nobody undoes it in 6 months", "should_trigger": false},
+  {"query": "plot the p95 latency per endpoint from perf/results.csv as a bar chart and save it as a png for the retro slides", "should_trigger": false},
+  {"query": "add a mermaid flowchart to the README quickstart section showing install -> configure -> run, nothing fancy, just inline in the markdown", "should_trigger": false},
+  {"query": "render.py in the diagram skill crashes with UnicodeDecodeError when the drawio path has a thai character in it, can you find out why and fix it", "should_trigger": false},
+  {"query": "what's the difference between a foreign key with ON DELETE CASCADE and SET NULL? which one should order_item.order_id use", "should_trigger": false},
+  {"query": "we keep calling it 'tenant', 'workspace' and 'org' in different files. pick one and add it to our vocabulary file with the others listed as avoid", "should_trigger": false},
+  {"query": "write the changelog entry for the new export streaming endpoint I just finished, it replaces the buffered one", "should_trigger": false},
+  {"query": "generate SQLAlchemy models for the 4 tables in db/schema.sql, with relationships both ways", "should_trigger": false},
+  {"query": "make a 6 slide deck for the all-hands about our new architecture, I'll present it friday. use the company template in ~/Documents/templates", "should_trigger": false}
+]

@@ -12,3 +12,6 @@
 *.conf text eol=lf
 *.example text eol=lf
 *.env text eol=lf
+
+# Diagram versions and icons (S3-08b): the icon check compares SHA-256, so keep LF everywhere.
+docs/diagram/**/*.svg text eol=lf

@@ -66,8 +66,15 @@ __pycache__/
 .env.*
 !.env.example
 
-# Claude Code local state (personal settings, runtime locks)
-.claude/
+# Claude Code: personal settings, runtime state and personal skills stay local. Only
+# the pointers to .agents/ (the diagram rule and the diagram skill) are shared.
+.claude/*
+!.claude/rules/
+.claude/rules/*
+!.claude/rules/diagram.md
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/diagram/
 
 # Raw run summaries from GCP jobs: may contain customer data. Never commit.
 /data/

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-10-09 |
-| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. S3-08a (#81, the architecture draft for gate 4) added on 2026-10-12. |
+| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. S3-08a (#81, the architecture draft for gate 4) added on 2026-10-12. S3-08b (#85, the diagram skill and the versioned architecture diagram) added on 2026-10-13. |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
@@ -205,6 +205,7 @@ remaining prototype-only code.
 | S3-07 | SSO login for the dashboard and Langfuse (Google now, Entra ID later) | Infrastructure | Platform; backend reviews | S3-05, S3-04 | M |
 | S3-08 | Governance gate 4: AF Slide, Security Assessment and IT solution architecture review | Governance | Project owner + platform. Reviewer: IT Solution Architect. | — | M |
 | S3-08a | Draft the architecture for the solution design consultation (Sprint 2) | Governance | @eatrabyo + @Prakasit-Iss. Consulted: K. Wirat (solution design). | S3-08 | S |
+| S3-08b | Diagram skill, and one versioned architecture diagram for GCP (phase 1) and AWS (phase 2) (Sprint 2) | Governance | @Prakasit-Iss | S3-08 | M |
 | S3-09 | Governance gate 6: Security Assessment with evidence and security review | Governance | Project owner + platform. Reviewer: Security Compliance. | — | S |
 | S4-01 | Deploy the stack to the production AWS cluster | Infrastructure | Platform | S4-02 | L |
 | S4-02 | Change every GCP job to send to AWS | Feature | Job developers + platform | S4-01 | M |
@@ -237,7 +238,7 @@ only. GitHub issues are the tracker; this file is the source of their text.
 | Validate | Sprint demos: first real run, one trace to the scores | S1-10, S2-08 | Backend + platform |
 | Validate | RAI accepts the local judge | S2-10 | RAI + backend |
 | Validate | Drills and security review | S3-04, S3-05, S4-05 | Platform + security |
-| Validate | Governance gates 4 and 6: IT architecture and security review | S3-08, S3-08a, S3-09 | Project owner + platform |
+| Validate | Governance gates 4 and 6: IT architecture and security review | S3-08, S3-08a, S3-08b, S3-09 | Project owner + platform |
 | Conclude | Evidence checklist and release sign-off | S4-04, S4-06 | RAI + platform owners |
 | Conclude | Governance gate 7: RAI Deployment Checklist | S4-08 | Project owner + RAI |
 | Conclude | Remove the prototype-only code | S4-07 | Backend |
@@ -1740,6 +1741,52 @@ but its work is in Sprint 2.
 
 **How to test**
 1. Compare the draft with the plan and the S3-06 files, one component at a time. If they are different, correct the draft or record the difference.
+
+### S3-08b — Diagram skill, and one versioned architecture diagram for GCP (phase 1) and AWS (phase 2)
+
+| Type | Owner | Depends on | Tested with | Size |
+|---|---|---|---|---|
+| Governance | @Prakasit-Iss | S3-08a | S3-08 | M |
+
+**What:** Add the `diagram` skill to this repository, and use it to record one architecture
+diagram that holds both phases: phase 1 (the GCP test host) and phase 2 (AWS production).
+The skill records each diagram as a numbered draw.io version in `docs/diagram/`, with a
+structural check. The work is the skill and the documentation only. It does not change the
+backend, the frontend, the deploy files or the existing tests. Design:
+`changes/2026-10-13-s3-08b-diagram-skill/`.
+
+**Why:** The recheck of the S3-08a draft found 7 differences between the GCP test host
+diagram and the plan and deploy files. The record of version `0001` lists them.
+
+**Acceptance criteria**
+- [ ] The `diagram` skill is in `.agents/skills/diagram/` and works in this repository (export, extract, labels, check).
+- [ ] `docs/diagram/architecture/` has version `0001`: one picture with both phases, and its record.
+- [ ] The phase 1 side has none of the 7 differences of the recheck.
+- [ ] The diagram contains no IP address, token or internal URL.
+- [ ] `docs/diagram/README.md` lists the Must and Nice-to-have types for this repository.
+- [ ] CI runs the structural check. No existing test, workflow or application file changes.
+- [ ] #81 has a comment with the differences and the links.
+
+**Added 2026-10-13:** architecture `0002` (more detail) and every Must and Nice-to-have type
+of `docs/diagram/README.md`. A `current` version is drawn from the repository; a `proposed`
+version is drawn from the plan for a part that is not built.
+
+| Type / subject | Version | Status |
+|---|---|---|
+| `architecture` | `0002` (replaces `0001`) | proposed |
+| `data-flow` / `batch-run` | `0001` | current |
+| `sequence` / `batch-run-ingest` | `0001` | current |
+| `deployment` / `gcp-test-host` | `0001` | current |
+| `deployment` / `aws-production` | `0001` | proposed |
+| `er` / `monitor-database` | `0001` | current |
+| `state` / `use-case-delivery` | `0001` | proposed |
+| `decision` / `run-grade` | `0001` | proposed |
+| `use-case` / `monitor` | `0001` | proposed |
+
+**How to test**
+1. Run `uv run .agents/skills/diagram/scripts/check_diagrams.py`. It exits with 0.
+2. Run `uv run .agents/skills/diagram/scripts/render.py labels` on the new version. Make sure that none of the old values are in the output.
+3. Open the `.drawio.svg` file on GitHub and in draw.io. Compare each component with the plan and the deploy files.
 
 ---
 
