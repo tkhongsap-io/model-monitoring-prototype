@@ -14,7 +14,7 @@ related: []
 The 16 prototype tables that the migrations in `backend/app/db.py` make in the database
 `monitor`, each with its keys and every column: the demo and baked-scenario tables, and the
 live control-tower tables. The batch MVP API does not use them, and S4-07 removes their
-code. `batch_runs` and `schema_migrations`, in the same database, are in
+code. The tables of the batch MVP, in the same database, are in
 [`monitor-database`](../monitor-database/README.md), which shows these 16 tables by name
 only.
 
