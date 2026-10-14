@@ -12,6 +12,7 @@ COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml)
 NGINX=(docker compose -f "$ROOT/deploy/nginx/compose.yaml" -f "$ROOT/deploy/nginx/compose.local.yaml")
 BASE_URL="http://127.0.0.1:8000"
 FRONT="http://127.0.0.1:8080"
+DASH="http://127.0.0.1:8082"   # front-door port of the dashboard (S2-07)
 KEY="local-dev-batch-key-not-a-secret"            # local test value, not a secret
 OTLP_TOKEN="local-dev-otlp-token-not-a-secret"    # local test value, not a secret
 EXAMPLE="$ROOT/backend/schemas/batch-run/1/examples/valid/04-identity-only.json"
@@ -24,6 +25,7 @@ cleanup() {
   if [ "$status" -ne 0 ]; then
     echo "SMOKE FAIL: $STEP"
     "${COMPOSE[@]}" logs --no-color --tail 200 backend collector || true
+    "${COMPOSE[@]}" logs --no-color --tail 50 dashboard || true
     "${NGINX[@]}" logs --no-color --tail 100 nginx || true
   fi
   if [ "${KEEP:-0}" != "1" ]; then
@@ -146,5 +148,26 @@ done
 GRADE="$("${COMPOSE[@]}" exec -T postgres psql -U monitor -d monitor -tAc \
   "select grade, delivery_grade, langfuse_status from batch_evaluations where run_id = '$RUN_ID'")"
 [ "$GRADE" = "Unknown|Unknown|skipped" ] || { echo "unexpected evaluation: $GRADE"; exit 1; }
+
+STEP="dashboard through the front door (S2-07)"
+code "200" "$DASH/"
+curl -fsS "$DASH/" | grep -q '<div id="root">'
+code "200" "$DASH/heatmap"
+curl -fsS "$DASH/api/live/portfolio" | python3 -c '
+import json, sys
+rows = {r["registry_id"]: r for r in json.load(sys.stdin)["rows"]}
+row = rows["rtr-fraud-validation"]
+assert row["grade"] is not None, "the run is not graded on the dashboard"'
+curl -fsS "$DASH/api/live/use-case/rtr-fraud-validation" | python3 -c '
+import json, sys
+body = json.load(sys.stdin)
+assert body["trace_id"] == sys.argv[1], "trace_id differs"
+assert "payload" not in body' "$TRACE_ID"
+# The job API is not on 8082: every unlisted /api/ path is 404 (Task 4), any method.
+code "404" -X POST "$DASH/api/batch/runs" -H "Content-Type: application/json" --data '{}'
+code "404" "$DASH/api/readiness"
+code "403" -X POST "$DASH/api/live/portfolio"
+# The dashboard API is not on the job port.
+code "404" "$FRONT/api/live/portfolio"
 
 echo "SMOKE PASS: run $RUN_ID, trace $TRACE_ID"

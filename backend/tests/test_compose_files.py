@@ -33,7 +33,7 @@ def test_images_are_pinned():
 
 def test_base_file_has_no_local_settings():
     base = _load("compose.yaml")["services"]
-    assert set(base) == {"backend", "collector", "collector-init", "trace-check"}
+    assert set(base) == {"backend", "collector", "collector-init", "trace-check", "dashboard"}
     for service in base.values():
         assert "build" not in service and "ports" not in service
     backend = base["backend"]
@@ -157,7 +157,8 @@ def test_ci_workflow_paths():
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     triggers = workflow[True]                       # PyYAML reads the key `on` as True
     paths = {"deploy/compose/**", "deploy/nginx/**", "backend/**", "scripts/compose-smoke.sh",
-             ".github/workflows/compose-smoke.yml"}
+             ".github/workflows/compose-smoke.yml", "artifacts/control-tower/**",
+             "deploy/dashboard/**", "pnpm-lock.yaml"}
     assert set(triggers["pull_request"]["paths"]) == paths
     assert set(triggers["push"]["paths"]) == paths
     assert triggers["push"]["branches"] == ["dev"]
@@ -170,7 +171,7 @@ def test_ci_workflow_paths():
 
 def test_testhost_file_uses_registry_image_and_host_secrets():
     host = _load("compose.testhost.yaml")["services"]
-    assert set(host) == {"backend", "collector", "trace-check"}   # no database on the VM
+    assert set(host) == {"backend", "collector", "trace-check", "dashboard"}   # no database on the VM
     backend = host["backend"]
     assert backend["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
     assert "build" not in backend and "environment" not in backend
@@ -318,3 +319,36 @@ def test_compose_smoke_waits_for_the_evaluation():
     text = (ROOT / "scripts" / "compose-smoke.sh").read_text(encoding="utf-8")
     assert "batch_evaluator" in text and "unevaluated" in text
     assert "Unknown|Unknown|skipped" in text
+
+
+def test_dashboard_service():
+    base = _load("compose.yaml")["services"]["dashboard"]
+    assert "ports" not in base and "build" not in base
+    assert base["networks"] == {"edge": {"aliases": ["model-monitor-dashboard"]}}
+    assert "127.0.0.1:8090/healthz" in " ".join(base["healthcheck"]["test"])
+    assert base["restart"] == "unless-stopped"
+    local = _load("compose.local.yaml")["services"]["dashboard"]
+    assert local["build"] == {"context": "../..", "dockerfile": "deploy/dashboard/Dockerfile"}
+    assert local["image"] == "model-monitor-dashboard:local"
+    host = _load("compose.testhost.yaml")["services"]["dashboard"]
+    assert host == {"image": "${DASHBOARD_IMAGE:?DASHBOARD_IMAGE is not set}"}
+
+
+def test_build_image_builds_backend_and_dashboard():
+    text = (ROOT / ".github" / "workflows" / "build-image.yml").read_text(encoding="utf-8")
+    assert "/dev/backend" in text and "/dev/dashboard" in text
+    assert "-f deploy/dashboard/Dockerfile" in text
+    for path in ('"artifacts/control-tower/**"', '"deploy/dashboard/**"', '"pnpm-lock.yaml"'):
+        assert path in text
+    assert text.count("github.run_number") >= 1
+
+
+def test_compose_smoke_reaches_the_dashboard():
+    text = (ROOT / "scripts" / "compose-smoke.sh").read_text(encoding="utf-8")
+    assert 'DASH="http://127.0.0.1:8082"' in text
+    for check in ('"$DASH/"', '"$DASH/api/live/portfolio"',
+                  '"$DASH/api/live/use-case/rtr-fraud-validation"',
+                  '-X POST "$DASH/api/batch/runs"', '"$DASH/api/readiness"'):
+        assert check in text, check
+    workflow = (ROOT / ".github" / "workflows" / "compose-smoke.yml").read_text(encoding="utf-8")
+    assert '"artifacts/control-tower/**"' in workflow and '"deploy/dashboard/**"' in workflow

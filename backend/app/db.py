@@ -1288,6 +1288,34 @@ def evaluator_counts(bands_version: str) -> dict:
     return {"unevaluated": int(unevaluated), "langfuse_pending": int(pending)}
 
 
+# ---------------------------------------------------------------- dashboard reads (S2-07)
+
+def latest_batch_run(use_case_id: str) -> dict | None:
+    q = (select(batch_runs).where(batch_runs.c.use_case_id == use_case_id)
+         .order_by(batch_runs.c.received_at.desc()).limit(1))
+    with engine().begin() as cx:
+        found = cx.execute(q).mappings().fetchone()
+    return dict(found) if found else None
+
+
+def latest_evaluation(batch_run_id: str, bands_version: str) -> dict | None:
+    q = select(batch_evaluations).where(
+        (batch_evaluations.c.batch_run_id == batch_run_id)
+        & (batch_evaluations.c.bands_version == bands_version))
+    with engine().begin() as cx:
+        found = cx.execute(q).mappings().fetchone()
+    return dict(found) if found else None
+
+
+def evaluation_history(use_case_id: str, bands_version: str, limit: int = 20) -> list[dict]:
+    q = (select(batch_evaluations)
+         .where((batch_evaluations.c.use_case_id == use_case_id)
+                & (batch_evaluations.c.bands_version == bands_version))
+         .order_by(batch_evaluations.c.evaluated_at.desc()).limit(max(1, min(limit, 200))))
+    with engine().begin() as cx:
+        return [dict(r) for r in cx.execute(q).mappings().all()]
+
+
 def clear_live_state(source_id: str | None = None) -> None:
     """Developer/test reset. Strict-live HTTP routes never expose this operation."""
     with engine().begin() as cx:

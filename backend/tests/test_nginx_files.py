@@ -33,9 +33,28 @@ def test_nginx_project_is_pinned_non_root_and_on_edge():
 
 def test_nginx_ports_per_host():
     assert _load("compose.local.yaml")["services"]["nginx"]["ports"] == [
-        "127.0.0.1:8080:8080", "127.0.0.1:3000:3000"]
+        "127.0.0.1:8080:8080", "127.0.0.1:3000:3000", "127.0.0.1:8082:8082"]
     assert _load("compose.testhost.yaml")["services"]["nginx"]["ports"] == [
-        "80:8080", "3000:3000"]
+        "80:8080", "3000:3000", "8082:8082"]
+
+
+def test_dashboard_conf_serves_only_get_and_four_api_paths():
+    text = (CONF / "dashboard.conf").read_text(encoding="utf-8")
+    assert "\r\n" not in text
+    assert re.search(r"^\s*listen 8082;", text, flags=re.MULTILINE)
+    assert "set $mm_backend http://model-monitor-backend:8000;" in text
+    assert "set $mm_dashboard http://model-monitor-dashboard:8090;" in text
+    locations = _locations(text)
+    assert locations == ["= /api/live/portfolio", "^~ /api/live/use-case/",
+                         "= /api/live/alerts", "= /api/version", "/api/", "/"]
+    blocks = re.findall(r"location ([^{]+)\{(.*?)\n    \}", text, flags=re.S)
+    for where, body in blocks:
+        if where.strip() == "/api/":
+            assert "return 404;" in body and "proxy_pass" not in body
+        else:
+            assert "limit_except GET { deny all; }" in body, where
+            assert "proxy_pass" in body, where
+    assert "batch/runs" not in text and "readiness" not in text and "otlp" not in text
 
 
 def test_model_monitor_conf_allows_only_three_routes():

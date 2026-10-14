@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Dashboard for the GCP use cases (S2-07): the unchanged control-tower UI shows each
+  registered use case with its latest run, freshness, grade, lanes and "Unknown" reasons,
+  from the new read-only dashboard API (`/api/live/portfolio`, `/api/live/use-case/{id}`, `/api/live/alerts`).
+  A `dashboard` image (built in CI) holds the UI; the front door serves it on port 8082.
+
 - Batch evaluator (S2-05): a worker in the backend grades each stored run one time with the
   core metrics (`run_status`, `turnaround_s`, `failure_rate`, `volume_change`; bands
   `core-2026-10-12`, RAI approved), stores the result in `batch_evaluations` and sends the

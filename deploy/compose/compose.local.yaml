@@ -50,5 +50,11 @@ services:
       CHECK_LANGFUSE_SECRET_KEY: sk-lf-local-00000000-0000-0000-0000-000000000000   # local test value
       CHECK_DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor   # local test value
 
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: deploy/dashboard/Dockerfile
+    image: model-monitor-dashboard:local
+
 volumes:
   pgdata:
