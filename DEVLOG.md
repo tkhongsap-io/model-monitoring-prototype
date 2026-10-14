@@ -47,6 +47,28 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-14 — S2-05 and S2-07 on the test host; Health grid; diagram versions
+
+- Test host: `backend:16` and `dashboard:16` run ("Build images" #16). The front door
+  serves the dashboard on port 8082; `GET :8082/` gave 200 and the portfolio listed
+  `rtr-fraud-validation` (Reliability Green, overall Unknown: no baseline yet; state
+  `stale`: the only run is the 8 October deploy check). The project owner opened it through
+  the IAP tunnel. Evaluator: readiness `unevaluated 0`, `langfuse_pending 0`.
+- Firewall `langfuse-testhost-allow-iap`: tcp:3000 and tcp:8082 from `35.235.240.0/20`
+  only. Two load-balancer ranges (`130.211.0.0/22`, `35.191.0.0/16`), added during a
+  load-balancer test, were removed: there is no load balancer yet.
+- The dashboard tab "Heatmap" is now "Health grid" (route `/health-grid`, `/heatmap` kept
+  as an alias). Checked on Windows: `tsc` 0 errors, `vite build`, `check-strict-live-bundle`
+  OK. First frontend change since the decision "the UI does not change" (2026-10-03),
+  decided by the project owner.
+- Diagram versions (Mermaid: draw.io desktop is not on this machine): deployment
+  gcp-test-host 0002, architecture gcp-test-host 0004, decision run-grade 0002 (the build
+  differs from proposal 0001: two grades), data-flow batch-run 0002. Unchanged: sequence
+  batch-run-ingest 0001, er monitor-database 0002. Still proposed: use-case monitor 0002
+  (dashboard sign-in and allowlist, S3-07).
+- TESTHOST: the firewall command quotes `"tcp:3000,tcp:8082"`, because PowerShell splits an
+  unquoted comma list.
+
 ### 2026-10-14 — S2-07: dashboard for the GCP use cases
 
 - Built (Codex task by task from `changes/2026-10-14-s2-07-dashboard/plan.md`, reviewed

@@ -1,5 +1,5 @@
 ---
-status: current
+status: superseded by 0004
 date: 2026-10-14
 author: Prakasit Issanapong <prakasit.tar@outlook.com>
 related: [ADR-0002]

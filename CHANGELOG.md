@@ -85,6 +85,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Workload Identity Federation; no service-account key exists.
 
 ### Changed
+- Dashboard tab "Heatmap" is now "Health grid" (page title "Health Grid", route
+  `/health-grid`; the old `/heatmap` link still works). It is a color grid of the use cases
+  and their lanes. This is the first change to the frontend since 2026-10-03 (decided by the
+  project owner on 2026-10-14).
 
 - `POST /api/batch/runs` follows the approved S1-01 schema `batch-run/1` (S1-02b). Two
   record rules are new, and each gives `400`: a record with `refused: true` must have
