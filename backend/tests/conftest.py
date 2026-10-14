@@ -30,6 +30,7 @@ def batch_registry(monkeypatch):
     """Every test uses the test registry (S2-01), also routes called without the lifespan."""
     monkeypatch.setattr(config, "BATCH_REGISTRY_PATH", str(TEST_REGISTRY))
     registry.set_current(registry.load(TEST_REGISTRY))
+    monkeypatch.setattr(config, "BATCH_EVALUATOR_ENABLED", False)   # tests call run_cycle()
     yield
 
 

@@ -107,3 +107,10 @@ def test_current_after_set_current(tmp_path):
     reg = registry.load(write(tmp_path, GOOD))
     registry.set_current(reg)
     assert registry.current() is reg
+
+
+def test_band_overrides_stop_the_load(tmp_path):
+    text = GOOD + "    band_overrides: {failure_rate: {red: 0.1}}\n"
+    with pytest.raises(registry.RegistryError) as exc:
+        registry.load(write(tmp_path, text))
+    assert "use case UC-A: band_overrides is not supported yet (S2-05)" in str(exc.value)

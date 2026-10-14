@@ -69,7 +69,9 @@ def test_readiness_ready(ready_config):
         response = client.get("/api/readiness")
     assert response.status_code == 200, response.text
     assert response.json() == {"status": "ready", "database": {"ok": True, "error": None},
-                               "batch_api_keys": 1, "use_cases": 2, "errors": []}
+                               "batch_api_keys": 1, "use_cases": 2, "errors": [],
+                               "batch_evaluator": {"enabled": False, "last_cycle_at": None,
+                                                   "unevaluated": 0, "langfuse_pending": 0}}
 
 
 @pytest.mark.parametrize("url, entries, expected", [

@@ -94,6 +94,10 @@ def load(path: str | Path) -> dict[str, UseCase]:
         if use_case.use_case_id in out:
             raise RegistryError(
                 f"batch registry {path}: use case {use_case.use_case_id}: duplicate use_case_id")
+        if use_case.band_overrides:
+            raise RegistryError(
+                f"batch registry {path}: use case {use_case.use_case_id}: band_overrides is "
+                "not supported yet (S2-05); remove it or wait for support")
         out[use_case.use_case_id] = use_case
     return out
 
