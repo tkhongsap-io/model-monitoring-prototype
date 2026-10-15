@@ -26,7 +26,8 @@ def metrics(**health) -> str:
     return json.dumps(base)
 
 
-EVALUATION = {"evaluation_id": "0199e0a0-0000-7000-8000-000000000001",
+EVALUATION = {"use_case_id": "rtr-fraud-validation",
+              "evaluation_id": "0199e0a0-0000-7000-8000-000000000001",
               "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736", "bands_version": "core-2026-10-12",
               "metrics": metrics(), "grade": "Unknown", "delivery_grade": "Unknown"}
 
@@ -77,7 +78,7 @@ def test_score_ids_are_stable_and_distinct():
 
 def test_send_calls_the_sync_api_with_the_trace():
     scores = FakeScores()
-    ls.LangfuseScoreSender(fake_client(scores)).send(EVALUATION)
+    ls.LangfuseScoreSender(lambda uc: fake_client(scores)).send(EVALUATION)
     assert {c["name"] for c in scores.calls} == {"grade", "delivery_grade", "failure_rate"}
     for call in scores.calls:
         assert call["trace_id"] == EVALUATION["trace_id"]
@@ -87,17 +88,7 @@ def test_send_calls_the_sync_api_with_the_trace():
 
 def test_send_raises_on_failure():
     with pytest.raises(ConnectionError):
-        ls.LangfuseScoreSender(fake_client(FakeScores(fail_times=1))).send(EVALUATION)
-
-
-def test_make_sender_needs_host_and_keys(monkeypatch):
-    monkeypatch.setattr(config, "EVALUATOR_LANGFUSE_HOST", "")
-    monkeypatch.setattr(config, "LANGFUSE_PUBLIC_KEY", "pk-lf-x")
-    monkeypatch.setattr(config, "LANGFUSE_SECRET_KEY", "sk-lf-x")
-    assert ls.make_sender() is None
-    monkeypatch.setattr(config, "EVALUATOR_LANGFUSE_HOST", "http://langfuse-web:3000")
-    monkeypatch.setattr(config, "LANGFUSE_SECRET_KEY", "")
-    assert ls.make_sender() is None
+        ls.LangfuseScoreSender(lambda uc: fake_client(FakeScores(fail_times=1))).send(EVALUATION)
 
 
 def test_make_sender_never_uses_the_cloud_default():
@@ -117,18 +108,38 @@ def test_make_sender_never_uses_the_cloud_default():
     assert out.stdout.split() == ["''", "https://cloud.langfuse.com", "None"]
 
 
-def test_make_sender_builds_a_client_without_tracing(monkeypatch):
-    seen = {}
+def test_make_sender_needs_host_and_keys(monkeypatch):
+    monkeypatch.setattr(config, "EVALUATOR_LANGFUSE_HOST", "")
+    monkeypatch.setattr(config, "langfuse_project_keys", lambda: {"unrouted": ("pk", "sk")})
+    assert ls.make_sender() is None
+    monkeypatch.setattr(config, "EVALUATOR_LANGFUSE_HOST", "http://langfuse-web:3000")
+    monkeypatch.setattr(config, "langfuse_project_keys", lambda: {})
+    assert ls.make_sender() is None
+
+
+def test_sender_uses_the_project_of_the_use_case(monkeypatch):
+    made = []
 
     class FakeLangfuse:
         def __init__(self, **kwargs):
-            seen.update(kwargs)
+            made.append(kwargs)
+            self.api = SimpleNamespace(scores=FakeScores())
 
     import langfuse
     monkeypatch.setattr(langfuse, "Langfuse", FakeLangfuse)
     monkeypatch.setattr(config, "EVALUATOR_LANGFUSE_HOST", "http://langfuse-web:3000")
-    monkeypatch.setattr(config, "LANGFUSE_PUBLIC_KEY", "pk-lf-x")
-    monkeypatch.setattr(config, "LANGFUSE_SECRET_KEY", "sk-lf-x")
-    assert ls.make_sender() is not None
-    assert seen == {"public_key": "pk-lf-x", "secret_key": "sk-lf-x",
-                    "host": "http://langfuse-web:3000", "tracing_enabled": False, "timeout": 10}
+    monkeypatch.setattr(config, "langfuse_project_keys", lambda: {
+        "unrouted": ("pk-u", "sk-u"), "rtr-fraud-validation": ("pk-r", "sk-r")})
+    sender = ls.make_sender()
+    sender.send({**EVALUATION, "use_case_id": "rtr-fraud-validation"})
+    sender.send({**EVALUATION, "use_case_id": "rtr-fraud-validation"})   # cached client
+    sender.send({**EVALUATION, "use_case_id": "GCP-UC-03"})               # → unrouted
+    assert [(m["public_key"], m["secret_key"]) for m in made] == [("pk-r", "sk-r"),
+                                                                  ("pk-u", "sk-u")]
+    assert all(m["tracing_enabled"] is False and m["host"] == "http://langfuse-web:3000"
+               for m in made)
+
+
+def test_send_without_a_project_raises():
+    with pytest.raises(LookupError):
+        ls.LangfuseScoreSender(lambda uc: None).send(EVALUATION)

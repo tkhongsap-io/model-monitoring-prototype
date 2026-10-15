@@ -241,3 +241,21 @@ def test_disabled_sdk_still_stores_with_a_generated_id(configured, spans, monkey
     stored = db.get_batch_run(*RUN)
     assert stored["trace_id_source"] == "generated" and stored["trace_id"] != TRACE_ID
     assert len(stored["trace_id"]) == 32
+
+
+def test_server_span_carries_the_use_case(client, spans):
+    response = client.post(URL, json=example("01-completed-online.json"),
+                           headers={**AUTH, "traceparent": TRACEPARENT})
+    assert response.status_code == 201, response.text
+    server = [s for s in spans.get_finished_spans() if s.name == "POST /api/batch/runs"]
+    assert len(server) == 1
+    assert server[0].attributes["use_case_id"] == RUN[0]
+    assert server[0].attributes["run_id"] == RUN[1]
+
+
+def test_rejected_request_server_span_has_no_use_case(client, spans):
+    response = client.post(URL, json=example("01-completed-online.json"),
+                           headers={"Authorization": "Bearer wrong"})
+    assert response.status_code == 401
+    server = [s for s in spans.get_finished_spans() if s.name == "POST /api/batch/runs"]
+    assert "use_case_id" not in server[0].attributes

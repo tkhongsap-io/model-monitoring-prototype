@@ -3,6 +3,7 @@
 `score_id` is stable (uuid5 of the evaluation ID and the score name), so a retry makes no
 duplicate. The synchronous API call raises on failure; the SDK's `create_score` queues and
 never raises, so it is not used. No record text and no key is sent or logged.
+Each run's scores go to the project of its use case (S2-03b); without its keys, to `unrouted`.
 """
 from __future__ import annotations
 
@@ -43,13 +44,18 @@ def scores_for(evaluation: dict) -> list[dict]:
 
 
 class LangfuseScoreSender:
-    def __init__(self, client) -> None:
-        self._client = client
+    """Sends the scores of one evaluation to the Langfuse project of its use case (S2-03b)."""
+
+    def __init__(self, client_for) -> None:
+        self._client_for = client_for
 
     def send(self, evaluation: dict) -> None:
         from langfuse.api import ScoreDataType
+        client = self._client_for(evaluation.get("use_case_id"))
+        if client is None:
+            raise LookupError("no Langfuse project keys for this use case")
         for score in scores_for(evaluation):
-            self._client.api.scores.create(
+            client.api.scores.create(
                 name=score["name"], value=score["value"], id=score["id"],
                 trace_id=evaluation["trace_id"], data_type=ScoreDataType(score["data_type"]),
                 comment=score["comment"])
@@ -57,10 +63,21 @@ class LangfuseScoreSender:
 
 def make_sender() -> LangfuseScoreSender | None:
     host = config.EVALUATOR_LANGFUSE_HOST
-    public_key, secret_key = config.LANGFUSE_PUBLIC_KEY, config.LANGFUSE_SECRET_KEY
-    if not (host and public_key and secret_key):
+    keys = config.langfuse_project_keys()
+    if not host or not keys:
         return None
-    import langfuse
-    client = langfuse.Langfuse(public_key=public_key, secret_key=secret_key, host=host,
-                               tracing_enabled=False, timeout=10)
-    return LangfuseScoreSender(client)
+    from ..langfuse_projects import keys_for
+    clients: dict[str, object] = {}
+
+    def client_for(use_case_id: str | None):
+        found = keys_for(keys, use_case_id)
+        if found is None:
+            return None
+        project, (public_key, secret_key) = found
+        if project not in clients:
+            import langfuse
+            clients[project] = langfuse.Langfuse(public_key=public_key, secret_key=secret_key,
+                                                 host=host, tracing_enabled=False, timeout=10)
+        return clients[project]
+
+    return LangfuseScoreSender(client_for)
