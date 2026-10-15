@@ -4,7 +4,8 @@ Run it through deploy/compose/check-trace.sh (the Compose service `trace-check`)
     check_trace.py <trace_id> [--backend-only] [--wait SECONDS] [--spans-file PATH]
 Reads only CHECK_DATABASE_URL (the read-only user), never DATABASE_URL, and never runs the
 migrations. Checks 5 items: run row, monitor span, GCP root, ancestor link, and the
-Langfuse trace (S2-03, skipped when CHECK_LANGFUSE_* settings are absent).
+Langfuse trace (skipped when the URL or project keys are absent).
+The 5th item reads the run's Langfuse project (S2-03b).
 Reads the span file and its rotated copies. Exit 0: all checked items found; 1: an item is missing; 2: usage or setup error.
 """
 from __future__ import annotations
@@ -28,6 +29,7 @@ from sqlalchemy.engine import Engine  # noqa: E402
 from sqlalchemy.exc import SQLAlchemyError  # noqa: E402
 
 from app import db  # noqa: E402
+from app import langfuse_projects as lp  # noqa: E402
 from app.trace_check import Result, RunRow, Span, check, render, stored_trace_ids  # noqa: E402
 
 TRACE_ID = re.compile(r"^[0-9a-f]{32}$")
@@ -123,13 +125,8 @@ def read_spans(path: str, trace_id: str) -> tuple[list[Span], int]:
     return spans, skipped
 
 
-def read_langfuse(trace_id: str) -> tuple[list[str] | None, str | None]:
-    """Observation names of the trace in Langfuse (S2-03), or (None, None) when not set up."""
-    url = os.environ.get("CHECK_LANGFUSE_URL", "").strip().rstrip("/")
-    public_key = os.environ.get("CHECK_LANGFUSE_PUBLIC_KEY", "").strip()
-    secret_key = os.environ.get("CHECK_LANGFUSE_SECRET_KEY", "").strip()
-    if not (url and public_key and secret_key):
-        return None, None
+def _observations(url: str, trace_id: str, public_key: str,
+                  secret_key: str) -> tuple[list[str], str | None]:
     token = base64.b64encode(f"{public_key}:{secret_key}".encode("utf-8")).decode("ascii")
     request = urllib.request.Request(
         f"{url}/api/public/v2/observations?traceId={trace_id}&limit=100",
@@ -147,6 +144,27 @@ def read_langfuse(trace_id: str) -> tuple[list[str] | None, str | None]:
     if not isinstance(data, list):
         return [], "Langfuse answered with bad JSON"
     return [str(item.get("name", "")) for item in data if isinstance(item, dict)], None
+
+
+def read_langfuse(trace_id: str, use_case_id: str | None
+                  ) -> tuple[list[str] | None, str | None, str | None]:
+    """Observation names of the trace in the run's Langfuse project (S2-03b).
+
+    (None, None, None) when not set up. A trace that is only in `unrouted` is reported."""
+    url = os.environ.get("CHECK_LANGFUSE_URL", "").strip().rstrip("/")
+    keys = lp.keys_from_env(os.environ, (os.environ.get("CHECK_LANGFUSE_PUBLIC_KEY", ""),
+                                         os.environ.get("CHECK_LANGFUSE_SECRET_KEY", "")))
+    found = lp.keys_for(keys, use_case_id)
+    if not url or found is None:
+        return None, None, None
+    project, (public_key, secret_key) = found
+    names, error = _observations(url, trace_id, public_key, secret_key)
+    if error or names or project == lp.UNROUTED or lp.UNROUTED not in keys:
+        return names, error, project
+    other, other_error = _observations(url, trace_id, *keys[lp.UNROUTED])
+    if other and not other_error:
+        return [], f"in unrouted, not in {project}", project
+    return names, None, project
 
 
 def make_engine(url: str) -> Engine:
@@ -169,10 +187,13 @@ def run_once(engine: Engine, args: argparse.Namespace) -> Result:
     spans, skipped = read_spans(args.spans_file, args.trace_id)
     rows = read_rows(engine, args.trace_id)
     stored = {} if rows else {tid: read_rows(engine, tid) for tid in stored_trace_ids(spans)}
-    names, error = read_langfuse(args.trace_id)
+    use_case_id = rows[0].use_case_id if rows else next(
+        (str(s.attributes.get("use_case_id")) for s in spans
+         if s.name == "batch.run" and s.attributes.get("use_case_id")), None)
+    names, error, project = read_langfuse(args.trace_id, use_case_id)
     return check(args.trace_id, rows, spans, backend_only=args.backend_only,
                  stored_rows=stored, skipped_lines=skipped,
-                 langfuse_names=names, langfuse_error=error)
+                 langfuse_names=names, langfuse_error=error, langfuse_project=project)
 
 
 def main(argv: list[str] | None = None, *, sleep: Callable[[float], None] = time.sleep,

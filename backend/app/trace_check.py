@@ -158,7 +158,8 @@ def _ancestor_link(spans: list[Span]) -> Item:
     return Item("ancestor link", MISSING, first_failure)
 
 
-def _langfuse(names: list[str] | None, error: str | None, backend_only: bool) -> Item:
+def _langfuse(names: list[str] | None, error: str | None, backend_only: bool,
+              project: str | None = None) -> Item:
     name = "langfuse trace"
     if names is None and error is None:
         return Item(name, SKIPPED)
@@ -168,19 +169,23 @@ def _langfuse(names: list[str] | None, error: str | None, backend_only: bool) ->
     absent = [n for n in needed if n not in (names or [])]
     if absent:
         return Item(name, MISSING, "not in Langfuse: " + ", ".join(absent))
-    return Item(name, FOUND, f"{len(names or [])} observations in Langfuse")
+    detail = f"{len(names or [])} observations in Langfuse"
+    if project:
+        detail += f" project {project}"
+    return Item(name, FOUND, detail)
 
 
 def check(trace_id: str, rows: list[RunRow], spans: list[Span], *, backend_only: bool,
           stored_rows: dict[str, list[RunRow]] | None = None, skipped_lines: int = 0,
           langfuse_names: list[str] | None = None,
-          langfuse_error: str | None = None) -> Result:
+          langfuse_error: str | None = None,
+          langfuse_project: str | None = None) -> Result:
     items = [_run_row(rows, spans, stored_rows or {}), _monitor_span(spans)]
     if backend_only:
         items += [Item("gcp root span", SKIPPED), Item("ancestor link", SKIPPED)]
     else:
         items += [_root_span(spans), _ancestor_link(spans)]
-    items.append(_langfuse(langfuse_names, langfuse_error, backend_only))
+    items.append(_langfuse(langfuse_names, langfuse_error, backend_only, langfuse_project))
     return Result(trace_id=trace_id, items=tuple(items), skipped_lines=skipped_lines)
 
 
