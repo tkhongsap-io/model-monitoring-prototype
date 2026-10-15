@@ -58,8 +58,10 @@ depend on. The spec is
   projects created in the UI (the project API needs Langfuse Enterprise).
 - Evidence: Windows, outside the Codex sandbox: fast suite 591 passed, 9 deselected. Codex
   fixes kept: folder mode 700 for the project files; `chmod 755` on the CI routing test folder.
-- Not run here: CI `collector-routing` (it fixes the routing syntax for Collector 0.161.0),
-  `langfuse-smoke`, `smoke` (on the PR), and the test-host switch.
+- CI on #98: `collector-routing` passed (Collector 0.161.0 routed all 5 label cases to the
+  right project; the `condition` syntax is valid), `langfuse-smoke` passed ("5 observations
+  in Langfuse project rtr-fraud-validation", also after a restart), `smoke` passed.
+- Not run yet: the test-host switch.
 
 ### 2026-10-15 — S1-04: dev-host exceptions for snapshots and Secure Boot
 
