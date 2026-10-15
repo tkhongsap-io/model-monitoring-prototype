@@ -556,8 +556,8 @@ IP. In Sprint 2, Langfuse comes on the same VM, with its own PostgreSQL containe
 | Item | Setting |
 |---|---|
 | Machine | `n4-highmem-4` (4 vCPU, 32 GiB): the VM `ai-ml-monitoring-dev-env` that exists (the project owner kept it, 2026-10-08; the plan had `e2-standard-8`). The memory is enough for Langfuse; 4 vCPU is the Langfuse minimum (S2-03 checks it). |
-| Disk | 100 GB (the existing VM; the plan had 200 GiB). Langfuse recommends 100 GiB for its data alone, so S2-03 checks the free space and grows the disk if necessary (a disk can grow without a new VM). A daily snapshot schedule that keeps 7 snapshots. The snapshots hold the Langfuse data (S2-03) and the Collector files. The monitor data is in Cloud SQL, with its own backups. |
-| Image | Debian 12 (the existing VM; the plan had Ubuntu 24.04 LTS), Shielded VM on |
+| Disk | 100 GB (the existing VM; the plan had 200 GiB). Langfuse recommends 100 GiB for its data alone, so S2-03 checks the free space and grows the disk if necessary (a disk can grow without a new VM). ~~A daily snapshot schedule that keeps 7 snapshots.~~ **No snapshot schedule (decided 2026-10-15): the test host is a development environment.** The monitor data is in Cloud SQL, with its own backups. Accepted risk: if the disk is lost, the Langfuse data (S2-03) and the span files on the VM are lost; they are test data. Production has its own backup plan (S3-06, S4-01). |
+| Image | Debian 12 (the existing VM; the plan had Ubuntu 24.04 LTS), Shielded VM with integrity monitoring and vTPM on. **Secure Boot off (decided 2026-10-15): the test host is a development environment.** |
 | Network | No external IP. Cloud NAT for outbound traffic only (Docker images, operating-system updates). |
 | Service account | A dedicated account with only the roles that the VM needs, for example log and metric writer. Do not use the default Compute Engine service account. |
 | SSH | Only through IAP: `gcloud compute ssh <vm> --tunnel-through-iap`. The firewall allows port 22 only from the IAP range `35.235.240.0/20`. |
@@ -601,7 +601,7 @@ other keys. S3-05 records this exception.
 
 **Acceptance criteria**
 - [ ] The answers to the prerequisites are in this issue.
-- [ ] The VM exists with the settings in the table. It has no external IP.
+- [ ] The VM exists with the settings in the table. It has no external IP. (No snapshot schedule and Secure Boot off: accepted for the development test host, 2026-10-15.)
 - [ ] The monitor backend and the Collector run on the VM.
 - [ ] The Cloud SQL instance has the settings in the table. It has no public IP. It accepts only TLS connections.
 - [ ] The backend connects to Cloud SQL over the private IP with `sslmode=verify-ca`. The migrations run when the backend starts.
