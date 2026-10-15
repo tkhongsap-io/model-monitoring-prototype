@@ -47,6 +47,20 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-15 — S1-04: dev-host exceptions for snapshots and Secure Boot
+
+- Decided (project owner): the test host is a development environment, so it needs no
+  daily snapshot schedule and no Secure Boot. Checked on 2026-10-14: no resource policy in
+  the project; Shielded VM has integrity monitoring and vTPM on, Secure Boot off. The
+  monitor data stays safe in Cloud SQL (7 backups, PITR). Accepted risk: a lost VM disk
+  loses the Langfuse data and the span files (test data). Production keeps its own backup
+  plan (S3-06, S4-01).
+- Answered on #6: the job VM `test-internal-model` in `test-subnet` is enough for S1-04
+  tests 1 and 2; test 1 runs again from Cloud Run in S2-06.
+- Changed: `issues.md` S1-04 (the Disk and Image rows, the VM criterion). No code change.
+- Next: sync #6 from `issues.md`, tick the VM criterion and close S1-04. Sprint 1 is then
+  complete except S1-12 (after October).
+
 ### 2026-10-15 — S1-06: the span-file cleanup moves to S3-03
 
 - Found: the last S1-06 criterion ("after S2-03 works, delete the file output") was stale.
