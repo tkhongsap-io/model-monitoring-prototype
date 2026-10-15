@@ -147,7 +147,8 @@ def test_langfuse_smoke_workflow():
              "scripts/langfuse-smoke.sh", ".github/workflows/langfuse-smoke.yml",
              "backend/app/trace_check.py", "backend/scripts/check_trace.py",
              "backend/app/batch_evaluator.py", "backend/app/adapters/langfuse_scores.py",
-             "backend/app/engines/batch_grading.py"}
+             "backend/app/engines/batch_grading.py", "backend/app/langfuse_projects.py",
+             "deploy/compose/otel-collector.routes.local.yaml", "deploy/compose/compose.local.yaml"}
     triggers = workflow[True]
     assert set(triggers["pull_request"]["paths"]) == paths
     assert set(triggers["push"]["paths"]) == paths and triggers["push"]["branches"] == ["dev"]
@@ -156,3 +157,22 @@ def test_langfuse_smoke_workflow():
     assert workflow["permissions"] == {"contents": "read"}
     assert any(step.get("run") == "bash scripts/langfuse-smoke.sh" for step in job["steps"])
     assert "secrets." not in WORKFLOW.read_text(encoding="utf-8")
+
+
+def test_collector_routing_test_script():
+    text = (ROOT / "scripts" / "collector-routing-test.sh").read_text(encoding="utf-8")
+    assert text.startswith("#!/usr/bin/env bash\n") and "set -euo pipefail" in text
+    assert "otel/opentelemetry-collector-contrib:0.161.0" in text
+    assert "routes --use-cases unrouted,rtr-fraud-validation --exporter file" in text
+    for case in ("resource-label", "span-label", "service-name", "no-label", "resource-wins"):
+        assert case in text, case
+    wf = (ROOT / ".github" / "workflows" / "collector-routing.yml").read_text(encoding="utf-8")
+    assert "bash scripts/collector-routing-test.sh" in wf
+    for path in ("backend/app/langfuse_projects.py", "backend/scripts/langfuse_projects.py",
+                 "deploy/compose/otel-collector.yaml", "scripts/collector-routing-test.sh"):
+        assert path in wf, path
+
+
+def test_langfuse_smoke_checks_the_project():
+    text = SMOKE.read_text(encoding="utf-8")
+    assert "observations in Langfuse project rtr-fraud-validation" in text

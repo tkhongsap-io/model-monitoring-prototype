@@ -101,6 +101,7 @@ STEP="trace check with Langfuse"
 OUT="$(bash "$ROOT/deploy/compose/check-trace.sh" "$TRACE_ID" --wait 90 || true)"
 echo "$OUT"
 grep -q "RESULT: OK (5 of 5 found)" <<<"$OUT"
+grep -q "observations in Langfuse project rtr-fraud-validation" <<<"$OUT"
 
 STEP="grade score in Langfuse"
 AUTH="$(python3 -c 'import base64; print(base64.b64encode(b"pk-lf-local-00000000-0000-0000-0000-000000000000:sk-lf-local-00000000-0000-0000-0000-000000000000").decode())')"
