@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-10-14 |
-| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. S3-08a (#81, the architecture draft for gate 4) added on 2026-10-12. S3-08b (#85, the diagram skill and the versioned architecture diagram) added on 2026-10-13. S1-08 (#10) moved to Sprint 3 on 2026-10-14: security approves it through governance gates 4 and 6. |
+| **Status** | Reviewed sprint by sprint on 2026-10-03 and 2026-10-04. Revised on 2026-10-05: SSO login, the judge through the company LiteLLM proxy, and the test host in GCP. Posted to GitHub as issues #3 to #38. Revised on 2026-10-09: identity-only for the whole MVP, and the AI governance document track (S2-12 to S2-14, S3-08, S3-09, S4-08), posted as issues #73 to #78. S3-08a (#81, the architecture draft for gate 4) added on 2026-10-12. S3-08b (#85, the diagram skill and the versioned architecture diagram) added on 2026-10-13. S1-08 (#10) moved to Sprint 3 on 2026-10-14: security approves it through governance gates 4 and 6. The S1-06 span-file cleanup moved to S3-03 on 2026-10-15. |
 | **Language** | ASD-STE100 (Simplified Technical English), about 80% strict |
 | **Related** | [Plan](plan.md) · [One-page summary and flows](summary.md) · [LLM metrics and data standard](llm-metrics-standard.md) |
 
@@ -699,7 +699,7 @@ the dashboard on port 8080 and Langfuse on port 3000, for the staff network rang
 - [ ] `/otlp/*` rejects a request without the correct OTLP token. The OTLP token is different from the API key.
 - [ ] The GCP job reads the OTLP token from Secret Manager and sends it with `OTEL_EXPORTER_OTLP_HEADERS`.
 - [ ] The Collector configuration is in the repository. It contains no secrets.
-- [ ] After S2-03 works, a cleanup step deletes the file output on the test host.
+- [ ] ~~After S2-03 works, a cleanup step deletes the file output on the test host.~~ Moved to S3-03 (2026-10-15). S2-03 keeps the file with rotation, because the trace check tool reads its span items from it.
 
 **How to test**
 1. Local: send test spans with `telemetrygen traces --otlp-http`. Make sure that the file output contains them.
@@ -1190,7 +1190,7 @@ GCP spans to the Langfuse OTLP endpoint (`/api/public/otel`) with the Langfuse p
 - The Collector exporter sends the header `x-langfuse-ingestion-version: 4`. Without this header, new data can appear in Langfuse up to 10 minutes late.
 - Set the retention period in Langfuse from S1-08.
 - Keep the Langfuse keys as host secrets. Do not put them in files in git.
-- When this issue works, delete the Sprint 1 file output on the test host (S1-06).
+- ~~When this issue works, delete the Sprint 1 file output on the test host (S1-06).~~ Changed 2026-10-12: the span file stays, with rotation (100 MB, 14 days, 5 backups), because the trace check tool reads its span items from it. The delete step is in S3-03 (2026-10-15).
 
 **Change to S1-07:** The trace check tool reads Langfuse through the Observations API v2.
 Most other Langfuse read APIs can be up to 10 minutes behind, so the tool would show
@@ -1937,6 +1937,7 @@ HTTPS through the front door and the network rules. This issue does not repeat t
 | Attribute filter in the Collector | The helper file removes attributes in the GCP job (S2-04). The Collector filter is a second protection, for example for a job that uses an old helper file. Use the same allowlist. |
 | Memory limit | A large burst of spans cannot stop the Collector |
 | Disk queue for the Langfuse exporter | If Langfuse is down, or the Collector restarts, the spans wait on disk and are not lost |
+| Remove the span file output (moved from S1-06 on 2026-10-15) | The span file is a second copy of the spans on the VM disk. Remove it only when the trace check tool reads every item from Langfuse. Until then, the tool needs the file. |
 
 The API keeps the API key in October. We do not change to a Google identity token, unless
 security requires it in S1-08.
@@ -1946,11 +1947,13 @@ security requires it in S1-08.
 - [ ] A burst of spans above the memory limit does not stop the Collector. The Collector refuses the extra spans, and the senders try again.
 - [ ] Spans that arrive while Langfuse is down are in Langfuse after recovery, one time only.
 - [ ] Spans in the disk queue stay after a Collector restart.
+- [ ] The trace check tool reads every item from Langfuse, not from the span file. Then the `file` exporter is removed from the Collector, and the span files on the test host are deleted. If the tool cannot read every item from Langfuse in October, the file stays with rotation, and this issue records the reason.
 
 **How to test**
 1. Send a span with a forbidden attribute (for example `prompt`). Make sure that Langfuse does not show it.
 2. Send a large burst with `telemetrygen`. Make sure that the Collector continues to run.
 3. Stop Langfuse. Send spans. Restart the Collector. Start Langfuse. Make sure that all the spans arrive one time.
+4. Before you delete the span files: run the trace check tool on a real run trace (for example `9cca91a4107015b782fbcb9b15710a0d`) without the file. Make sure that the result is `OK` from Langfuse only.
 
 ### S3-04 — Failure and recovery drills
 

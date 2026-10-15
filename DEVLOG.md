@@ -47,6 +47,21 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-15 — S1-06: the span-file cleanup moves to S3-03
+
+- Found: the last S1-06 criterion ("after S2-03 works, delete the file output") was stale.
+  S2-03 (2026-10-12) keeps `/data/spans.jsonl` with rotation (100 MB, 14 days, 5 backups),
+  because the trace check tool reads the monitor span, the GCP root span and the ancestor
+  link from it. A delete now would break the trace check, also for the Sprint 1 evidence
+  traces. Nothing was deleted on the test host.
+- Decided (project owner): the cleanup moves to S3-03 (Collector hardening) as a new
+  criterion: the trace check reads every item from Langfuse, then the `file` exporter and
+  the span files are removed. If that is not possible in October, the file stays and S3-03
+  records the reason.
+- Changed: `issues.md` (S1-06 criterion struck and moved, the S2-03 rule, S3-03 row,
+  criterion and test step 4). No code change.
+- Next: close S1-06 (#8); sync the bodies of #8, #17 (S2-03) and #27 (S3-03) from `issues.md`.
+
 ### 2026-10-15 — Sprint 1: first real GCP runs pass on the test host
 
 - The GCP job developer ran `rtr-fraud-validation` on 2026-10-14 from the VM
