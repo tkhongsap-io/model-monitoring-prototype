@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `deploy/test-host/`: an `openssl` private CA script, an nginx HTTPS site for port 443
+  (only `/api/health` and `/api/batch/runs` reach the backend), and a runbook for the
+  private GCP test host.
+
 ### Changed
 
 - Every pulled telemetry window must carry `contract_version` `"1.0"` or `"1.1"`;

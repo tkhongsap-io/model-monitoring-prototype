@@ -47,6 +47,23 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-15 — test host HTTPS with an openssl private CA
+
+- Changed: added `deploy/test-host/` so that Prakasit can test HTTPS on the private GCP test
+  host (S1-04, S1-06). `make-private-ca.sh` makes a root CA once and issues a 90-day nginx
+  server certificate for the internal IP, `localhost` and an optional private DNS name.
+  `nginx-test-host.conf` serves port 443 and sends only `/api/health` and `/api/batch/runs`
+  to the backend; other paths return `404`. The runbook tests on the VM and from a laptop
+  through an IAP SSH tunnel, so no new firewall rule is necessary. Caddy was considered and
+  dropped, because nginx already runs on the VM. Plan:
+  [changes/2026-10-15-test-host-self-signed-https/plan.md](changes/2026-10-15-test-host-self-signed-https/plan.md).
+- Evidence: `tests/test_docs.py`. The script and the nginx site were not run: there is no
+  VM access and no Docker or nginx on this laptop.
+- Remaining:
+  - Run the runbook on the VM, then record `nginx -t` and the `curl` results here.
+  - The nginx site assumes the backend on `127.0.0.1:8000` and no other site on port 443.
+  - Renewal is manual every 90 days.
+
 ### 2026-10-05 — batch MVP plan: the test host moves to GCP
 
 - Changed: the project owner decided that the Sprint 1 to 3 test host runs in GCP. It is
