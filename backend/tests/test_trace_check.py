@@ -147,9 +147,10 @@ def test_langfuse_item_skipped_without_settings():
 
 def test_langfuse_item_found_and_missing():
     names = ["batch.run", "batch.send", "POST", "monitor.ingest"]
-    found = check(T, [row()], full_trace(), backend_only=False, langfuse_names=names)
+    found = check(T, [row()], full_trace(), backend_only=False, langfuse_names=names,
+                  langfuse_project="rtr")
     assert states(found)["langfuse trace"] == FOUND
-    assert detail(found, "langfuse trace") == "4 observations in Langfuse"
+    assert detail(found, "langfuse trace") == "4 observations in Langfuse project rtr"
     assert render(found).splitlines()[-1] == "RESULT: OK (5 of 5 found)"
     backend_only = check(T, [row()], full_trace(), backend_only=True,
                          langfuse_names=["monitor.ingest"])

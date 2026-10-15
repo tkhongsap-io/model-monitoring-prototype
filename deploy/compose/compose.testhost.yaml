@@ -2,13 +2,14 @@
 # Never use this file on a laptop. On the VM, run from /opt/model-monitor/compose:
 #   docker compose -f compose.yaml -f compose.testhost.yaml up -d --wait
 # BACKEND_IMAGE and DASHBOARD_IMAGE come from the .env file in that folder (image names, not secrets); use the same run number for both.
-# Every secret comes from /opt/model-monitor/backend.env on the VM (chmod 600), never from
-# git. See deploy/compose/TESTHOST.md.
+# Secrets come from the host env files and the projects env (chmod 600), never from git. See deploy/compose/TESTHOST.md.
 services:
   backend:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set}
     env_file:
       - /opt/model-monitor/backend.env
+      - path: /opt/model-monitor/langfuse-generated/projects.env
+        required: false
     volumes:
       # Cloud SQL server CA for sslmode=verify-ca (a public certificate, not a secret)
       - /opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro
@@ -17,10 +18,14 @@ services:
       - "127.0.0.1:8000:8000"
 
   collector:
+    volumes:
+      - /opt/model-monitor/langfuse-generated/routes.yaml:/etc/otelcol/routes.yaml:ro
     env_file:
       # OTLP_TOKEN of the GCP jobs (S1-06); made by make-collector-env.sh, mode 600
       - path: /opt/model-monitor/collector.env
         required: true
+      - path: /opt/model-monitor/langfuse-generated/projects.env
+        required: false
 
   dashboard:
     image: ${DASHBOARD_IMAGE:?DASHBOARD_IMAGE is not set}
@@ -30,5 +35,15 @@ services:
     env_file:
       # CHECK_DATABASE_URL with monitor_readonly (S1-11); made by make-check-env.sh, mode 600
       - /opt/model-monitor/check.env
+      - path: /opt/model-monitor/langfuse-generated/projects.env
+        required: false
     volumes:
       - /opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro
+
+  langfuse-projects:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set}
+    user: "0:0"
+    volumes:
+      - /opt/model-monitor/langfuse-projects:/projects
+      - /opt/model-monitor/langfuse-generated:/generated
+      - /opt/langfuse/langfuse.env:/langfuse.env:ro

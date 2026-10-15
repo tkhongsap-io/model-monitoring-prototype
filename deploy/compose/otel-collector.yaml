@@ -1,5 +1,7 @@
 # OTel Collector for the batch MVP (S1-06).
-# Writes the spans to the log, to /data/spans.jsonl (rotated) and to Langfuse (S2-03).
+# Writes the spans to the log, to /data/spans.jsonl (rotated) and, through the connector
+# routing/langfuse (defined in the routes file, S2-03b), to the Langfuse project of each
+# span's use case.
 # S3-03 adds the memory limit and attribute filter. Credentials come from the environment.
 extensions:
   health_check:
@@ -34,12 +36,6 @@ exporters:
       max_megabytes: 100
       max_days: 14
       max_backups: 5
-  # Langfuse OTLP endpoint (S2-03); the project keys come from the environment.
-  otlphttp/langfuse:
-    endpoint: http://langfuse-web:3000/api/public/otel
-    headers:
-      Authorization: "Basic ${env:LANGFUSE_OTLP_AUTH}"
-      x-langfuse-ingestion-version: "4"
 
 service:
   extensions: [health_check, bearertokenauth]
@@ -47,4 +43,4 @@ service:
     traces:
       receivers: [otlp, otlp/external]
       processors: [batch]
-      exporters: [debug, file, otlphttp/langfuse]
+      exporters: [debug, file, routing/langfuse]

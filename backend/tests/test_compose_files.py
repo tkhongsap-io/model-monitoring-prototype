@@ -33,7 +33,7 @@ def test_images_are_pinned():
 
 def test_base_file_has_no_local_settings():
     base = _load("compose.yaml")["services"]
-    assert set(base) == {"backend", "collector", "collector-init", "trace-check", "dashboard"}
+    assert set(base) == {"backend", "collector", "collector-init", "trace-check", "dashboard", "langfuse-projects"}
     for service in base.values():
         assert "build" not in service and "ports" not in service
     backend = base["backend"]
@@ -103,13 +103,9 @@ def test_collector_config_has_internal_and_token_receivers():
     assert config["exporters"]["file"] == {
         "path": "/data/spans.jsonl",
         "rotation": {"max_megabytes": 100, "max_days": 14, "max_backups": 5}}
-    assert config["exporters"]["otlphttp/langfuse"] == {
-        "endpoint": "http://langfuse-web:3000/api/public/otel",
-        "headers": {"Authorization": "Basic ${env:LANGFUSE_OTLP_AUTH}",
-                    "x-langfuse-ingestion-version": "4"}}
     traces = config["service"]["pipelines"]["traces"]
     assert traces == {"receivers": ["otlp", "otlp/external"], "processors": ["batch"],
-                      "exporters": ["debug", "file", "otlphttp/langfuse"]}
+                      "exporters": ["debug", "file", "routing/langfuse"]}
     for word in ("password", "secret", "local-dev-otlp-token", "pk-lf-", "sk-lf-"):
         assert word not in text.lower()
 
@@ -171,11 +167,11 @@ def test_ci_workflow_paths():
 
 def test_testhost_file_uses_registry_image_and_host_secrets():
     host = _load("compose.testhost.yaml")["services"]
-    assert set(host) == {"backend", "collector", "trace-check", "dashboard"}   # no database on the VM
+    assert set(host) == {"backend", "collector", "trace-check", "dashboard", "langfuse-projects"}   # no database on the VM
     backend = host["backend"]
     assert backend["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
     assert "build" not in backend and "environment" not in backend
-    assert backend["env_file"] == ["/opt/model-monitor/backend.env"]
+    assert "/opt/model-monitor/backend.env" in backend["env_file"]
     assert backend["ports"] == ["127.0.0.1:8000:8000"]   # for operators in the VM; jobs use nginx
     assert backend["volumes"] == [
         "/opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro"]
@@ -204,12 +200,15 @@ def test_trace_check_service_is_a_read_only_tool():
     assert local["environment"] == {
         "CHECK_DATABASE_URL": "postgresql://monitor:monitor@postgres:5432/monitor",
         "CHECK_LANGFUSE_URL": "${CHECK_LANGFUSE_URL:-}",   # set only by langfuse-smoke
-        "CHECK_LANGFUSE_PUBLIC_KEY": "pk-lf-local-00000000-0000-0000-0000-000000000000",
-        "CHECK_LANGFUSE_SECRET_KEY": "sk-lf-local-00000000-0000-0000-0000-000000000000"}
+        "LANGFUSE_PROJECTS": "unrouted,rtr-fraud-validation",
+        "LANGFUSE_PK__UNROUTED": "pk-lf-local-00000000-0000-0000-0000-000000000000",
+        "LANGFUSE_SK__UNROUTED": "sk-lf-local-00000000-0000-0000-0000-000000000000",
+        "LANGFUSE_PK__RTR_FRAUD_VALIDATION": "pk-lf-local-00000000-0000-0000-0000-000000000000",
+        "LANGFUSE_SK__RTR_FRAUD_VALIDATION": "sk-lf-local-00000000-0000-0000-0000-000000000000"}
     assert "DATABASE_URL" not in local["environment"]
     host = _load("compose.testhost.yaml")["services"]["trace-check"]
     assert host["image"] == "${BACKEND_IMAGE:?BACKEND_IMAGE is not set}"
-    assert host["env_file"] == ["/opt/model-monitor/check.env"]
+    assert "/opt/model-monitor/check.env" in host["env_file"]
     assert host["volumes"] == [
         "/opt/model-monitor/cloudsql-server-ca.pem:/etc/model-monitor/cloudsql-server-ca.pem:ro"]
     assert "environment" not in host and "ports" not in host
@@ -265,12 +264,13 @@ def test_local_collector_uses_the_local_test_token():
     local = _load("compose.local.yaml")["services"]["collector"]
     assert local["environment"] == {
         "OTLP_TOKEN": "local-dev-otlp-token-not-a-secret",
-        "LANGFUSE_OTLP_AUTH": "cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA=="}
+        "LANGFUSE_OTLP_AUTH__UNROUTED": "cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA==",
+        "LANGFUSE_OTLP_AUTH__RTR_FRAUD_VALIDATION": "cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA=="}
 
 
 def test_testhost_collector_requires_the_env_file():
     host = _load("compose.testhost.yaml")["services"]["collector"]
-    assert host["env_file"] == [{"path": "/opt/model-monitor/collector.env", "required": True}]
+    assert {"path": "/opt/model-monitor/collector.env", "required": True} in host["env_file"]
     assert "environment" not in host
 
 
@@ -297,8 +297,8 @@ def test_make_collector_env_refuses_short_tokens():
 def test_local_backend_langfuse_is_opt_in():
     env = _load("compose.local.yaml")["services"]["backend"]["environment"]
     assert env["LANGFUSE_HOST"] == "${BACKEND_LANGFUSE_HOST:-}"      # only langfuse-smoke sets it
-    assert env["LANGFUSE_PUBLIC_KEY"] == "pk-lf-local-00000000-0000-0000-0000-000000000000"
-    assert env["LANGFUSE_SECRET_KEY"] == "sk-lf-local-00000000-0000-0000-0000-000000000000"
+    assert env["LANGFUSE_PK__RTR_FRAUD_VALIDATION"] == "pk-lf-local-00000000-0000-0000-0000-000000000000"
+    assert env["LANGFUSE_SK__RTR_FRAUD_VALIDATION"] == "sk-lf-local-00000000-0000-0000-0000-000000000000"
     assert env["BATCH_EVALUATOR_INTERVAL_S"] == "5"
 
 
@@ -352,3 +352,66 @@ def test_compose_smoke_reaches_the_dashboard():
         assert check in text, check
     workflow = (ROOT / ".github" / "workflows" / "compose-smoke.yml").read_text(encoding="utf-8")
     assert '"artifacts/control-tower/**"' in workflow and '"deploy/dashboard/**"' in workflow
+
+
+def test_collector_loads_base_and_routes():
+    base = _load("compose.yaml")["services"]["collector"]
+    assert base["command"] == ["--config=/etc/otelcol/config.yaml",
+                               "--config=/etc/otelcol/routes.yaml"]
+    local = _load("compose.local.yaml")["services"]["collector"]
+    assert "./otel-collector.routes.local.yaml:/etc/otelcol/routes.yaml:ro" in local["volumes"]
+    env = local["environment"]
+    assert set(k for k in env if k.startswith("LANGFUSE_OTLP_AUTH__")) == {
+        "LANGFUSE_OTLP_AUTH__UNROUTED", "LANGFUSE_OTLP_AUTH__RTR_FRAUD_VALIDATION"}
+    host = _load("compose.testhost.yaml")["services"]["collector"]
+    assert "/opt/model-monitor/langfuse-generated/routes.yaml:/etc/otelcol/routes.yaml:ro" in host["volumes"]
+    assert {"path": "/opt/model-monitor/langfuse-generated/projects.env",
+            "required": False} in host["env_file"]
+
+
+def test_base_collector_config_routes_to_langfuse():
+    import yaml as _yaml
+    text = (COMPOSE / "otel-collector.yaml").read_text(encoding="utf-8")
+    cfg = _yaml.safe_load(text)
+    assert "otlphttp/langfuse" not in cfg["exporters"]
+    assert cfg["service"]["pipelines"]["traces"]["exporters"] == ["debug", "file", "routing/langfuse"]
+
+
+def test_langfuse_projects_tool_service():
+    base = _load("compose.yaml")["services"]["langfuse-projects"]
+    assert base["profiles"] == ["tools"]
+    assert base["entrypoint"] == ["python", "scripts/langfuse_projects.py"]
+    assert base["networks"] == ["default", "edge"]
+    host = _load("compose.testhost.yaml")["services"]["langfuse-projects"]
+    assert host["user"] == "0:0"
+    assert set(host["volumes"]) == {
+        "/opt/model-monitor/langfuse-projects:/projects",
+        "/opt/model-monitor/langfuse-generated:/generated",
+        "/opt/langfuse/langfuse.env:/langfuse.env:ro"}
+
+
+def test_backend_and_trace_check_read_projects_env_on_the_test_host():
+    host = _load("compose.testhost.yaml")["services"]
+    entry = {"path": "/opt/model-monitor/langfuse-generated/projects.env", "required": False}
+    for name in ("backend", "trace-check"):
+        assert entry in host[name]["env_file"], name
+
+
+def test_local_project_keys():
+    local = _load("compose.local.yaml")["services"]
+    for name in ("backend", "trace-check"):
+        env = local[name]["environment"]
+        assert env["LANGFUSE_PROJECTS"] == "unrouted,rtr-fraud-validation"
+        for slug in ("UNROUTED", "RTR_FRAUD_VALIDATION"):
+            assert env[f"LANGFUSE_PK__{slug}"] == "pk-lf-local-00000000-0000-0000-0000-000000000000"
+            assert env[f"LANGFUSE_SK__{slug}"] == "sk-lf-local-00000000-0000-0000-0000-000000000000"
+
+
+def test_add_langfuse_project_wrapper():
+    text = (COMPOSE / "add-langfuse-project.sh").read_text(encoding="utf-8")
+    assert text.startswith("#!/usr/bin/env bash\n") and "\r\n" not in text
+    assert "set -euo pipefail" in text
+    for word in ("/opt/model-monitor/langfuse-projects", "/opt/model-monitor/langfuse-generated",
+                 ".incoming.keys", "--profile tools run --rm -T langfuse-projects",
+                 "--from-langfuse-env /langfuse.env", "--force-recreate collector backend"):
+        assert word in text, word

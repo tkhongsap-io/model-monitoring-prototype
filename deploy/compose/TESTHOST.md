@@ -457,6 +457,53 @@ built UI; its **dashboard file server** listens on 8090 inside Docker only.
 
    Open `http://localhost:8082/health-grid`. The health grid shows `rtr-fraud-validation` only.
 
+## Langfuse projects per use case (S2-03b)
+
+Each use case has its own Langfuse project, named exactly its `use_case_id`. Spans with no
+known use case go to the project `unrouted`. Project files (the keys) are in
+`/opt/model-monitor/langfuse-projects/` (700, files 600); the project tool generates the
+routes file `/opt/model-monitor/langfuse-generated/routes.yaml` and the projects env
+`/opt/model-monitor/langfuse-generated/projects.env`. Never edit the generated files.
+
+### The switch (one time)
+
+1. Copy `deploy/compose/` (compose files, `otel-collector.yaml`, `add-langfuse-project.sh`) to
+   `/opt/model-monitor/compose/`, and set `BACKEND_IMAGE` and `DASHBOARD_IMAGE` to the build
+   that contains S2-03b; `pull`.
+2. In the Langfuse UI (tunnel to 3000): Settings of the project `model-monitor` → rename it
+   to `unrouted`.
+3. On the VM:
+
+   ```sh
+   sudo bash /opt/model-monitor/compose/add-langfuse-project.sh unrouted --from-langfuse-env
+   ```
+
+4. Add `rtr-fraud-validation` with the steps below, then restart:
+
+   ```sh
+   cd /opt/model-monitor/compose && sudo docker compose -f compose.yaml -f compose.testhost.yaml up -d --force-recreate --wait collector backend
+   ```
+
+5. After the next RTR run: `check-trace.sh <trace_id>` shows `5 of 5` and
+   `observations in Langfuse project rtr-fraud-validation`.
+
+### Add a project for a use case (about 2 minutes)
+
+1. The use case must be in `backend/registry/batch-use-cases.yaml` (deployed).
+2. Langfuse UI → New project, named exactly the `use_case_id` → Settings → API keys →
+   Create. In a new file on the VM (for example with VS Code), write
+   `LANGFUSE_PUBLIC_KEY=<pk-lf-…>` and `LANGFUSE_SECRET_KEY=<sk-lf-…>`. Never paste keys in chat.
+3. Run, then restart as the script prints:
+
+   ```sh
+   sudo bash /opt/model-monitor/compose/add-langfuse-project.sh <use_case_id> --keys-file <path>
+   ```
+
+   The script checks that the keys belong to the project `<use_case_id>`, writes the
+   project file, regenerates the routes file and the projects env, and deletes the keys
+   file. `--list` shows the projects; `--regenerate` rebuilds after a project file is removed.
+4. Add the team members to the project in the Langfuse UI.
+
 ## Check a trace (S1-07)
 
 One time, after the files are copied (the image must contain `scripts/check_trace.py`):

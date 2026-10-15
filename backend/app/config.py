@@ -108,6 +108,15 @@ BATCH_EVALUATOR_INTERVAL_S = float(_env("BATCH_EVALUATOR_INTERVAL_S", "30"))
 EVALUATOR_LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "").strip().rstrip("/")
 
 
+def langfuse_project_keys() -> dict[str, tuple[str, str]]:
+    """Key pairs of the Langfuse projects (S2-03b), by use case ID; `unrouted` is the default.
+
+    From LANGFUSE_PROJECTS and LANGFUSE_PK__/SK__<slug>; without LANGFUSE_PROJECTS the old
+    single key pair counts as `unrouted` (compatibility during the switch)."""
+    from .langfuse_projects import keys_from_env
+    return keys_from_env(os.environ, (LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY))
+
+
 _BUILD_SHA_FILE = BACKEND_DIR / ".build-sha"
 
 

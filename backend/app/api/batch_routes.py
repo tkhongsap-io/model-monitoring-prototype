@@ -81,12 +81,13 @@ def _too_large(span: trace.Span) -> JSONResponse:
 async def receive_batch_run(request: Request,
                             authorization: str | None = Header(default=None)):
     incoming = _has_incoming_context()
+    server = trace.get_current_span()
     with tracing.tracer().start_as_current_span("monitor.ingest") as span:
-        return await _ingest(request, authorization, span, incoming)
+        return await _ingest(request, authorization, span, incoming, server)
 
 
 async def _ingest(request: Request, authorization: str | None, span: trace.Span,
-                  incoming: bool) -> JSONResponse:
+                  incoming: bool, server: trace.Span) -> JSONResponse:
     key_use_case = _use_case_of_key(authorization)
     if key_use_case is None:
         span.set_attribute("outcome", "unauthorized")
@@ -125,6 +126,7 @@ async def _ingest(request: Request, authorization: str | None, span: trace.Span,
 
     identity = {"use_case_id": run.use_case_id, "run_id": run.run_id}
     span.set_attributes(identity)
+    server.set_attributes(identity)     # S2-03b: the Collector routes the server span too
     if run.use_case_id != key_use_case:
         span.set_attribute("outcome", "forbidden")
         log.warning("batch run rejected: the API key is for another use case",

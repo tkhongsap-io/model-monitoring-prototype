@@ -204,16 +204,17 @@ import threading
 class FakeLangfuse:
     """A local HTTP server that answers the Observations API with a scripted reply."""
 
-    def __init__(self, status=200, body=None):
+    def __init__(self, status=200, body=None, by_auth=False):
         outer = self
+        self.by_auth = by_auth
         self.status, self.body, self.auth = status, body, None
 
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):  # noqa: N802
                 outer.auth = self.headers.get("Authorization")
                 outer.path = self.path
-                payload = outer.body if isinstance(outer.body, bytes) else json.dumps(
-                    outer.body).encode()
+                reply = outer.body.get(self.headers.get("Authorization"), {"data": []}) if outer.by_auth else outer.body
+                payload = reply if isinstance(reply, bytes) else json.dumps(reply).encode()
                 self.send_response(outer.status)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -230,10 +231,16 @@ class FakeLangfuse:
         self.server.shutdown()
 
 
-def langfuse_env(monkeypatch, url):
+def langfuse_env(monkeypatch, url, projects=None):
     monkeypatch.setenv("CHECK_LANGFUSE_URL", url)
     monkeypatch.setenv("CHECK_LANGFUSE_PUBLIC_KEY", "pk-lf-test")
     monkeypatch.setenv("CHECK_LANGFUSE_SECRET_KEY", "sk-lf-secret-value")
+    if projects:
+        monkeypatch.setenv("LANGFUSE_PROJECTS", ",".join(projects))
+        for name, (pk, sk) in projects.items():
+            slug = name.upper().replace("-", "_")
+            monkeypatch.setenv(f"LANGFUSE_PK__{slug}", pk)
+            monkeypatch.setenv(f"LANGFUSE_SK__{slug}", sk)
 
 
 def test_langfuse_item_found_through_the_api(database, tmp_path, monkeypatch, capsys):
@@ -280,3 +287,37 @@ def test_rotated_span_files_are_read(database, tmp_path, capsys):
     (tmp_path / "spans-2026-10-12T00-00-00.000.jsonl").write_text(
         otlp_line(raw_span("monitor.ingest", "b2", outcome="stored")) + "\n", encoding="utf-8")
     assert run([T, "--backend-only", "--spans-file", current]) == 0
+
+
+def basic(pk, sk):
+    return "Basic " + __import__("base64").b64encode(f"{pk}:{sk}".encode()).decode()
+
+
+def test_langfuse_item_reads_the_run_project(database, tmp_path, monkeypatch, capsys):
+    add_row(database)
+    path = spans_file(tmp_path, otlp_line(raw_span("monitor.ingest", "b2", outcome="stored")))
+    fake = FakeLangfuse(by_auth=True, body={
+        basic("pk-r", "sk-r"): {"data": [{"name": "monitor.ingest"}]}})
+    try:
+        langfuse_env(monkeypatch, fake.url, {"unrouted": ("pk-u", "sk-u"),
+                                             "rtr-fraud-validation": ("pk-r", "sk-r")})
+        assert run([T, "--backend-only", "--spans-file", path]) == 0
+    finally:
+        fake.close()
+    out = " ".join(capsys.readouterr().out.split())
+    assert "observations in Langfuse project rtr-fraud-validation" in out
+
+
+def test_langfuse_item_reports_unrouted(database, tmp_path, monkeypatch, capsys):
+    add_row(database)
+    path = spans_file(tmp_path, otlp_line(raw_span("monitor.ingest", "b2", outcome="stored")))
+    fake = FakeLangfuse(by_auth=True, body={
+        basic("pk-u", "sk-u"): {"data": [{"name": "monitor.ingest"}]}})
+    try:
+        langfuse_env(monkeypatch, fake.url, {"unrouted": ("pk-u", "sk-u"),
+                                             "rtr-fraud-validation": ("pk-r", "sk-r")})
+        assert run([T, "--backend-only", "--spans-file", path]) == 1
+    finally:
+        fake.close()
+    out = " ".join(capsys.readouterr().out.split())
+    assert "in unrouted, not in rtr-fraud-validation" in out

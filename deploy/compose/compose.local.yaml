@@ -26,8 +26,12 @@ services:
       BATCH_EVALUATOR_INTERVAL_S: "5"
       # Empty unless langfuse-smoke sets it: the plain smoke test has no Langfuse (skipped).
       LANGFUSE_HOST: ${BACKEND_LANGFUSE_HOST:-}
-      LANGFUSE_PUBLIC_KEY: pk-lf-local-00000000-0000-0000-0000-000000000000
-      LANGFUSE_SECRET_KEY: sk-lf-local-00000000-0000-0000-0000-000000000000   # local test value
+      # local test values
+      LANGFUSE_PROJECTS: unrouted,rtr-fraud-validation
+      LANGFUSE_PK__UNROUTED: pk-lf-local-00000000-0000-0000-0000-000000000000
+      LANGFUSE_SK__UNROUTED: sk-lf-local-00000000-0000-0000-0000-000000000000
+      LANGFUSE_PK__RTR_FRAUD_VALIDATION: pk-lf-local-00000000-0000-0000-0000-000000000000
+      LANGFUSE_SK__RTR_FRAUD_VALIDATION: sk-lf-local-00000000-0000-0000-0000-000000000000
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,8 +39,11 @@ services:
       - "127.0.0.1:8000:8000"
 
   collector:
+    volumes:
+      - ./otel-collector.routes.local.yaml:/etc/otelcol/routes.yaml:ro
     environment:
-      LANGFUSE_OTLP_AUTH: cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA==   # local test keys
+      LANGFUSE_OTLP_AUTH__UNROUTED: cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA==   # local test values
+      LANGFUSE_OTLP_AUTH__RTR_FRAUD_VALIDATION: cGstbGYtbG9jYWwtMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOnNrLWxmLWxvY2FsLTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMA==
       OTLP_TOKEN: local-dev-otlp-token-not-a-secret   # local test value, not a secret
     ports:
       - "127.0.0.1:4318:4318"
@@ -46,9 +53,15 @@ services:
     environment:
       # Empty unless langfuse-smoke sets it: the plain smoke test has no Langfuse (skipped item).
       CHECK_LANGFUSE_URL: ${CHECK_LANGFUSE_URL:-}
-      CHECK_LANGFUSE_PUBLIC_KEY: pk-lf-local-00000000-0000-0000-0000-000000000000
-      CHECK_LANGFUSE_SECRET_KEY: sk-lf-local-00000000-0000-0000-0000-000000000000   # local test value
+      # local test values
+      LANGFUSE_PROJECTS: unrouted,rtr-fraud-validation
+      LANGFUSE_PK__UNROUTED: pk-lf-local-00000000-0000-0000-0000-000000000000
+      LANGFUSE_SK__UNROUTED: sk-lf-local-00000000-0000-0000-0000-000000000000
+      LANGFUSE_PK__RTR_FRAUD_VALIDATION: pk-lf-local-00000000-0000-0000-0000-000000000000
+      LANGFUSE_SK__RTR_FRAUD_VALIDATION: sk-lf-local-00000000-0000-0000-0000-000000000000
       CHECK_DATABASE_URL: postgresql://monitor:monitor@postgres:5432/monitor   # local test value
+
+  langfuse-projects: {image: model-monitor-backend:local}
 
   dashboard:
     build:

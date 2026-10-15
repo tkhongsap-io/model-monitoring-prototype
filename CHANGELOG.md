@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- One Langfuse project for each use case (S2-03b, #96): the Collector routes every span to the
+  project named its `use_case_id` (resource `use.case.id`, else span `use_case_id`, else a
+  registered `service.name`); others go to `unrouted`. The backend labels its server span;
+  the evaluator and the trace check use the run's project. Projects are created in the
+  Langfuse UI; `add-langfuse-project.sh` checks the keys and regenerates the routes. New CI
+  test `collector-routing`.
+
 - Dashboard for the GCP use cases (S2-07): the unchanged control-tower UI shows each
   registered use case with its latest run, freshness, grade, lanes and "Unknown" reasons,
   from the new read-only dashboard API (`/api/live/portfolio`, `/api/live/use-case/{id}`, `/api/live/alerts`).

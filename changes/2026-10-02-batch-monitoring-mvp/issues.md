@@ -1165,6 +1165,8 @@ Collector (S1-05, S1-06). Thus the Langfuse keys stay in AWS.
 
 ### S2-03 — Collector exports to self-hosted Langfuse
 
+**S2-03b (#96, 2026-10-15):** one Langfuse project per use case; design in `changes/2026-10-15-langfuse-projects/`.
+
 **Changed 2026-10-12 (design: changes/2026-10-12-s2-03-langfuse/):** Langfuse runs in its own Compose project with private dependencies. Engineers use Google sign-in through the IAP tunnel. The span file stays with rotation; the cleanup rule moves to when the trace check reads every item from Langfuse.
 
 | Type | Owner | Depends on | Tested with | Size |
@@ -1211,6 +1213,8 @@ Most other Langfuse read APIs can be up to 10 minutes behind, so the tool would 
 4. Paired with S2-04 and S2-05: see the test steps in those issues.
 
 ### S2-04 — OTel helper file for the GCP jobs
+
+The OTel helper sets the resource label `use.case.id` (S2-03b routing).
 
 | Type | Owner | Depends on | Tested with | Size |
 |---|---|---|---|---|
