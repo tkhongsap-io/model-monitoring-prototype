@@ -47,6 +47,34 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-15 — Sprint 1: first real GCP runs pass on the test host
+
+- The GCP job developer ran `rtr-fraud-validation` on 2026-10-14 from the VM
+  `test-internal-model` in `test-subnet`. The code is on the job branch
+  `feature/implement-telemetry`, not on its `main`. Runs: a real published run
+  `…20261014T102518Z` (`201`), a resend of the same bytes `…104334Z` (`201`, then
+  `200 duplicate`), a wrong key `…104754Z` (`401`), a wrong URL `…101309Z` (`404`), and the
+  Collector not available `…103523Z` (`201`, 0 spans exported). All runs are identity-only.
+- Monitor-side checks (read-only, `backend:16`, 2026-10-15):
+  - Trace check: `9cca91a4107015b782fbcb9b15710a0d` and `dfef37a7aadccabc9d3d2fd13e50e77e`
+    each give `RESULT: OK (5 of 5 found)` (run row, monitor span, GCP root span, ancestor
+    link `monitor.ingest → POST /api/batch/runs → POST → batch.send`, Langfuse trace).
+  - `batch_runs`: 1 row each for `…102518Z`, `…104334Z` (after the duplicate) and
+    `…103523Z`, all `traceparent`, `record_count` 0, `records_not_approved`; 0 rows for the
+    wrong key and the wrong URL.
+  - Collector: the wrong-key trace has `batch.send` ERROR `http_401` (`attempt` 1,
+    `http_status` 401) and `monitor.ingest` `unauthorized`.
+  - Logs since 2026-10-14 (backend, nginx): 0 matches for `authorization`, `bearer`,
+    `request_count` and `records_reason`.
+- Closed: S1-02a (#43), S1-03 (#5), S1-05 (#7), S1-10 (#12), the Sprint 1 demo. Evidence
+  also on #4. Unit tests only: `status: failed` for a failed job, and the error status on
+  `batch.run`.
+- Remaining in Sprint 1: S1-04 (#6), the Secure Boot and snapshot decisions (the job
+  subnet test passed from `test-internal-model`); S1-06 (#8), the file-output cleanup
+  after S2-03. For S2-06: merge the job branch, move the job to Cloud Run with Direct VPC
+  egress, and grant `secretAccessor` on the two secrets to the non-production job service
+  account (not granted yet; waits for the project owner).
+
 ### 2026-10-14 — S2-05 and S2-07 on the test host; Health grid; diagram versions
 
 - Test host: `backend:16` and `dashboard:16` run ("Build images" #16). The front door
