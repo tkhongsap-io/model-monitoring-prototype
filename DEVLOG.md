@@ -47,6 +47,20 @@ depend on. The spec is
 
 ## Work log
 
+### 2026-10-15 — S2-03b: one Langfuse project per use case
+
+- Built (Codex task by task from `changes/2026-10-15-langfuse-projects/plan.md`, reviewed by
+  Claude after each task): `app/langfuse_projects.py`, `scripts/langfuse_projects.py`, the
+  routes file and the `routing/langfuse` connector, the server-span label, per-project
+  scores and trace check, `add-langfuse-project.sh`, CI `collector-routing`.
+- Decisions: access per team; project name = `use_case_id`; `unrouted` for the rest; routing
+  resource label, then span label, then `service.name`; one YAML file per project;
+  projects created in the UI (the project API needs Langfuse Enterprise).
+- Evidence: Windows, outside the Codex sandbox: fast suite 591 passed, 9 deselected. Codex
+  fixes kept: folder mode 700 for the project files; `chmod 755` on the CI routing test folder.
+- Not run here: CI `collector-routing` (it fixes the routing syntax for Collector 0.161.0),
+  `langfuse-smoke`, `smoke` (on the PR), and the test-host switch.
+
 ### 2026-10-15 — S1-04: dev-host exceptions for snapshots and Secure Boot
 
 - Decided (project owner): the test host is a development environment, so it needs no
