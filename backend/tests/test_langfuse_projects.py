@@ -162,3 +162,9 @@ def test_config_langfuse_project_keys(monkeypatch):
     monkeypatch.setenv("LANGFUSE_PK__UNROUTED", "pk-u")
     monkeypatch.setenv("LANGFUSE_SK__UNROUTED", "sk-u")
     assert config.langfuse_project_keys() == {"unrouted": ("pk-u", "sk-u")}
+
+
+def test_committed_local_routes_file_is_generated():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[2] / "deploy" / "compose" / "otel-collector.routes.local.yaml"
+    assert path.read_text(encoding="utf-8") == lp.render_routes(["unrouted", "rtr-fraud-validation"])

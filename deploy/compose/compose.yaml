@@ -41,7 +41,7 @@ services:
 
   collector:
     image: otel/opentelemetry-collector-contrib:0.161.0
-    command: ["--config=/etc/otelcol/config.yaml"]
+    command: ["--config=/etc/otelcol/config.yaml", "--config=/etc/otelcol/routes.yaml"]
     volumes:
       - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
       - collector-data:/data
@@ -66,6 +66,14 @@ services:
       - collector-data:/otel:ro
     restart: "no"
     networks: [default, edge]   # reaches langfuse-web for the 5th item (S2-03)
+
+  # S2-03b project tool: a one-shot service, never started by `up` (profile tools). Run it
+  # with deploy/compose/add-langfuse-project.sh on the test host.
+  langfuse-projects:
+    profiles: ["tools"]
+    entrypoint: ["python", "scripts/langfuse_projects.py"]
+    restart: "no"
+    networks: [default, edge]
 
   # Dashboard (S2-07): the built UI files, handed out by the dashboard file server on 8090.
   # No published port: the front door (deploy/nginx, port 8082) is the only way in.
